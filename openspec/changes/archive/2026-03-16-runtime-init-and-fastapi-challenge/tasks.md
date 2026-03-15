@@ -25,25 +25,25 @@
 
 ## 4. ChallengeLayout Runtime 初始化
 
-- [ ] 4.1 在 `ChallengeLayout.vue` 的 `onMounted` 中：使用 virtual-fs WASM 解密，而非 TypeScript aesGcmDecrypt — 載入 `virtual-fs` WASM 模組（`wasm_fs_init` / `wasm_fs_read`）（challenge-runtime-init: App code is decrypted from encryptedFs and executed）
-- [ ] 4.2 從 frontmatter 的 `fsKeyParts` 重組 32-byte key，呼叫 `wasm_fs_init(paths, encryptedBlobs)` 初始化 FS store（challenge-runtime-init: Challenge page initializes WASM runtime on mount）
-- [ ] 4.3 呼叫 `wasm_fs_read` 解密所有 FS 條目（包含 `__app__`），取得 `appCode` 與 `fsEntries`
-- [ ] 4.4 以 `backend` 類型決定基礎 micropip 套件，`packages` 只加額外套件 — 依據 `backend` 決定基礎套件（`flask` → `['flask']`；`fastapi` → `['fastapi', 'anyio']`），合併 frontmatter `packages`，呼叫 `PythonRuntime.initialize(appCode, fsEntries, mergedPackages)` 或 `PhpRuntime.initialize(appCode, fsEntries)`（challenge-runtime-init: Python challenge runtime initializes on first mount）
-- [ ] 4.5 初始化期間顯示 loading 狀態，BrowserPanel Send 按鈕在 runtime ready 前 disabled（challenge-runtime-init: Loading state is shown during initialization）
-- [ ] 4.6 建立 `MessageChannel`，在 `REGISTER_CHALLENGE` 訊息中傳入 `port2` 作為 transferable（challenge-runtime-init: ChallengeLayout establishes MessageChannel with Service Worker）
-- [ ] 4.7 在 `port1` 監聽 `HANDLE_REQUEST` 訊息：重建 `Request`，呼叫 `runtime.handleRequest()`，序列化 response 回傳給 `responsePort`（challenge-runtime-init: ChallengeLayout handles HANDLE_REQUEST and responds）
-- [ ] 4.8 runtime 初始化確保只執行一次（challenge-runtime-init: Runtime initialization is idempotent）
-- [ ] 4.9 監聽 `navigator.serviceWorker` 的 `controllerchange` 事件，重新發送 `REGISTER_CHALLENGE` 以應對 SW 更新
+- [x] 4.1 在 `ChallengeLayout.vue` 的 `onMounted` 中：使用 virtual-fs WASM 解密，而非 TypeScript aesGcmDecrypt — 載入 `virtual-fs` WASM 模組（`wasm_fs_init` / `wasm_fs_read`）（challenge-runtime-init: App code is decrypted from encryptedFs and executed）
+- [x] 4.2 從 frontmatter 的 `fsKeyParts` 重組 32-byte key，呼叫 `wasm_fs_init(paths, encryptedBlobs)` 初始化 FS store（challenge-runtime-init: Challenge page initializes WASM runtime on mount）
+- [x] 4.3 呼叫 `wasm_fs_read` 解密所有 FS 條目（包含 `__app__`），取得 `appCode` 與 `fsEntries`
+- [x] 4.4 以 `backend` 類型決定基礎 micropip 套件，`packages` 只加額外套件 — 依據 `backend` 決定基礎套件（`flask` → `['flask']`；`fastapi` → `['fastapi', 'anyio']`），合併 frontmatter `packages`，呼叫 `PythonRuntime.initialize(appCode, fsEntries, mergedPackages)` 或 `PhpRuntime.initialize(appCode, fsEntries)`（challenge-runtime-init: Python challenge runtime initializes on first mount）
+- [x] 4.5 初始化期間顯示 loading 狀態，BrowserPanel Send 按鈕在 runtime ready 前 disabled（challenge-runtime-init: Loading state is shown during initialization）
+- [x] 4.6 建立 `MessageChannel`，在 `REGISTER_CHALLENGE` 訊息中傳入 `port2` 作為 transferable（challenge-runtime-init: ChallengeLayout establishes MessageChannel with Service Worker）
+- [x] 4.7 在 `port1` 監聽 `HANDLE_REQUEST` 訊息：重建 `Request`，呼叫 `runtime.handleRequest()`，序列化 response 回傳給 `responsePort`（challenge-runtime-init: ChallengeLayout handles HANDLE_REQUEST and responds）
+- [x] 4.8 runtime 初始化確保只執行一次（challenge-runtime-init: Runtime initialization is idempotent）
+- [x] 4.9 監聽 `navigator.serviceWorker` 的 `controllerchange` 事件，重新發送 `REGISTER_CHALLENGE` 以應對 SW 更新
 
 ## 5. FastAPI 示範挑戰
 
-- [ ] 5.1 建立 `docs/challenge/fastapi-demo/app.py`：FastAPI demo challenge is available as a working example — 含簡單 FastAPI 應用程式，包含 `/` 端點與一個安全漏洞（fastapi-challenge: FastAPI challenge responds to HTTP requests）
-- [ ] 5.2 建立 `docs/challenge/fastapi-demo/flag.txt`：含佔位 flag（例如 `FLAG{fastapi_demo_placeholder}`）
-- [ ] 5.3 建立 `docs/challenge/fastapi-demo.md`：frontmatter 含 `backend: fastapi`、`packages: ['fastapi', 'anyio']`、`app`、`fs`、`flag_verifier`（佔位）、`fs_key`（佔位）（fastapi-challenge: FastAPI challenge page loads and renders correctly；fastapi-challenge: FastAPI challenge frontmatter specifies packages）
-- [ ] 5.4 確認 FastAPI 挑戰出現在挑戰列表中
+- [x] 5.1 建立 `docs/challenge/fastapi-demo/app.py`：FastAPI demo challenge is available as a working example — 含簡單 FastAPI 應用程式，包含 `/` 端點與一個安全漏洞（fastapi-challenge: FastAPI challenge responds to HTTP requests）
+- [x] 5.2 建立 `docs/challenge/fastapi-demo/flag.txt`：含佔位 flag（例如 `FLAG{fastapi_demo_placeholder}`）
+- [x] 5.3 建立 `docs/challenge/fastapi-demo.md`：frontmatter 含 `backend: fastapi`、`packages: ['fastapi', 'anyio']`、`app`、`fs`、`flag_verifier`（佔位）、`fs_key`（佔位）（fastapi-challenge: FastAPI challenge page loads and renders correctly；fastapi-challenge: FastAPI challenge frontmatter specifies packages）
+- [x] 5.4 確認 FastAPI 挑戰出現在挑戰列表中
 
 ## 6. 整合驗收
 
-- [ ] 6.1 啟動 `pnpm dev`，導覽至 Flask（sqli-demo）挑戰：確認 runtime 初始化、Send 回傳正常 HTTP 回應（而非 503）
-- [ ] 6.2 啟動 `pnpm dev`，導覽至 FastAPI 示範挑戰：確認 micropip 安裝 fastapi/anyio、Send 回傳正常回應
-- [ ] 6.3 確認 `pnpm test` 通過所有新增與既有測試
+- [x] 6.1 啟動 `pnpm dev`，導覽至 Flask（sqli-demo）挑戰：確認 runtime 初始化、Send 回傳正常 HTTP 回應（而非 503）
+- [x] 6.2 啟動 `pnpm dev`，導覽至 FastAPI 示範挑戰：確認 micropip 安裝 fastapi/anyio、Send 回傳正常回應
+- [x] 6.3 確認 `pnpm test` 通過所有新增與既有測試

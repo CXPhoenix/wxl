@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
 import { Content } from 'vitepress/client'
 import BrowserPanel from '../components/BrowserPanel.vue'
@@ -7,10 +7,12 @@ import TerminalPanel from '../components/TerminalPanel.vue'
 import RepeatPanel from '../components/RepeatPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
 import { useFlagVerifier } from '../../challenge/flag-verifier'
+import { PythonRuntime } from '../composables/usePythonRuntime'
+import { PhpRuntime } from '../composables/usePhpRuntime'
 
 const { frontmatter, page } = useData()
 
-// Derive slug from relativePath: "challenges/sqli-demo.md" → "sqli-demo"
+// Derive slug from relativePath: "challenge/sqli-demo.md" → "sqli-demo"
 const slug = computed(() => {
   const rel: string = page.value.relativePath ?? ''
   return rel.replace(/^.*\//, '').replace(/\.md$/, '')
@@ -18,13 +20,20 @@ const slug = computed(() => {
 
 const fm = computed(() => frontmatter.value)
 
-// Collapsible description panel
+// ─── Runtime state ───────────────────────────────────────────────────────────
+const runtimeReady = ref(false)
+const runtimeError = ref<string | null>(null)
+
+let runtime: PythonRuntime | PhpRuntime | null = null
+let challengePort: MessagePort | null = null  // port1 — page listens here
+
+// ─── Collapsible description panel ───────────────────────────────────────────
 const descriptionCollapsed = ref(false)
 function toggleDescription() {
   descriptionCollapsed.value = !descriptionCollapsed.value
 }
 
-// Tab switching
+// ─── Tab switching ────────────────────────────────────────────────────────────
 type Tab = 'browser' | 'terminal' | 'repeater'
 const activeTab = ref<Tab>('browser')
 const tabs: { id: Tab; label: string }[] = [
@@ -33,31 +42,182 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'repeater', label: 'Repeater' },
 ]
 
-// Challenge dispatch: fetch via service worker intercept
+// ─── Challenge dispatch: fetch → SW → MessageChannel relay ───────────────────
 async function dispatch(request: Request): Promise<Response> {
   return fetch(request)
 }
 
-// Flag verification
+// ─── Flag verification ────────────────────────────────────────────────────────
 const { verify: verifyFlag } = useFlagVerifier(slug.value)
 async function verify(submitted: string): Promise<boolean> {
-  return verifyFlag(submitted, fm.value.flag_verifier ?? '')
+  return verifyFlag(submitted, fm.value.flag_verifier ?? fm.value.flagVerifier ?? '')
 }
 
-// Register challenge with service worker on mount
-onMounted(() => {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  }
+  return bytes
+}
+
+/** Map backend type to its required base micropip packages */
+const BASE_PACKAGES: Record<string, string[]> = {
+  flask:   ['flask'],
+  fastapi: ['fastapi', 'anyio'],
+}
+
+// ─── Runtime initialization ───────────────────────────────────────────────────
+
+async function initRuntime(): Promise<void> {
+  const backend: string = fm.value.backend ?? 'flask'
+  const encryptedFs: Record<string, string> | undefined = fm.value.encryptedFs
+  const fsKeyParts: string[] | undefined = fm.value.fsKeyParts
+  const extraPackages: string[] = fm.value.packages ?? []
+
+  // Guard: skip if frontmatter doesn't have processed FS data (e.g., placeholder)
+  if (!encryptedFs || !fsKeyParts || Object.keys(encryptedFs).length === 0) {
+    runtimeError.value = 'Challenge FS data not available (run pnpm challenge:keygen first)'
+    return
+  }
+
+  // 1. Load virtual-fs WASM module
+  const { default: initWasm, wasm_fs_init, wasm_fs_read } = await import(
+    /* @vite-ignore */ '/wasm/virtual-fs/virtual_fs.js'
+  )
+  await initWasm()
+
+  // 2. Reconstruct key from 3 obfuscated fragments
+  const hexKey = fsKeyParts.join('')
+  const keyBytes = hexToBytes(hexKey)
+
+  // 3. Initialize FS store with encrypted blobs (using virtual-fs WASM)
+  const paths = Object.keys(encryptedFs)
+  const blobs = paths.map((p) => encryptedFs[p])
+  wasm_fs_init(paths, blobs)
+
+  // 4. Decrypt all FS entries; separate __app__ from the rest
+  const fsEntries: Record<string, Uint8Array> = {}
+  let appCode = ''
+
+  for (const path of paths) {
+    const decrypted: Uint8Array = wasm_fs_read(keyBytes, path)
+    if (path === '__app__') {
+      appCode = new TextDecoder().decode(decrypted)
+    } else {
+      fsEntries[path] = decrypted
+    }
+  }
+
+  if (!appCode) {
+    runtimeError.value = 'App code not found in encrypted FS'
+    return
+  }
+
+  // 5. Determine packages: backend defaults + extra from frontmatter
+  const packages = [...(BASE_PACKAGES[backend] ?? []), ...extraPackages]
+
+  // 6. Initialize the appropriate runtime (only once — idempotency via initPromise)
+  if (backend === 'flask' || backend === 'fastapi') {
+    const { default: loadPyodide } = await import(
+      /* @vite-ignore */ 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js'
+    )
+    runtime = new PythonRuntime(loadPyodide)
+    await (runtime as PythonRuntime).initialize(appCode, fsEntries, packages)
+  } else if (backend === 'php') {
+    runtime = new PhpRuntime(() => {
+      throw new Error('PHP runtime loader not configured')
+    })
+    await (runtime as PhpRuntime).initialize(appCode, fsEntries)
+  }
+
+  runtimeReady.value = true
+}
+
+// ─── HANDLE_REQUEST listener ──────────────────────────────────────────────────
+
+async function handleRequest(event: MessageEvent): Promise<void> {
+  if (event.data?.type !== 'HANDLE_REQUEST') return
+  const { method, url, headers, body, responsePort } = event.data
+
+  try {
+    const request = new Request(url, {
+      method,
+      headers: new Headers(headers ?? []),
+      body: (method !== 'GET' && method !== 'HEAD' && body) ? body : undefined,
+    })
+
+    const response = await (runtime as PythonRuntime | PhpRuntime).handleRequest(request)
+    const resBodyBuffer = await response.arrayBuffer()
+    const resHeaders = [...response.headers.entries()]
+
+    responsePort.postMessage(
+      { status: response.status, headers: resHeaders, body: resBodyBuffer },
+      [resBodyBuffer],
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    responsePort.postMessage({ status: 500, headers: [], body: new TextEncoder().encode(JSON.stringify({ error: message })).buffer })
+  }
+}
+
+// ─── Register challenge and set up MessageChannel ─────────────────────────────
+
+function registerWithSW(mc: MessageChannel): void {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+  navigator.serviceWorker.ready.then((reg) => {
+    reg.active?.postMessage(
+      { type: 'REGISTER_CHALLENGE', slug: slug.value, backend: fm.value.backend ?? 'flask', port: mc.port2 },
+      [mc.port2],
+    )
+  })
+}
+
+onMounted(async () => {
+  // Set up MessageChannel — port1 stays in page, port2 goes to SW
+  const mc = new MessageChannel()
+  challengePort = mc.port1
+  challengePort.addEventListener('message', handleRequest)
+  challengePort.start()
+
+  // Register with SW (transfers port2)
+  registerWithSW(mc)
+
+  // Re-register on SW update (controllerchange)
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      const mc2 = new MessageChannel()
+      challengePort?.removeEventListener('message', handleRequest)
+      challengePort?.close()
+      challengePort = mc2.port1
+      challengePort.addEventListener('message', handleRequest)
+      challengePort.start()
+      registerWithSW(mc2)
+    })
+  }
+
+  // Initialize runtime (lazy, idempotent)
+  try {
+    await initRuntime()
+  } catch (err) {
+    runtimeError.value = err instanceof Error ? err.message : String(err)
+  }
+})
+
+onUnmounted(() => {
+  challengePort?.removeEventListener('message', handleRequest)
+  challengePort?.close()
+  challengePort = null
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then((reg) => {
-      reg.active?.postMessage({
-        type: 'REGISTER_CHALLENGE',
-        slug: slug.value,
-        backend: fm.value.backend ?? 'flask',
-      })
+      reg.active?.postMessage({ type: 'UNREGISTER_CHALLENGE', slug: slug.value })
     })
   }
 })
 
-// Static badge class maps (full class names for UnoCSS extraction)
+// ─── Static badge class maps (full class names for UnoCSS extraction) ─────────
 const difficultyBadge: Record<string, string> = {
   easy:    'ch-badge-easy',
   medium:  'ch-badge-medium',
@@ -83,6 +243,9 @@ const categoryBadge: Record<string, string> = {
         v-if="fm.category"
         :class="categoryBadge[fm.category] ?? 'ch-badge'"
         >{{ fm.category }}</span>
+        <!-- Runtime status indicator -->
+        <span v-if="!runtimeReady && !runtimeError" class="ch-badge text-[0.75em] opacity-60">Loading...</span>
+        <span v-if="runtimeError" class="ch-badge ch-badge-hard text-[0.75em]" :title="runtimeError">Runtime Error</span>
       </div>
       <a href="/challenges/" class="absolute inset-y-2 text-[0.9em] color-[var(--ch-accent)] no-underline whitespace-nowrap hover:underline">← Challenges</a>
     </header>
@@ -128,13 +291,13 @@ const categoryBadge: Record<string, string> = {
         </nav>
 
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
-          <BrowserPanel :slug="slug" :dispatch="dispatch" />
+          <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
         </div>
         <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-auto p-3">
-          <TerminalPanel :slug="slug" :dispatch="dispatch" />
+          <TerminalPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
         </div>
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-auto p-3">
-          <RepeatPanel :slug="slug" :dispatch="dispatch" />
+          <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
         </div>
       </main>
     </div>

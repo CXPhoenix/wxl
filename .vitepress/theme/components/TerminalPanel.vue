@@ -4,6 +4,7 @@ import { ref } from 'vue'
 const props = defineProps<{
   slug: string
   dispatch: (request: Request) => Promise<Response>
+  disabled?: boolean
 }>()
 
 const cmd = ref('')
@@ -104,11 +105,13 @@ function statusText(s: number): string {
         data-cmd-input
         v-model="cmd"
         type="text"
-        @keydown.enter="execute"
-        placeholder="curl https://challenge-…"
+        @keydown.enter="!props.disabled && execute()"
+        :placeholder="props.disabled ? 'Loading runtime…' : 'curl https://challenge-…'"
+        :disabled="props.disabled"
         spellcheck="false"
         autocomplete="off"
         class="flex-1 bg-transparent border-none outline-none font-mono text-[0.85em] color-[var(--ch-text-1)]"
+        :class="props.disabled ? 'opacity-40 cursor-not-allowed' : ''"
       />
     </div>
   </div>

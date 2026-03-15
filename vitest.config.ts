@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
+import { fileURLToPath } from 'node:url'
 
 // Minimal .md stub for test environment: exports `frontmatter` parsed from YAML front matter.
 // Keeps glob imports working without needing the full VitePress markdown pipeline.
@@ -27,6 +28,14 @@ function markdownStub(): Plugin {
 
 export default defineConfig({
   plugins: [markdownStub(), vue(), wasm(), topLevelAwait()],
+  resolve: {
+    alias: {
+      // Stub the WASM module for unit tests (the file only exists at runtime in /public)
+      '/wasm/virtual-fs/virtual_fs.js': fileURLToPath(
+        new URL('./tests/__mocks__/virtual-fs.ts', import.meta.url),
+      ),
+    },
+  },
   test: {
     environment: 'happy-dom',
     globals: true,

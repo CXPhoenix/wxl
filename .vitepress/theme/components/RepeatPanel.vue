@@ -4,6 +4,7 @@ import { ref } from 'vue'
 const props = defineProps<{
   slug: string
   dispatch: (request: Request) => Promise<Response>
+  disabled?: boolean
 }>()
 
 const requestText = ref(`GET / HTTP/1.1\r\nHost: challenge-${props.slug}.localhost\r\n\r\n`)
@@ -85,7 +86,9 @@ function parseRawRequest(raw: string): Request | null {
       <div class="flex flex-col gap-2 flex-shrink-0">
         <button
           data-send
-          class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] cursor-pointer border-none hover:opacity-90"
+          class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] border-none"
+          :class="props.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'"
+          :disabled="props.disabled"
           @click="send"
         >Send</button>
         <button

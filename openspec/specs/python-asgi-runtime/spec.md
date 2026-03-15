@@ -245,6 +245,25 @@ Before executing `app_code`, the ASGI runtime SHALL mount all decrypted FS entri
 - **WHEN** the FS is mounted into Pyodide MEMFS
 - **THEN** the decrypted content SHALL only be accessible inside the Pyodide Python environment, not via JavaScript `window` or `globalThis`
 
+### Requirement: Python ASGI runtime installs micropip packages before app execution
+
+When `PythonRuntime.initialize()` is called with a non-empty `packages` array, the runtime SHALL install all specified packages via `micropip.install()` inside Pyodide before executing `app_code`. Package installation SHALL complete before the app callable is invoked.
+
+#### Scenario: Packages are installed before app code runs
+
+- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, ['flask', 'requests'])` is called
+- **THEN** Pyodide SHALL execute `import micropip; await micropip.install(['flask', 'requests'])` before executing `appCode`
+
+#### Scenario: Empty packages list skips micropip
+
+- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, [])` is called
+- **THEN** the runtime SHALL NOT call `micropip.install` and SHALL execute `appCode` directly
+
+#### Scenario: Package installation failure surfaces as initialization error
+
+- **WHEN** a package in the `packages` list does not exist in the Pyodide package index
+- **THEN** `initialize()` SHALL reject with an error describing the failed package name
+
 ## Requirements
 
 <!-- @trace
@@ -307,6 +326,40 @@ tests:
   - .vitepress/theme/components/TerminalPanel.test.ts
   - .vitepress/challenge/plugin-obfuscation.test.ts
   - chall-wasm/python-bridge/python-runtime.test.ts
+-->
+
+
+<!-- @trace
+source: runtime-init-and-fastapi-challenge
+updated: 2026-03-16
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/challenge/config.ts
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - tests/__mocks__/virtual-fs.ts
+  - docs/challenge/php-demo/flag.txt
+  - docs/challenge/sqli-demo/app.py
+  - docs/challenge/fastapi-demo/app.py
+  - docs/challenge/php-demo.md
+  - vitest.config.ts
+  - docs/challenge/sqli-demo.md
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/php-demo/index.php
+  - .vitepress/theme/components/RepeatPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/workers/router.ts
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/public/challenge-sw.js
+  - docs/challenge/fastapi-demo.md
+  - .vitepress/challenge/plugin.ts
+tests:
+  - tests/unit/challenge/plugin.test.ts
+  - tests/unit/workers/router.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/challenge/config.test.ts
 -->
 
 ### Requirement: ASGI bridge translates HTTP requests to ASGI scope and invokes Pyodide app
@@ -426,3 +479,23 @@ tests:
   - .vitepress/theme/composables/usePythonRuntime.test.ts
   - chall-wasm/php-bridge/php-runtime-headers.test.ts
 -->
+
+---
+### Requirement: Python ASGI runtime installs micropip packages before app execution
+
+When `PythonRuntime.initialize()` is called with a non-empty `packages` array, the runtime SHALL install all specified packages via `micropip.install()` inside Pyodide before executing `app_code`. Package installation SHALL complete before the app callable is invoked.
+
+#### Scenario: Packages are installed before app code runs
+
+- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, ['flask', 'requests'])` is called
+- **THEN** Pyodide SHALL execute `import micropip; await micropip.install(['flask', 'requests'])` before executing `appCode`
+
+#### Scenario: Empty packages list skips micropip
+
+- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, [])` is called
+- **THEN** the runtime SHALL NOT call `micropip.install` and SHALL execute `appCode` directly
+
+#### Scenario: Package installation failure surfaces as initialization error
+
+- **WHEN** a package in the `packages` list does not exist in the Pyodide package index
+- **THEN** `initialize()` SHALL reject with an error describing the failed package name

@@ -4,6 +4,7 @@ import { ref } from 'vue'
 const props = defineProps<{
   slug: string
   dispatch: (request: Request) => Promise<Response>
+  disabled?: boolean
 }>()
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -57,9 +58,11 @@ async function send() {
       />
       <button
         data-send
-        class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] cursor-pointer border-none hover:opacity-90"
+        class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] border-none"
+        :class="props.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'"
+        :disabled="props.disabled"
         @click="send"
-      >Send</button>
+      >{{ props.disabled ? 'Loading…' : 'Send' }}</button>
     </div>
 
     <textarea
