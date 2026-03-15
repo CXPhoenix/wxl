@@ -29,7 +29,7 @@ export function createRouter(dispatchers: RouterDispatchers = {}, opts: RouterOp
     return hostname.replace(/^challenge-/, '').replace(/\.localhost$/, '')
   }
 
-  function handleMessage(msg: { type: string; slug: string; backend?: string }) {
+  function handleMessage(msg: { type: string; slug: string; backend?: string; port?: MessagePort }) {
     if (msg.type === 'REGISTER_CHALLENGE') {
       registry.set(msg.slug, { backend: msg.backend ?? 'flask' })
     } else if (msg.type === 'UNREGISTER_CHALLENGE') {

@@ -3,20 +3,21 @@ import { createContentLoader } from 'vitepress'
 export interface ChallengeData {
   title: string
   url: string
-  difficulty?: string
+  difficulty?: 'esay' | 'medium' | 'hard' | string
   category?: string
 }
 
-export default createContentLoader('challenges/*.md', {
+export default createContentLoader('challenge/*.md', {
   excerpt: true,
   transform(raw): ChallengeData[] {
     return raw
       .filter((page) => !page.url.endsWith('/')) // exclude index
-      .map((page) => ({
-        title: page.frontmatter.title ?? '',
+      .map((page, idx) => ({
+        id: page.frontmatter.id ?? idx+1,
+        title: page.frontmatter.title ?? '密碼學挑戰',
         url: page.url,
-        difficulty: page.frontmatter.difficulty,
-        category: page.frontmatter.category,
+        difficulty: page.frontmatter.difficulty ?? "mystery",
+        category: page.frontmatter.category ?? "綜合",
       }))
   },
 })

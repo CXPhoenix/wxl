@@ -1,17 +1,18 @@
 /**
  * Challenge Service Worker
  * Intercepts https://challenge-<slug>.localhost/* and routes to the
- * appropriate runtime (Python ASGI bridge or PHP).
+ * appropriate runtime via MessageChannel relay (Python) or PHP dispatch.
+ *
+ * Protocol:
+ *   Page → SW: { type: 'REGISTER_CHALLENGE', slug, backend, port: MessagePort }
+ *   SW  → Page (via port): { type: 'HANDLE_REQUEST', method, url, headers, body, responsePort }
+ *   Page → SW (via responsePort): { status, headers, body: ArrayBuffer }
  */
 
 const CHALLENGE_HOST_RE = /^challenge-[^.]+\.localhost$/
 
-/** slug → { backend } */
+/** slug → { backend: string, port: MessagePort } */
 const registry = new Map()
-
-/** Runtime dispatch functions, registered by the page via postMessage */
-let pythonDispatch = null
-let phpDispatch = null
 
 const production = self.location.hostname !== 'localhost'
 
@@ -22,14 +23,10 @@ self.addEventListener('message', (event) => {
   if (!msg?.type) return
 
   if (msg.type === 'REGISTER_CHALLENGE') {
-    registry.set(msg.slug, { backend: msg.backend })
+    registry.set(msg.slug, { backend: msg.backend ?? 'flask', port: msg.port ?? null })
     event.source?.postMessage({ type: 'REGISTERED' })
   } else if (msg.type === 'UNREGISTER_CHALLENGE') {
     registry.delete(msg.slug)
-  } else if (msg.type === 'SET_PYTHON_DISPATCH') {
-    pythonDispatch = msg.dispatch
-  } else if (msg.type === 'SET_PHP_DISPATCH') {
-    phpDispatch = msg.dispatch
   }
 })
 
@@ -51,22 +48,74 @@ async function handleChallengeRequest(request, url) {
   }
 
   try {
-    const backend = entry.backend
-    if (backend === 'flask' || backend === 'fastapi') {
-      if (!pythonDispatch) return jsonResponse({ error: 'python runtime not ready' }, 503)
-      return await pythonDispatch(request)
-    } else if (backend === 'php') {
-      if (!phpDispatch) return jsonResponse({ error: 'php runtime not ready' }, 503)
-      return await phpDispatch(request)
-    } else {
-      return jsonResponse({ error: `unknown backend: ${backend}` }, 501)
+    const { backend, port } = entry
+
+    if (backend === 'php') {
+      // PHP runtime: not using MessageChannel relay (handled separately)
+      return jsonResponse({ error: 'php runtime not available via relay' }, 503)
     }
+
+    if (backend === 'flask' || backend === 'fastapi') {
+      if (!port) {
+        return jsonResponse({ error: 'python runtime not ready (no port registered)' }, 503)
+      }
+      return await relayRequest(port, request)
+    }
+
+    return jsonResponse({ error: `unknown backend: ${backend}` }, 501)
   } catch (err) {
     if (production) {
       return jsonResponse({ error: 'Internal Server Error' }, 500)
     }
     return jsonResponse({ error: err.message, stack: err.stack }, 500)
   }
+}
+
+/**
+ * Relay an HTTP request to the challenge page via MessageChannel.
+ * Creates a per-request channel, sends request data to the page, waits for response.
+ */
+async function relayRequest(challengePort, request) {
+  // Serialize request
+  const method = request.method
+  const url = request.url
+  const headers = [...request.headers.entries()]
+  const bodyBuffer = request.body
+    ? (await request.arrayBuffer())
+    : null
+
+  // Per-request channel: SW listens on port1, page gets port2 as responsePort
+  const rc = new MessageChannel()
+
+  const responsePromise = new Promise((resolve, reject) => {
+    rc.port1.onmessage = (event) => {
+      rc.port1.close()
+      resolve(event.data)
+    }
+    rc.port1.onmessageerror = (event) => {
+      rc.port1.close()
+      reject(new Error('MessageChannel error: ' + String(event)))
+    }
+  })
+
+  // Send request to page; transfer body buffer and responsePort
+  const transferables = [rc.port2]
+  if (bodyBuffer) transferables.push(bodyBuffer)
+
+  challengePort.postMessage(
+    { type: 'HANDLE_REQUEST', method, url, headers, body: bodyBuffer, responsePort: rc.port2 },
+    transferables,
+  )
+
+  // Await the serialized response from the page
+  const { status, headers: resHeaders, body: resBody } = await responsePromise
+
+  const responseHeaders = new Headers()
+  for (const [k, v] of (resHeaders ?? [])) {
+    responseHeaders.set(k, v)
+  }
+
+  return new Response(resBody ?? null, { status, headers: responseHeaders })
 }
 
 function jsonResponse(body, status) {

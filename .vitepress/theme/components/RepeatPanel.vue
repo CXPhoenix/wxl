@@ -4,6 +4,7 @@ import { ref } from 'vue'
 const props = defineProps<{
   slug: string
   dispatch: (request: Request) => Promise<Response>
+  disabled?: boolean
 }>()
 
 const requestText = ref(`GET / HTTP/1.1\r\nHost: challenge-${props.slug}.localhost\r\n\r\n`)
@@ -73,30 +74,43 @@ function parseRawRequest(raw: string): Request | null {
 </script>
 
 <template>
-  <div class="repeat-panel">
-    <div class="repeat-top">
+  <div class="flex flex-col h-full gap-2">
+    <div class="flex gap-2 flex-1 overflow-hidden">
       <textarea
         data-request-input
         v-model="requestText"
-        class="request-area"
+        class="flex-1 p-2 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] font-mono text-[0.82em] resize-none outline-none focus:border-[var(--ch-accent)]"
         rows="10"
         spellcheck="false"
       />
-      <div class="repeat-actions">
-        <button data-send @click="send">Send</button>
-        <button data-save-snapshot @click="saveSnapshot">Save</button>
+      <div class="flex flex-col gap-2 flex-shrink-0">
+        <button
+          data-send
+          class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] border-none"
+          :class="props.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'"
+          :disabled="props.disabled"
+          @click="send"
+        >Send</button>
+        <button
+          data-save-snapshot
+          class="px-3 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-2)] text-[0.85em] cursor-pointer hover:border-[var(--ch-accent)]"
+          @click="saveSnapshot"
+        >Save</button>
       </div>
     </div>
 
-    <pre data-response-output class="response-area">{{ responseText }}</pre>
+    <pre
+      data-response-output
+      class="flex-1 m-0 p-3 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] font-mono text-[0.8em] overflow-auto whitespace-pre-wrap"
+    >{{ responseText }}</pre>
 
-    <ul v-if="snapshots.length" class="snapshots">
+    <ul v-if="snapshots.length" class="m-0 p-0 list-none flex gap-2 flex-wrap">
       <li
         v-for="snap in snapshots"
         :key="snap.name"
         data-snapshot-item
+        class="px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-2)] text-[0.8em] cursor-pointer hover:border-[var(--ch-accent)] hover:color-[var(--ch-accent)]"
         @click="restoreSnapshot(snap.content)"
-        class="snapshot-item"
       >
         {{ snap.name }}
       </li>

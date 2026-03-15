@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import UnoCSS from 'unocss/vite'
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
 
@@ -6,7 +7,7 @@ import topLevelAwait from 'vite-plugin-top-level-await'
 export default defineConfig({
   srcDir: "docs",
   vite: {
-    plugins: [wasm(), topLevelAwait()],
+    plugins: [UnoCSS(), wasm(), topLevelAwait()],
   },
 
   title: "Web Exploitation Challenges",

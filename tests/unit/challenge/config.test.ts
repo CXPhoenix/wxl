@@ -59,3 +59,35 @@ describe('ChallengeConfig validation', () => {
     expect(config.source_visible).toBe(true)
   })
 })
+
+describe('ChallengeConfig packages field', () => {
+  const minimal = {
+    title: 'Test',
+    flag_verifier: 'hash',
+    fs_key: 'a'.repeat(64),
+    backend: 'flask' as const,
+    app: './app.py',
+    fs: { '/flag.txt': './flag.txt' },
+  }
+
+  it('defaults packages to [] when omitted', () => {
+    const config = validateChallengeConfig(minimal)
+    expect(config.packages).toEqual([])
+  })
+
+  it('parses packages array when provided', () => {
+    const config = validateChallengeConfig({ ...minimal, packages: ['requests', 'pyjwt'] })
+    expect(config.packages).toEqual(['requests', 'pyjwt'])
+  })
+
+  it('accepts empty packages array', () => {
+    const config = validateChallengeConfig({ ...minimal, packages: [] })
+    expect(config.packages).toEqual([])
+  })
+
+  it('accepts fastapi backend with packages', () => {
+    const config = validateChallengeConfig({ ...minimal, backend: 'fastapi', packages: ['fastapi', 'anyio'] })
+    expect(config.packages).toEqual(['fastapi', 'anyio'])
+    expect(config.backend).toBe('fastapi')
+  })
+})

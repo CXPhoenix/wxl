@@ -1,46 +1,79 @@
-/**
- * Customize default theme styling by overriding CSS variables:
- * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
+/* --ch-* design tokens: single source of truth for the platform color palette.
+ * VitePress brand variables are overridden to point to the same tokens.
  */
 
+:root {
+  /* Platform palette — Enterprise Indigo (light) */
+  --ch-bg:          #eef2ff;
+  --ch-bg-soft:     #e0e7ff;
+  --ch-bg-card:     #f5f7ff;
+  --ch-bg-panel:    #f0f4ff;
+  --ch-border:      #c7d2fe;
+  --ch-border-hover:#4338ca;
+  --ch-accent:      #4338ca;
+  --ch-accent-soft: rgba(67, 56, 202, 0.08);
+  --ch-text-1:      #1e1b4b;
+  --ch-text-2:      #4b5563;
+  --ch-text-3:      #9ca3af;
+
+  /* Difficulty badge tokens */
+  --ch-easy-bg:   #d1fae5;
+  --ch-easy-fg:   #065f46;
+  --ch-med-bg:    #fef3c7;
+  --ch-med-fg:    #92400e;
+  --ch-hard-bg:   #fee2e2;
+  --ch-hard-fg:   #991b1b;
+  --ch-myst-bg:   #ede9fe;
+  --ch-myst-fg:   #5b21b6;
+
+  /* Category badge tokens */
+  --ch-web-bg:    #dbeafe;
+  --ch-web-fg:    #1e40af;
+
+  /* VitePress brand override → ch-accent tokens */
+  --vp-c-brand-1:    var(--ch-accent);
+  --vp-c-brand-2:    #4f46e5;
+  --vp-c-brand-3:    var(--ch-accent);
+  --vp-c-brand-soft: var(--ch-accent-soft);
+}
+
+.dark {
+  /* Platform palette — Midnight Indigo (dark) */
+  --ch-bg:          #0f0f23;
+  --ch-bg-soft:     #161630;
+  --ch-bg-card:     #12122a;
+  --ch-bg-panel:    #14142e;
+  --ch-border:      #2a2a4a;
+  --ch-border-hover:#6366f1;
+  --ch-accent:      #6366f1;
+  --ch-accent-soft: rgba(99, 102, 241, 0.12);
+  --ch-text-1:      #e2e8f0;
+  --ch-text-2:      #94a3b8;
+  --ch-text-3:      #475569;
+
+  /* Difficulty badge tokens */
+  --ch-easy-bg:   rgba(52, 211, 153, 0.12);
+  --ch-easy-fg:   #34d399;
+  --ch-med-bg:    rgba(251, 191, 36, 0.12);
+  --ch-med-fg:    #fbbf24;
+  --ch-hard-bg:   rgba(248, 113, 113, 0.12);
+  --ch-hard-fg:   #f87171;
+  --ch-myst-bg:   rgba(167, 139, 250, 0.12);
+  --ch-myst-fg:   #a78bfa;
+
+  /* Category badge tokens */
+  --ch-web-bg:    rgba(96, 165, 250, 0.12);
+  --ch-web-fg:    #60a5fa;
+
+  /* VitePress brand override → ch-accent tokens */
+  --vp-c-brand-1:    var(--ch-accent);
+  --vp-c-brand-2:    #818cf8;
+  --vp-c-brand-3:    var(--ch-accent);
+  --vp-c-brand-soft: var(--ch-accent-soft);
+}
+
 /**
- * Colors
- *
- * Each colors have exact same color scale system with 3 levels of solid
- * colors with different brightness, and 1 soft color.
- *
- * - `XXX-1`: The most solid color used mainly for colored text. It must
- *   satisfy the contrast ratio against when used on top of `XXX-soft`.
- *
- * - `XXX-2`: The color used mainly for hover state of the button.
- *
- * - `XXX-3`: The color for solid background, such as bg color of the button.
- *   It must satisfy the contrast ratio with pure white (#ffffff) text on
- *   top of it.
- *
- * - `XXX-soft`: The color used for subtle background such as custom container
- *   or badges. It must satisfy the contrast ratio when putting `XXX-1` colors
- *   on top of it.
- *
- *   The soft color must be semi transparent alpha channel. This is crucial
- *   because it allows adding multiple "soft" colors on top of each other
- *   to create an accent, such as when having inline code block inside
- *   custom containers.
- *
- * - `default`: The color used purely for subtle indication without any
- *   special meanings attached to it such as bg color for menu hover state.
- *
- * - `brand`: Used for primary brand colors, such as link text, button with
- *   brand theme, etc.
- *
- * - `tip`: Used to indicate useful information. The default theme uses the
- *   brand color for this by default.
- *
- * - `warning`: Used to indicate warning to the users. Used in custom
- *   container, badges, etc.
- *
- * - `danger`: Used to show error, or dangerous message to the users. Used
- *   in custom container, badges, etc.
+ * VitePress default overrides
  * -------------------------------------------------------------------------- */
 
 :root {
@@ -48,11 +81,6 @@
   --vp-c-default-2: var(--vp-c-gray-2);
   --vp-c-default-3: var(--vp-c-gray-3);
   --vp-c-default-soft: var(--vp-c-gray-soft);
-
-  --vp-c-brand-1: var(--vp-c-indigo-1);
-  --vp-c-brand-2: var(--vp-c-indigo-2);
-  --vp-c-brand-3: var(--vp-c-indigo-3);
-  --vp-c-brand-soft: var(--vp-c-indigo-soft);
 
   --vp-c-tip-1: var(--vp-c-brand-1);
   --vp-c-tip-2: var(--vp-c-brand-2);
@@ -128,4 +156,3 @@
   --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
   --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
 }
-

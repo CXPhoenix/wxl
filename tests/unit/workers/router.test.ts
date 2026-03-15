@@ -70,6 +70,18 @@ describe('runtime dispatch', () => {
     expect(phpDispatch).not.toHaveBeenCalled()
   })
 
+  it('[RED] dispatches fastapi backend to python runtime', async () => {
+    const pythonDispatch = vi.fn().mockResolvedValue(new Response('python ok'))
+    const phpDispatch = vi.fn().mockResolvedValue(new Response('php ok'))
+    const router = createRouter({ python: pythonDispatch, php: phpDispatch })
+
+    router.handleMessage({ type: 'REGISTER_CHALLENGE', slug: 'fastapi-c', backend: 'fastapi' })
+    await router.dispatch(new Request('https://challenge-fastapi-c.localhost/'))
+
+    expect(pythonDispatch).toHaveBeenCalledOnce()
+    expect(phpDispatch).not.toHaveBeenCalled()
+  })
+
   it('dispatches php backend to php runtime', async () => {
     const pythonDispatch = vi.fn().mockResolvedValue(new Response('python ok'))
     const phpDispatch = vi.fn().mockResolvedValue(new Response('php ok'))

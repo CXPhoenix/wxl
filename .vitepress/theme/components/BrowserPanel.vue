@@ -4,6 +4,7 @@ import { ref } from 'vue'
 const props = defineProps<{
   slug: string
   dispatch: (request: Request) => Promise<Response>
+  disabled?: boolean
 }>()
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -41,27 +42,47 @@ async function send() {
 </script>
 
 <template>
-  <div class="browser-panel">
-    <div class="toolbar">
-      <select v-model="method">
+  <div class="flex flex-col h-full gap-2">
+    <div class="flex gap-2 flex-shrink-0">
+      <select
+        v-model="method"
+        class="px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.85em] cursor-pointer"
+      >
         <option v-for="m in methods" :key="m" :value="m">{{ m }}</option>
       </select>
-      <input v-model="url" type="text" placeholder="URL" class="url-input" />
-      <button data-send @click="send">Send</button>
+      <input
+        v-model="url"
+        type="text"
+        placeholder="URL"
+        class="flex-1 px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.85em] font-mono outline-none focus:border-[var(--ch-accent)]"
+      />
+      <button
+        data-send
+        class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] border-none"
+        :class="props.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'"
+        :disabled="props.disabled"
+        @click="send"
+      >{{ props.disabled ? 'Loading…' : 'Send' }}</button>
     </div>
 
-    <textarea v-if="method !== 'GET'" v-model="body" placeholder="Request body" />
+    <textarea
+      v-if="method !== 'GET'"
+      v-model="body"
+      placeholder="Request body"
+      class="w-full px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.85em] font-mono resize-y outline-none focus:border-[var(--ch-accent)]"
+      rows="4"
+    />
 
     <iframe
       v-if="responseState.type === 'html'"
       sandbox="allow-scripts allow-forms"
       :srcdoc="responseState.content"
-      class="response-iframe"
+      class="flex-1 w-full rounded border border-[var(--ch-border)] bg-white"
     />
     <pre
       v-else-if="responseState.type === 'text'"
       data-response-text
-      class="response-text"
+      class="flex-1 m-0 p-3 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.8em] font-mono overflow-auto whitespace-pre-wrap"
     >{{ responseState.content }}</pre>
   </div>
 </template>

@@ -2,6 +2,7 @@
 import type { Theme } from 'vitepress'
 import DefaultTheme from 'vitepress/theme'
 import { createPinia } from 'pinia'
+import 'virtual:uno.css'
 import './style.css'
 import Layout from './Layout.vue'
 import SourceViewer from './components/SourceViewer.vue'

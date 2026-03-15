@@ -15,14 +15,34 @@ async function submit() {
 </script>
 
 <template>
-  <div class="flag-submit">
-    <input data-flag-input v-model="flag" type="text" placeholder="CTF{...}" />
-    <button data-submit @click="submit">Submit Flag</button>
+  <div class="flex flex-col gap-2">
+    <div class="flex gap-2">
+      <input
+        data-flag-input
+        v-model="flag"
+        type="text"
+        placeholder="CTF{...}"
+        class="flex-1 px-3 py-2 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] font-mono text-[0.9em] outline-none focus:border-[var(--ch-accent)]"
+      />
+      <button
+        data-submit
+        class="px-4 py-2 rounded bg-[var(--ch-accent)] color-white text-[0.9em] font-medium cursor-pointer border-none hover:opacity-90"
+        @click="submit"
+      >Submit Flag</button>
+    </div>
 
-    <div v-if="state === 'success'" data-success class="flag-success">
+    <div
+      v-if="state === 'success'"
+      data-success
+      class="px-3 py-2 rounded bg-[var(--ch-easy-bg)] color-[var(--ch-easy-fg)] text-[0.875em] font-medium"
+    >
       Correct! Challenge solved.
     </div>
-    <div v-if="state === 'failure'" data-failure class="flag-failure">
+    <div
+      v-if="state === 'failure'"
+      data-failure
+      class="px-3 py-2 rounded bg-[var(--ch-hard-bg)] color-[var(--ch-hard-fg)] text-[0.875em]"
+    >
       Incorrect flag. Try again.
     </div>
   </div>

@@ -65,3 +65,45 @@ describe('processChallengeFrontmatter - FS encryption', () => {
     expect(result.encryptedFs['/flag.txt']).not.toBe('FLAG{test}')
   })
 })
+
+describe('processChallengeFrontmatter - __app__ encryption', () => {
+  it('[RED] encryptedFs must include __app__ key with encrypted app code', async () => {
+    const result = await processChallengeFrontmatter(
+      BASE_FRONTMATTER,
+      { 'app.py': APP_CODE },
+    )
+    expect(result.encryptedFs['__app__']).toBeDefined()
+    expect(typeof result.encryptedFs['__app__']).toBe('string')
+    expect(result.encryptedFs['__app__'].length).toBeGreaterThan(20)
+    // must not be plaintext
+    expect(result.encryptedFs['__app__']).not.toBe(APP_CODE)
+  })
+
+  it('[RED] __app__ is separate from fs map entries (no collision)', async () => {
+    const result = await processChallengeFrontmatter(
+      { ...BASE_FRONTMATTER, fs: { '/flag.txt': 'FLAG{test}', '/data.json': '{}' } },
+      { 'app.py': APP_CODE },
+    )
+    expect(result.encryptedFs['/flag.txt']).toBeDefined()
+    expect(result.encryptedFs['/data.json']).toBeDefined()
+    expect(result.encryptedFs['__app__']).toBeDefined()
+    // all three keys should coexist
+    expect(Object.keys(result.encryptedFs)).toHaveLength(3)
+  })
+
+  it('[RED] packages is passed through in ProcessedChallenge', async () => {
+    const result = await processChallengeFrontmatter(
+      { ...BASE_FRONTMATTER, packages: ['requests', 'pyjwt'] },
+      { 'app.py': APP_CODE },
+    )
+    expect(result.packages).toEqual(['requests', 'pyjwt'])
+  })
+
+  it('[RED] missing packages defaults to [] in ProcessedChallenge', async () => {
+    const result = await processChallengeFrontmatter(
+      BASE_FRONTMATTER,
+      { 'app.py': APP_CODE },
+    )
+    expect(result.packages).toEqual([])
+  })
+})
