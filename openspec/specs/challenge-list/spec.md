@@ -66,58 +66,87 @@ tests:
 -->
 
 ---
-### Requirement: Challenge list page uses a custom "challenge-list" layout
+### Requirement: Challenge list page uses a globally registered Vue component embedded in markdown
 
-The `docs/challenges/index.md` page SHALL declare `layout: challenge-list` in its frontmatter. The theme SHALL register a `challenge-list` layout in `theme/index.ts`. This layout SHALL import and render the challenge data from `challenges.data.ts`.
+The challenge list display logic SHALL be implemented as a Vue component (`theme/components/ChallengeList.vue`) globally registered in `enhanceApp` via `app.component('ChallengeList', ChallengeList)`. The `docs/challenges/index.md` page SHALL use the VitePress default layout and embed `<ChallengeList />` directly in the markdown body. The `challenge-list` layout registration in `theme/index.ts` SHALL be removed, and `ChallengeListLayout.vue` SHALL be deleted.
 
-#### Scenario: Challenge list layout is applied
+#### Scenario: Challenge list page renders without layout frontmatter
 
 - **WHEN** the user navigates to `/challenges/`
-- **THEN** VitePress SHALL apply the `challenge-list` layout and display all available challenges
+- **THEN** VitePress SHALL apply the default layout and the `<ChallengeList />` component SHALL render all available challenges
+
+#### Scenario: ChallengeList can be embedded in any markdown page
+
+- **WHEN** any `.md` file includes `<ChallengeList />` in its body
+- **THEN** the component SHALL render the full challenge list without requiring `layout: challenge-list` in frontmatter
 
 
 <!-- @trace
-source: vitepress-platform-refactor
+source: vitepress-structure-refactor
+updated: 2026-03-15
+-->
+
+
+<!-- @trace
+source: vitepress-structure-refactor
 updated: 2026-03-15
 code:
-  - env.d.ts
-  - vitest.config.ts
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - tsconfig.json
-  - docs/challenges/sqli-demo.md
-  - package.json
-  - .vitepress/theme/Layout.vue
-  - .vitepress/theme/composables/usePhpRuntime.ts
-  - chall-wasm/python-bridge/python-runtime.ts
-  - docs/challenges/php-demo.md
   - .vitepress/theme/index.ts
-  - .vitepress/config.mts
-  - docs/challenges/challenges.data.ts
-  - chall-wasm/php-bridge/php-runtime.ts
-  - .vitepress/theme/layouts/ChallengeListLayout.vue
+  - .vitepress/theme/Layout.vue
+  - .vitepress/workers/router.ts
+  - .vitepress/sw/router.ts
   - docs/challenges/index.md
+  - vitest.config.ts
+  - .vitepress/theme/components/ChallengeList.vue
+  - package.json
+  - .vitepress/theme/layouts/ChallengeListLayout.vue
+  - .vitepress/theme/components/ChallengeLayout.vue
 tests:
-  - .vitepress/theme/composables/usePhpRuntime-singleton.test.ts
-  - chall-wasm/php-bridge/php-runtime.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-fs.test.ts
-  - chall-wasm/python-bridge/python-runtime.test.ts
-  - chall-wasm/php-bridge/php-runtime-fs.test.ts
-  - .vitepress/theme/composables/usePythonRuntime-fs.test.ts
-  - chall-wasm/python-bridge/python-runtime-request.test.ts
-  - tests/e2e/flask-sqli.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-headers.test.ts
-  - chall-wasm/python-bridge/python-runtime-fs.test.ts
-  - chall-wasm/php-bridge/php-runtime-post.test.ts
   - .vitepress/theme/layouts/ChallengeLayout.test.ts
+  - tests/unit/challenge/plugin-obfuscation.test.ts
+  - tests/unit/challenge/flag-verifier.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/usePhpRuntime-post.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/ChallengeList.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
+  - tests/unit/components/SourceViewer.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-singleton.test.ts
+  - .vitepress/sw/router.test.ts
   - tests/e2e/php-demo.test.ts
-  - .vitepress/theme/composables/usePythonRuntime-request.test.ts
+  - tests/unit/components/FlagSubmit.test.ts
+  - tests/unit/composables/usePhpRuntime.test.ts
+  - tests/e2e/flask-sqli.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
   - .vitepress/theme/layouts/ChallengeListLayout.test.ts
-  - chall-wasm/php-bridge/php-runtime-singleton.test.ts
-  - .vitepress/theme/composables/usePhpRuntime.test.ts
+  - .vitepress/challenge/flag-verifier-global.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-fs.test.ts
+  - tests/unit/composables/usePhpRuntime-headers.test.ts
   - .vitepress/theme/composables/usePhpRuntime-post.test.ts
   - .vitepress/theme/composables/usePythonRuntime.test.ts
-  - chall-wasm/php-bridge/php-runtime-headers.test.ts
+  - tests/unit/challenge/plugin.test.ts
+  - .vitepress/theme/components/SourceViewer.test.ts
+  - .vitepress/theme/components/FlagSubmit.test.ts
+  - tests/unit/challenge/flag-verifier-global.test.ts
+  - .vitepress/challenge/plugin-obfuscation.test.ts
+  - .vitepress/theme/composables/usePythonRuntime-request.test.ts
+  - .vitepress/theme/components/RepeatPanel.test.ts
+  - tests/unit/composables/usePhpRuntime-fs.test.ts
+  - .vitepress/theme/components/TerminalPanel.test.ts
+  - .vitepress/theme/components/ChallengeLayout.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - .vitepress/challenge/plugin.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - .vitepress/theme/components/BrowserPanel.test.ts
+  - .vitepress/challenge/config.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-headers.test.ts
+  - .vitepress/theme/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/composables/usePhpRuntime-singleton.test.ts
+  - .vitepress/challenge/flag-verifier.test.ts
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/workers/router.test.ts
+  - .vitepress/theme/composables/usePhpRuntime.test.ts
 -->
 
 ---
