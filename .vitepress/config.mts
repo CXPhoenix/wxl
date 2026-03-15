@@ -8,13 +8,14 @@ export default defineConfig({
   vite: {
     plugins: [wasm(), topLevelAwait()],
   },
-  
+
   title: "Web Exploitation Challenges",
   description: "完全基於前端 WASM 的挑戰平台",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Home', link: '/' }
+      { text: 'Home', link: '/' },
+      { text: 'Challenges', link: '/challenges/' },
     ],
 
     sidebar: [],
@@ -22,5 +23,5 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/vuejs/vitepress' }
     ]
-  }
+  },
 })

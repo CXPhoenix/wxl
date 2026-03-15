@@ -1,5 +1,27 @@
 <script setup lang="ts">
-import { data as challenges } from '../../../docs/challenges/challenges.data'
+import { withBase } from 'vitepress'
+
+interface ChallengeData {
+  title: string
+  url: string
+  difficulty?: string
+  category?: string
+}
+
+// Load frontmatter from all challenge markdown files at build time via Vite glob
+const frontmatters = import.meta.glob('/docs/challenges/*.md', {
+  eager: true,
+  import: 'frontmatter',
+}) as Record<string, Record<string, unknown>>
+
+const challenges: ChallengeData[] = Object.entries(frontmatters)
+  .filter(([path]) => !path.endsWith('/index.md'))
+  .map(([path, fm]) => ({
+    title: (fm.title as string) ?? '',
+    url: withBase(path.replace(/^\/docs/, '').replace(/\.md$/, '').replace(/\/index$/, '/')),
+    difficulty: fm.difficulty as string | undefined,
+    category: fm.category as string | undefined,
+  }))
 </script>
 
 <template>

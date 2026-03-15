@@ -34,19 +34,17 @@
 - [x] 4.4 新增 `docs/challenges/index.md`，frontmatter 設定 `layout: challenge-list`，作為 Challenge list 頁面入口
 - [x] 4.5 為 `ChallengeListLayout.vue` 新增單元測試，覆蓋 card 渲染與連結正確性
 
-## 5. PWA 支援
+## 5. PWA 支援（已決定放棄）
 
-- [ ] 5.1 安裝 `@vite-pwa/vitepress`（`pnpm add -D @vite-pwa/vitepress`），實作 PWA 策略：`@vite-pwa/vitepress` + Workbox generateSW 決策
-- [ ] 5.2 在 `.vitepress/config.mts` 以 `withPwa(defineConfig({...}))` 包裝，設定 Web App Manifest（name、short_name、theme_color、background_color、display: "standalone"、icons），設定 `strategies: 'generateSW'`、`injectRegister: null`，實作 platform is installable as a PWA with a web app manifest 需求
-- [ ] 5.3 設定 Workbox `runtimeCaching`（lazy）：Pyodide CDN URL、php-wasm CDN URL、`/wasm/virtual-fs/`、`/wasm/asgi-bridge/` 匹配規則使用 `CacheFirst`（TTL 30 天，`cacheableResponse: { statuses: [0, 200] }`），WASM 不納入 `globPatterns`，實作 PWA service worker caches WASM runtimes with a CacheFirst strategy 需求
-- [ ] 5.4 設定 Workbox `runtimeCaching`：navigation requests 使用 `NetworkFirst`，JS/CSS/圖片使用 `StaleWhileRevalidate`，實作 PWA service worker applies NetworkFirst to HTML and StaleWhileRevalidate to other assets 需求
-- [ ] 5.5 在 `workbox.globIgnores` 中加入 `'**/challenge-sw.js'` 排除 precache，並在 `theme/index.ts` 手動呼叫 `registerSW()`（加上 `typeof window !== 'undefined'` guard），實作 PWA service worker does not conflict with the challenge routing service worker 需求
-- [ ] 5.6 執行 `pnpm build` 確認 `manifest.webmanifest` 出現在建構輸出中，並確認 `challenge-sw.js` 未出現在 PWA precache manifest 中
+> **決策（2026-03-15）**：目標使用者為桌機環境，無離線需求。`@vite-pwa/vitepress@1.1.0` 僅支援 VitePress 1.x，與 VitePress 2.0.0-alpha.16（Vite 7）不相容，SW 無法生成。維護成本大於收益，故放棄 PWA 功能。
+
+- [x] 5.1 移除 `package.json` 中的 `@vite-pwa/vitepress`、`vite-plugin-pwa`、`workbox-window` devDependencies（`pnpm remove @vite-pwa/vitepress vite-plugin-pwa workbox-window`）。確認 platform is installable as a PWA with a web app manifest、PWA service worker caches WASM runtimes with a CacheFirst strategy、PWA service worker applies NetworkFirst to HTML and StaleWhileRevalidate to other assets、PWA service worker does not conflict with the challenge routing service worker 等需求已標記為放棄，不再追蹤
+- [x] 5.2 還原 `.vitepress/config.mts`：移除 `withPwa()` 包裝，改回純 `defineConfig()`；移除與 pwa 策略：`@vite-pwa/vitepress` + workbox generateSW 相關的設定
+- [x] 5.3 還原 `.vitepress/theme/index.ts`：移除 `import { registerSW } from 'virtual:pwa-register'` 與 `registerSW()` 呼叫
 
 ## 6. 端對端驗證
 
-- [ ] 6.1 執行 `pnpm build` 確認整個建構流程成功（wasm:build → docs:build）
-- [ ] 6.2 執行 `pnpm test` 確認所有測試通過（包含遷移後的 runtime bridge 測試）
+- [x] 6.1 執行 `pnpm docs:build` 確認整個建構流程成功（docs:build）
+- [x] 6.2 執行 `pnpm test` 確認所有測試通過（包含遷移後的 runtime bridge 測試）
 - [ ] 6.3 手動驗證 challenge list 頁面（`/challenges/`）顯示所有題目 card
 - [ ] 6.4 手動驗證 challenge 頁面 layout A（description 收縮、Browser/Terminal/Repeater tab、flag submit、back link）
-- [ ] 6.5 驗證 PWA 離線能力：瀏覽一次 challenge 後，斷線後重新載入仍可使用
