@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { processChallengeFrontmatter } from './plugin'
+import { processChallengeFrontmatter } from '../../../.vitepress/challenge/plugin'
 
 const BASE = {
   title: 'T',

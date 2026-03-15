@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import RepeatPanel from './RepeatPanel.vue'
+import RepeatPanel from '../../../.vitepress/theme/components/RepeatPanel.vue'
 
 describe('RepeatPanel', () => {
   it('parses raw request and shows response with status, headers, body', async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import TerminalPanel from './TerminalPanel.vue'
+import TerminalPanel from '../../../.vitepress/theme/components/TerminalPanel.vue'
 
 describe('TerminalPanel', () => {
   it('sends GET request and shows response for curl command', async () => {

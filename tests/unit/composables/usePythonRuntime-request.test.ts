@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PythonRuntime } from './usePythonRuntime'
+import { PythonRuntime } from '../../../.vitepress/theme/composables/usePythonRuntime'
 
 const APP_CODE = 'app = lambda scope, receive, send: None'
 

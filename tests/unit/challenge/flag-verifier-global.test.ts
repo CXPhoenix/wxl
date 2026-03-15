@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useFlagVerifier } from './flag-verifier'
+import { useFlagVerifier } from '../../../.vitepress/challenge/flag-verifier'
 
 describe('flag_verifier global exposure', () => {
   beforeEach(() => {

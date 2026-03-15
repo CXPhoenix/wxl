@@ -17,10 +17,10 @@
 
 ## 4. 測試集中至 tests/unit/（tests/ 鏡像結構決策）
 
-- [ ] 4.1 建立 `tests/unit/challenge/` 並移動 `.vitepress/challenge/*.test.ts`（5 個檔案），更新各檔案的 import 相對路徑
-- [ ] 4.2 建立 `tests/unit/workers/` 並移動 `.vitepress/sw/router.test.ts`，更新 import 路徑指向 `.vitepress/workers/router.ts`（Router test file imports from the new path 需求）
-- [ ] 4.3 建立 `tests/unit/components/` 並移動 `.vitepress/theme/components/*.test.ts`（6 個檔案，含 `ChallengeListLayout.test.ts` 重命名為 `ChallengeList.test.ts`），更新各檔案 import 路徑
-- [ ] 4.4 建立 `tests/unit/composables/` 並移動 `.vitepress/theme/composables/*.test.ts`（8 個檔案），更新各檔案 import 路徑
-- [ ] 4.5 建立 `tests/unit/layouts/` 並移動 `.vitepress/theme/layouts/ChallengeLayout.test.ts`（1 個檔案），更新 import 路徑
-- [ ] 4.6 更新 `vitest.config.ts`：將 `include` 從多組 `.vitepress/**/*.test.ts` glob 改為 `['tests/**/*.test.ts']`
-- [ ] 4.7 執行 `pnpm test` 確認所有測試通過（Compiled output is unaffected 需求驗證）
+- [x] 4.1 建立 `tests/unit/challenge/` 並移動 `.vitepress/challenge/*.test.ts`（5 個檔案），更新各檔案的 import 相對路徑
+- [x] 4.2 建立 `tests/unit/workers/` 並移動 `.vitepress/sw/router.test.ts`，更新 import 路徑指向 `.vitepress/workers/router.ts`（Router test file imports from the new path 需求）
+- [x] 4.3 建立 `tests/unit/components/` 並移動 `.vitepress/theme/components/*.test.ts`（6 個檔案，含 `ChallengeListLayout.test.ts` 重命名為 `ChallengeList.test.ts`），更新各檔案 import 路徑
+- [x] 4.4 建立 `tests/unit/composables/` 並移動 `.vitepress/theme/composables/*.test.ts`（8 個檔案），更新各檔案 import 路徑
+- [x] 4.5 建立 `tests/unit/layouts/` 並移動 `.vitepress/theme/layouts/ChallengeLayout.test.ts`（1 個檔案），更新 import 路徑
+- [x] 4.6 更新 `vitest.config.ts`：將 `include` 從多組 `.vitepress/**/*.test.ts` glob 改為 `['tests/**/*.test.ts']`
+- [x] 4.7 執行 `pnpm test` 確認所有測試通過（Compiled output is unaffected 需求驗證）

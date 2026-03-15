@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createRouter, type BackendDispatcher } from './router'
+import { createRouter, type BackendDispatcher } from '../../../.vitepress/workers/router'
 
 // ─── 5.1 SW intercepts challenge-*.localhost (HTTPS) ────────────────────────
 

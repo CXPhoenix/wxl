@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PhpRuntime } from './usePhpRuntime'
+import { PhpRuntime } from '../../../.vitepress/theme/composables/usePhpRuntime'
 
 const APP_PHP = '<?php echo "hello"; ?>'
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import BrowserPanel from './BrowserPanel.vue'
+import BrowserPanel from '../../../.vitepress/theme/components/BrowserPanel.vue'
 
 describe('BrowserPanel', () => {
   it('renders HTML response in iframe on GET', async () => {

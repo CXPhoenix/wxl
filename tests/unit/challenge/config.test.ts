@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateChallengeConfig } from './config'
+import { validateChallengeConfig } from '../../../.vitepress/challenge/config'
 
 describe('ChallengeConfig validation', () => {
   const minimal = {

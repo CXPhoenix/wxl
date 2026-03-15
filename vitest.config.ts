@@ -30,6 +30,6 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
-    include: ['.vitepress/**/*.test.ts', 'tests/**/*.test.ts', 'chall-wasm/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'chall-wasm/**/*.test.ts'],
   },
 })

@@ -25,28 +25,28 @@ vi.mock('vitepress/client', () => ({
 }))
 
 // Mock child panels to isolate layout logic
-vi.mock('../components/BrowserPanel.vue', () => ({
+vi.mock('../../../.vitepress/theme/components/BrowserPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch'], template: '<div data-browser-panel />' }),
 }))
-vi.mock('../components/TerminalPanel.vue', () => ({
+vi.mock('../../../.vitepress/theme/components/TerminalPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch'], template: '<div data-terminal-panel />' }),
 }))
-vi.mock('../components/RepeatPanel.vue', () => ({
+vi.mock('../../../.vitepress/theme/components/RepeatPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch'], template: '<div data-repeat-panel />' }),
 }))
-vi.mock('../components/FlagSubmit.vue', () => ({
+vi.mock('../../../.vitepress/theme/components/FlagSubmit.vue', () => ({
   default: defineComponent({ props: ['verify'], template: '<div data-flag-submit />' }),
 }))
 
 // Mock flag verifier
-vi.mock('../../challenge/flag-verifier', () => ({
+vi.mock('../../../.vitepress/challenge/flag-verifier', () => ({
   useFlagVerifier: () => ({ verify: vi.fn().mockResolvedValue(false) }),
 }))
 
-let ChallengeLayout: typeof import('./ChallengeLayout.vue').default
+let ChallengeLayout: typeof import('../../../.vitepress/theme/layouts/ChallengeLayout.vue').default
 
 beforeEach(async () => {
-  const mod = await import('./ChallengeLayout.vue')
+  const mod = await import('../../../.vitepress/theme/layouts/ChallengeLayout.vue')
   ChallengeLayout = mod.default
 })
 

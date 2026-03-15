@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import SourceViewer from './SourceViewer.vue'
+import SourceViewer from '../../../.vitepress/theme/components/SourceViewer.vue'
 
 const PYTHON_SOURCE = 'from flask import Flask\napp = Flask(__name__)'
 

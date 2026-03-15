@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { useFlagVerifier } from './flag-verifier'
+import { useFlagVerifier } from '../../../.vitepress/challenge/flag-verifier'
 
 // Pre-computed verifier: PBKDF2-HMAC-SHA256("FLAG{test}", "sqli-basic", 100000)
 // We'll generate this from the implementation and use it as the known value.

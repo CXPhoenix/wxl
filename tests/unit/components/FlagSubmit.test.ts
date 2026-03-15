@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import FlagSubmit from './FlagSubmit.vue'
+import FlagSubmit from '../../../.vitepress/theme/components/FlagSubmit.vue'
 
 const CORRECT_FLAG = 'CTF{test_flag}'
 

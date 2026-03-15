@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PythonRuntime } from './usePythonRuntime'
+import { PythonRuntime } from '../../../.vitepress/theme/composables/usePythonRuntime'
 
 const FLAG_CONTENT = 'CTF{test_flag_12345}'
 const APP_CODE = 'app = lambda scope, receive, send: None'
