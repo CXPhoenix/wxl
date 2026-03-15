@@ -1,5 +1,6 @@
 ---
 title: "SQL Injection Demo"
+layout: challenge
 difficulty: easy
 category: web
 backend: flask
@@ -17,5 +18,3 @@ description: >
 # SQL Injection Demo
 
 A login form backed by SQLite. Find a way to bypass authentication and retrieve the flag.
-
-<ChallengeLayout slug="sqli-demo" />
