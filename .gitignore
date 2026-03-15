@@ -1,0 +1,97 @@
+# ===========================
+# Dependencies
+# ===========================
+node_modules/
+.pnp
+.pnp.js
+
+# ===========================
+# Build Output
+# ===========================
+dist/
+.vitepress/dist/
+.vitepress/cache/
+
+# ===========================
+# Environment & Secrets
+# ===========================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# ===========================
+# Logs
+# ===========================
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===========================
+# OS
+# ===========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===========================
+# Editor & IDE
+# ===========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ===========================
+# TypeScript
+# ===========================
+*.tsbuildinfo
+
+# ===========================
+# Vitest / Testing
+# ===========================
+coverage/
+.vitest-results/
+
+# ===========================
+# WASM / Rust / wasm-pack
+# ===========================
+target/
+pkg/
+Cargo.lock
+**/*.wasm
+
+# ===========================
+# Pyodide Cache
+# ===========================
+pyodide-cache/
+*.pyc
+__pycache__/
+
+# ===========================
+# Spectra / Tooling
+# ===========================
+.spectra/
+openspec/.vector-search.db*
+
+# ===========================
+# Misc
+# ===========================
+*.local
+.cache/
+tmp/
+temp/
