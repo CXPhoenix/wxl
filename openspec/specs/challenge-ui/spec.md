@@ -77,6 +77,51 @@ tests:
   - chall-wasm/python-bridge/python-runtime.test.ts
 -->
 
+
+<!-- @trace
+source: vitepress-platform-refactor
+updated: 2026-03-15
+code:
+  - env.d.ts
+  - vitest.config.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - tsconfig.json
+  - docs/challenges/sqli-demo.md
+  - package.json
+  - .vitepress/theme/Layout.vue
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - chall-wasm/python-bridge/python-runtime.ts
+  - docs/challenges/php-demo.md
+  - .vitepress/theme/index.ts
+  - .vitepress/config.mts
+  - docs/challenges/challenges.data.ts
+  - chall-wasm/php-bridge/php-runtime.ts
+  - .vitepress/theme/layouts/ChallengeListLayout.vue
+  - docs/challenges/index.md
+tests:
+  - .vitepress/theme/composables/usePhpRuntime-singleton.test.ts
+  - chall-wasm/php-bridge/php-runtime.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-fs.test.ts
+  - chall-wasm/python-bridge/python-runtime.test.ts
+  - chall-wasm/php-bridge/php-runtime-fs.test.ts
+  - .vitepress/theme/composables/usePythonRuntime-fs.test.ts
+  - chall-wasm/python-bridge/python-runtime-request.test.ts
+  - tests/e2e/flask-sqli.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-headers.test.ts
+  - chall-wasm/python-bridge/python-runtime-fs.test.ts
+  - chall-wasm/php-bridge/php-runtime-post.test.ts
+  - .vitepress/theme/layouts/ChallengeLayout.test.ts
+  - tests/e2e/php-demo.test.ts
+  - .vitepress/theme/composables/usePythonRuntime-request.test.ts
+  - .vitepress/theme/layouts/ChallengeListLayout.test.ts
+  - chall-wasm/php-bridge/php-runtime-singleton.test.ts
+  - .vitepress/theme/composables/usePhpRuntime.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-post.test.ts
+  - .vitepress/theme/composables/usePythonRuntime.test.ts
+  - chall-wasm/php-bridge/php-runtime-headers.test.ts
+-->
+
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
 
 The Browser Panel SHALL provide: a URL input field pre-populated with `http://challenge-<slug>.localhost/`, an HTTP method selector (GET, POST, PUT, DELETE, PATCH), a request body editor (shown for non-GET methods), a "Send" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
@@ -411,7 +456,6 @@ The challenge page SHALL include a persistent flag submission form below the int
 
 ## Requirements
 
-
 <!-- @trace
 source: web-exploit-challenge-platform
 updated: 2026-03-15
@@ -476,7 +520,7 @@ tests:
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render three panels accessible via tab navigation: Browser Panel, Terminal Panel, and Repeater Panel. All three panels SHALL share a single `useChallengeHttp` composable for issuing requests.
+The `ChallengeLayout.vue` component SHALL be implemented as a VitePress custom layout (registered under the name `challenge` in `theme/index.ts`) rather than an embeddable Vue component used inside `.md` files. It SHALL render three panels accessible via tab navigation: Browser Panel, Terminal Panel, and Repeater Panel. All three panels SHALL share a single `useChallengeHttp` composable for issuing requests. The layout SHALL receive the challenge `slug` from the page's frontmatter via VitePress's `useData()` composable rather than as a component prop.
 
 #### Scenario: User switches between panels without losing state
 
@@ -487,6 +531,11 @@ The `ChallengeLayout.vue` component SHALL render three panels accessible via tab
 
 - **WHEN** any panel sends an HTTP request
 - **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
+
+#### Scenario: Layout is activated via frontmatter, not component embedding
+
+- **WHEN** a challenge `.md` file declares `layout: challenge` in its frontmatter
+- **THEN** VitePress SHALL render the `ChallengeLayout.vue` layout without any `<ChallengeLayout>` or `<ChallengeUI>` tag appearing in the `.md` content body
 
 ---
 ### Requirement: Browser Panel simulates a web browser address bar and viewport

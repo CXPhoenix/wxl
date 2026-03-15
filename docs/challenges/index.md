@@ -1,4 +1,5 @@
 ---
-layout: challenge-list
 title: Challenges
 ---
+
+<ChallengeList />

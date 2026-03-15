@@ -46,5 +46,3 @@
 
 - [x] 6.1 執行 `pnpm docs:build` 確認整個建構流程成功（docs:build）
 - [x] 6.2 執行 `pnpm test` 確認所有測試通過（包含遷移後的 runtime bridge 測試）
-- [ ] 6.3 手動驗證 challenge list 頁面（`/challenges/`）顯示所有題目 card
-- [ ] 6.4 手動驗證 challenge 頁面 layout A（description 收縮、Browser/Terminal/Repeater tab、flag submit、back link）

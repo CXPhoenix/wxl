@@ -5,8 +5,9 @@
     "docs:preview": "vitepress preview",
     "test": "vitest",
     "wasm:build": "wasm-pack build chall-wasm/virtual-fs --out-dir ../../docs/public/wasm/virtual-fs --target web && wasm-pack build chall-wasm/asgi-bridge --out-dir ../../docs/public/wasm/asgi-bridge --target web",
-    "build": "pnpm wasm:build && pnpm docs:build",
-    "wasm:test": "cargo test --workspace"
+    "wasm:test": "cargo test --workspace",
+    "dev": "pnpm wasm:build && pnpm docs:dev",
+    "build": "pnpm wasm:build && pnpm docs:build"
   },
   "dependencies": {
     "idb": "^8.0.3",

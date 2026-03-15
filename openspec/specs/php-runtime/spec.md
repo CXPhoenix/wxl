@@ -237,7 +237,6 @@ The PHP Runtime SHALL populate PHP superglobals according to the incoming reques
 
 ## Requirements
 
-
 <!-- @trace
 source: web-exploit-challenge-platform
 updated: 2026-03-15
@@ -348,3 +347,62 @@ The PHP Runtime SHALL populate PHP superglobals according to the incoming reques
 
 - **WHEN** a POST request with `Content-Type: application/json` body arrives
 - **THEN** `file_get_contents('php://input')` SHALL return the raw JSON string
+
+---
+### Requirement: PHP runtime module resides in .vitepress/composables
+
+The `PhpRuntime` class SHALL be implemented in `.vitepress/theme/composables/usePhpRuntime.ts` (renamed from `chall-wasm/php-bridge/php-runtime.ts`). All consumers (`.vitepress/sw/router.ts` and test files) SHALL import from the new path. The public API — `initialize(appCode: string, fsEntries: FsEntry[]): Promise<void>` and `handleRequest(request: Request): Promise<Response>` — SHALL remain unchanged.
+
+#### Scenario: Runtime module is importable from .vitepress/composables
+
+- **WHEN** `.vitepress/sw/router.ts` imports `PhpRuntime`
+- **THEN** the import path SHALL be `.vitepress/theme/composables/usePhpRuntime` and the import SHALL resolve without error
+
+#### Scenario: Existing runtime behavior is preserved after migration
+
+- **WHEN** `PhpRuntime.handleRequest()` is called with an HTTP request after migration
+- **THEN** it SHALL produce the same response as before the migration (verified by existing test suite passing)
+
+<!-- @trace
+source: vitepress-platform-refactor
+updated: 2026-03-15
+code:
+  - env.d.ts
+  - vitest.config.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - tsconfig.json
+  - docs/challenges/sqli-demo.md
+  - package.json
+  - .vitepress/theme/Layout.vue
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - chall-wasm/python-bridge/python-runtime.ts
+  - docs/challenges/php-demo.md
+  - .vitepress/theme/index.ts
+  - .vitepress/config.mts
+  - docs/challenges/challenges.data.ts
+  - chall-wasm/php-bridge/php-runtime.ts
+  - .vitepress/theme/layouts/ChallengeListLayout.vue
+  - docs/challenges/index.md
+tests:
+  - .vitepress/theme/composables/usePhpRuntime-singleton.test.ts
+  - chall-wasm/php-bridge/php-runtime.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-fs.test.ts
+  - chall-wasm/python-bridge/python-runtime.test.ts
+  - chall-wasm/php-bridge/php-runtime-fs.test.ts
+  - .vitepress/theme/composables/usePythonRuntime-fs.test.ts
+  - chall-wasm/python-bridge/python-runtime-request.test.ts
+  - tests/e2e/flask-sqli.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-headers.test.ts
+  - chall-wasm/python-bridge/python-runtime-fs.test.ts
+  - chall-wasm/php-bridge/php-runtime-post.test.ts
+  - .vitepress/theme/layouts/ChallengeLayout.test.ts
+  - tests/e2e/php-demo.test.ts
+  - .vitepress/theme/composables/usePythonRuntime-request.test.ts
+  - .vitepress/theme/layouts/ChallengeListLayout.test.ts
+  - chall-wasm/php-bridge/php-runtime-singleton.test.ts
+  - .vitepress/theme/composables/usePhpRuntime.test.ts
+  - .vitepress/theme/composables/usePhpRuntime-post.test.ts
+  - .vitepress/theme/composables/usePythonRuntime.test.ts
+  - chall-wasm/php-bridge/php-runtime-headers.test.ts
+-->
