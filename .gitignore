@@ -70,6 +70,8 @@ chall-wasm/*/pkg/
 # 自訂 wasm-pack 輸出目錄（根目錄的隱藏資料夾）
 .wasm-fs-pkg/
 .wasm-asgi-pkg/
+# wasm-pack 生成至 docs/public/wasm/（含 JS bindings）
+docs/public/wasm/
 # WASM 二進位檔（由 wasm-pack 產生）
 **/*.wasm
 
@@ -85,6 +87,11 @@ __pycache__/
 # ===========================
 .spectra/
 openspec/.vector-search.db*
+
+# ===========================
+# Superpowers
+# ===========================
+.superpowers/
 
 # ===========================
 # Misc

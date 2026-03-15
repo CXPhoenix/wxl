@@ -1,5 +1,6 @@
 ---
 title: "PHP File Inclusion Demo"
+layout: challenge
 difficulty: easy
 category: web
 backend: php
@@ -17,5 +18,3 @@ description: >
 # PHP File Inclusion Demo
 
 A simple PHP app that includes files based on a query parameter. Find a way to read `/flag.txt`.
-
-<ChallengeLayout slug="php-demo" />
