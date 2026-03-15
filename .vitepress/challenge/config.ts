@@ -8,6 +8,7 @@ export interface ChallengeConfig {
   app: string
   fs: Record<string, string>
   source_visible: boolean
+  packages: string[]
   // optional metadata
   difficulty?: string
   category?: string
@@ -41,6 +42,7 @@ export function validateChallengeConfig(raw: unknown): ChallengeConfig {
     app: obj.app as string,
     fs: obj.fs as Record<string, string>,
     source_visible: (obj.source_visible as boolean) ?? false,
+    packages: (Array.isArray(obj.packages) ? obj.packages : []) as string[],
     difficulty: obj.difficulty as string | undefined,
     category: obj.category as string | undefined,
     description: obj.description as string | undefined,

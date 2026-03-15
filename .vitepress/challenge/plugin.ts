@@ -6,7 +6,8 @@ export interface ProcessedChallenge {
   backend: string
   flagVerifier: string
   fsKeyParts: string[]          // obfuscated key fragments
-  encryptedFs: Record<string, string>  // virtual path → base64(iv+ciphertext+tag)
+  encryptedFs: Record<string, string>  // virtual path → base64(iv+ciphertext+tag); '__app__' holds encrypted app code
+  packages: string[]            // micropip packages to install (beyond backend defaults)
   appSource?: string            // only present when source_visible: true
   difficulty?: string
   category?: string
@@ -33,6 +34,11 @@ export async function processChallengeFrontmatter(
     encryptedFs[virtualPath] = encrypted
   }
 
+  // Encrypt the app entry point and store under reserved key '__app__'
+  const appBasename = config.app.replace(/^.*[\\/]/, '')
+  const appContent = fileContents[appBasename] ?? fileContents[config.app] ?? ''
+  encryptedFs['__app__'] = await aesGcmEncrypt(keyBytes, new TextEncoder().encode(appContent))
+
   // Obfuscate fs_key into 3 fragments
   const fsKeyParts = splitKey(config.fs_key)
 
@@ -42,6 +48,7 @@ export async function processChallengeFrontmatter(
     flagVerifier: config.flag_verifier,
     fsKeyParts,
     encryptedFs,
+    packages: config.packages,
     sourceVisible: config.source_visible,
     difficulty: config.difficulty,
     category: config.category,
@@ -50,7 +57,6 @@ export async function processChallengeFrontmatter(
 
   // Only expose app source in white-box mode
   if (config.source_visible) {
-    const appBasename = config.app.replace(/^.*[\\/]/, '')
     result.appSource = fileContents[appBasename] ?? fileContents[config.app]
   }
 

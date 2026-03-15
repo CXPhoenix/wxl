@@ -29,16 +29,22 @@ export class PythonRuntime {
     this.loadPyodide = loadPyodide
   }
 
-  async initialize(appCode: string, fsEntries: Record<string, Uint8Array> = {}): Promise<void> {
+  async initialize(appCode: string, fsEntries: Record<string, Uint8Array> = {}, packages: string[] = []): Promise<void> {
     if (this.initPromise) return this.initPromise
-    this.initPromise = this._init(appCode, fsEntries)
+    this.initPromise = this._init(appCode, fsEntries, packages)
     return this.initPromise
   }
 
-  private async _init(appCode: string, fsEntries: Record<string, Uint8Array>): Promise<void> {
+  private async _init(appCode: string, fsEntries: Record<string, Uint8Array>, packages: string[]): Promise<void> {
     this.pyodide = await this.loadPyodide()
     for (const [path, data] of Object.entries(fsEntries)) {
       this.pyodide.FS.writeFile(path, data)
+    }
+    if (packages.length > 0) {
+      const pkgJson = JSON.stringify(packages)
+      await this.pyodide.runPythonAsync(
+        `import micropip; await micropip.install(${pkgJson})`,
+      )
     }
     await this.pyodide.runPythonAsync(appCode)
   }
