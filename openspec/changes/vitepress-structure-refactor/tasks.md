@@ -8,12 +8,12 @@
 - [x] 2.1 將 `.vitepress/theme/layouts/ChallengeListLayout.vue` 的內容重構為 `.vitepress/theme/components/ChallengeList.vue`，實作 Challenge list page uses a globally registered Vue component embedded in markdown 需求
 - [x] 2.2 在 `theme/index.ts` 的 `enhanceApp` 中新增 `app.component('ChallengeList', ChallengeList)` 全域註冊
 - [x] 2.3 更新 `docs/challenges/index.md`：移除 `layout: challenge-list` frontmatter，在 markdown body 新增 `<ChallengeList />`，移除 Challenge list page uses a custom "challenge-list" layout 需求
-- [ ] 2.4 刪除 `.vitepress/theme/layouts/ChallengeListLayout.vue`（已由 ChallengeList.vue 取代）
-- [ ] 2.5 刪除 `.vitepress/theme/components/ChallengeLayout.vue`（舊版殘留，非 layouts/ 下的正式版本）
+- [x] 2.4 刪除 `.vitepress/theme/layouts/ChallengeListLayout.vue`（已由 ChallengeList.vue 取代）
+- [x] 2.5 刪除 `.vitepress/theme/components/ChallengeLayout.vue`（舊版殘留，非 layouts/ 下的正式版本）
 
 ## 3. Service Worker 目錄遷移（Service Worker source resides in .vitepress/workers/ 需求）
 
-- [ ] 3.1 將 `.vitepress/sw/` 目錄整體重命名為 `.vitepress/workers/`（包含 `router.ts`），實作 Service Worker source resides in .vitepress/workers/ 需求
+- [x] 3.1 將 `.vitepress/sw/` 目錄整體重命名為 `.vitepress/workers/`（包含 `router.ts`），實作 Service Worker source resides in .vitepress/workers/ 需求
 
 ## 4. 測試集中至 tests/unit/（tests/ 鏡像結構決策）
 
