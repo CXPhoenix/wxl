@@ -9,6 +9,7 @@ node_modules/
 dist/
 .vitepress/dist/
 .vitepress/cache/
+.vitepress/wasm/
 
 # ===========================
 # Environment & Secrets
@@ -70,7 +71,7 @@ chall-wasm/*/pkg/
 # 自訂 wasm-pack 輸出目錄（根目錄的隱藏資料夾）
 .wasm-fs-pkg/
 .wasm-asgi-pkg/
-# wasm-pack 生成至 docs/public/wasm/（含 JS bindings）
+# wasm-pack 生成至 .vitepress/wasm/（含 JS bindings，已移出 public/）
 docs/public/wasm/
 # WASM 二進位檔（由 wasm-pack 產生）
 **/*.wasm

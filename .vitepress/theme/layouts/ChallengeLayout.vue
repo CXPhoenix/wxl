@@ -85,7 +85,7 @@ async function initRuntime(): Promise<void> {
 
   // 1. Load virtual-fs WASM module
   const { default: initWasm, wasm_fs_init, wasm_fs_read } = await import(
-    /* @vite-ignore */ '/wasm/virtual-fs/virtual_fs.js'
+    '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
 
