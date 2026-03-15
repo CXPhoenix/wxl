@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { createRouter } from '../sw/router'
-import { PhpRuntime } from '../php/php-runtime'
+import { PhpRuntime } from '../../chall-wasm/php-bridge/php-runtime'
 
 const SLUG = 'php-demo'
 const APP_PHP = '<?php echo "Hello from PHP"; ?>'
