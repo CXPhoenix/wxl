@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PythonRuntime } from './python-runtime'
+import { PythonRuntime } from './usePythonRuntime'
 
 const FLAG_CONTENT = 'CTF{test_flag_12345}'
 const APP_CODE = 'app = lambda scope, receive, send: None'
@@ -8,10 +8,8 @@ function makeMockPyodideWithFS() {
   const fsWriteFile = vi.fn()
   let capturedFlagContent: string | undefined
 
-  // Simulate Python open('/flag.txt').read() via runPythonAsync
   const runPythonAsync = vi.fn().mockImplementation(async (code: string) => {
     if (code.includes("open('/flag.txt').read()")) {
-      // Return what was written to FS
       return capturedFlagContent
     }
   })
@@ -44,7 +42,6 @@ describe('PythonRuntime FS mount', () => {
     await runtime.initialize(APP_CODE, fsEntries)
 
     expect(fsWriteFile).toHaveBeenCalledWith('/flag.txt', expect.any(Uint8Array))
-    // FS should be written before app_code runs (i.e., before runPythonAsync for app code)
     const writeCallOrder = fsWriteFile.mock.invocationCallOrder[0]
     const appCodeCallOrder = pyodide.runPythonAsync.mock.invocationCallOrder[0]
     expect(writeCallOrder).toBeLessThan(appCodeCallOrder)
@@ -59,7 +56,6 @@ describe('PythonRuntime FS mount', () => {
     }
     await runtime.initialize(APP_CODE, fsEntries)
 
-    // Decrypted content should not be on window or globalThis
     expect((globalThis as Record<string, unknown>)['flag']).toBeUndefined()
     expect((globalThis as Record<string, unknown>)['/flag.txt']).toBeUndefined()
     for (const key of Object.keys(globalThis)) {

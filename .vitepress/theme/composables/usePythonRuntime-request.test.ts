@@ -1,22 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PythonRuntime } from './python-runtime'
+import { PythonRuntime } from './usePythonRuntime'
 
 const APP_CODE = 'app = lambda scope, receive, send: None'
 
-/**
- * Creates a mock Pyodide that simulates a Flask app responding to requests.
- * The mock app callable captures the send function and uses it to emit
- * ASGI response events: http.response.start + http.response.body
- */
 function makeMockFlaskPyodide(status: number, body: string, headers: [string, string][] = []) {
-  let capturedAppCallable: ((scope: unknown, receive: () => Promise<unknown>, send: (event: unknown) => Promise<void>) => Promise<void>) | null = null
-
   const pyodide = {
     runPythonAsync: vi.fn().mockImplementation(async (code: string) => {
-      if (code === APP_CODE) {
-        // After running app code, globals.get('app') returns the callable
-        return undefined
-      }
+      if (code === APP_CODE) return undefined
     }),
     FS: { writeFile: vi.fn() },
     globals: {

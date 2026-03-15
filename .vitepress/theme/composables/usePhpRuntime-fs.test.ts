@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PhpRuntime } from './php-runtime'
+import { PhpRuntime } from './usePhpRuntime'
 
 const APP_PHP = '<?php echo file_get_contents("/flag.txt"); ?>'
 const FLAG_CONTENT = 'CTF{php_flag_test}'
@@ -34,7 +34,6 @@ describe('PhpRuntime FS mount', () => {
     await runtime.initialize(APP_PHP, { '/flag.txt': new TextEncoder().encode(FLAG_CONTENT) })
     await runtime.handleRequest(new Request('https://challenge-test.localhost/'))
 
-    // writeFile must be called (during initialize) before run (during handleRequest)
     expect(callOrder.indexOf('writeFile')).toBeLessThan(callOrder.indexOf('run'))
   })
 })

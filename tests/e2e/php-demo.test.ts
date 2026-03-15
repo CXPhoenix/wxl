@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { createRouter } from '../../.vitepress/sw/router'
-import { PhpRuntime } from '../../chall-wasm/php-bridge/php-runtime'
+import { PhpRuntime } from '../../.vitepress/theme/composables/usePhpRuntime'
 
 const SLUG = 'php-demo'
 const APP_PHP = '<?php echo "Hello from PHP"; ?>'

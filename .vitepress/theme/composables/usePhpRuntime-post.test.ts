@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PhpRuntime } from './php-runtime'
+import { PhpRuntime } from './usePhpRuntime'
 
 const APP_PHP = '<?php echo "ok"; ?>'
 
@@ -42,7 +42,6 @@ describe('PhpRuntime POST body handling', () => {
     }))
 
     const code: string = run.mock.calls[0][0]
-    // Raw body should be embedded for php://input equivalent
     expect(code).toContain(jsonBody)
   })
 })

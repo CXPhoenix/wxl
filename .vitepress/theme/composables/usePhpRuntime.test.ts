@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PhpRuntime } from './php-runtime'
+import { PhpRuntime } from './usePhpRuntime'
 
 const APP_PHP = '<?php echo "hello"; ?>'
 

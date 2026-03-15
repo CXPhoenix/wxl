@@ -51,7 +51,6 @@ export class PhpRuntime {
     const serverSetup = buildServerSetup(method, url)
     const getSetup = buildArraySetup('$_GET', getParams)
     const postSetup = buildArraySetup('$_POST', postParams)
-    const inputSetup = `php://input = '${escapePhpString(rawBody)}';`
 
     const code = [
       '<?php',

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { PythonRuntime } from './python-runtime'
+import { PythonRuntime } from './usePythonRuntime'
 
 const APP_CODE = 'app = lambda scope, receive, send: None'
 

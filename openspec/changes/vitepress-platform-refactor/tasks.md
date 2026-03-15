@@ -7,12 +7,12 @@
 
 ## 2. Runtime Bridge 遷移至 `.vitepress/theme/composables/`
 
-- [ ] 2.1 建立 `.vitepress/theme/composables/` 目錄；將 `chall-wasm/python-bridge/python-runtime.ts` 複製並重命名為 `.vitepress/theme/composables/usePythonRuntime.ts`，實作 Python ASGI runtime module resides in .vitepress/composables 需求
-- [ ] 2.2 將 `chall-wasm/php-bridge/php-runtime.ts` 複製並重命名為 `.vitepress/theme/composables/usePhpRuntime.ts`，實作 PHP runtime module resides in .vitepress/composables 需求
-- [ ] 2.3 更新 `.vitepress/sw/router.ts` 的 import 路徑，從 `chall-wasm/python-bridge/python-runtime` 改為 `.vitepress/theme/composables/usePythonRuntime`，以及 php-runtime 同理
-- [ ] 2.4 更新所有測試檔案（`python-runtime.test.ts`, `python-runtime-request.test.ts`, `python-runtime-fs.test.ts`, `php-runtime.test.ts` 等）的 import 路徑至新位置，實作 runtime bridge 位置：`.vitepress/theme/composables/` 決策
-- [ ] 2.5 刪除 `chall-wasm/python-bridge/` 與 `chall-wasm/php-bridge/` 中的 TypeScript 原始檔（保留 Rust crate 本身）
-- [ ] 2.6 執行 `pnpm test` 確認所有現有測試通過，驗證 existing runtime behavior is preserved after migration
+- [x] 2.1 建立 `.vitepress/theme/composables/` 目錄；將 `chall-wasm/python-bridge/python-runtime.ts` 複製並重命名為 `.vitepress/theme/composables/usePythonRuntime.ts`，實作 Python ASGI runtime module resides in .vitepress/composables 需求
+- [x] 2.2 將 `chall-wasm/php-bridge/php-runtime.ts` 複製並重命名為 `.vitepress/theme/composables/usePhpRuntime.ts`，實作 PHP runtime module resides in .vitepress/composables 需求
+- [x] 2.3 更新 `.vitepress/sw/router.ts` 的 import 路徑，從 `chall-wasm/python-bridge/python-runtime` 改為 `.vitepress/theme/composables/usePythonRuntime`，以及 php-runtime 同理
+- [x] 2.4 更新所有測試檔案（`python-runtime.test.ts`, `python-runtime-request.test.ts`, `python-runtime-fs.test.ts`, `php-runtime.test.ts` 等）的 import 路徑至新位置，實作 runtime bridge 位置：`.vitepress/theme/composables/` 決策
+- [x] 2.5 刪除 `chall-wasm/python-bridge/` 與 `chall-wasm/php-bridge/` 中的 TypeScript 原始檔（保留 Rust crate 本身）
+- [x] 2.6 執行 `pnpm test` 確認所有現有測試通過，驗證 existing runtime behavior is preserved after migration
 
 ## 3. 自訂 VitePress Layout：Challenge 頁面
 
