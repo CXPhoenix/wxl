@@ -91,12 +91,15 @@ function statusText(s: number): string {
 </script>
 
 <template>
-  <div class="terminal-panel">
-    <div data-output class="terminal-output">
-      <div v-for="(line, i) in lines" :key="i" class="terminal-line">{{ line }}</div>
+  <div class="flex flex-col h-full rounded border border-[var(--ch-border)] overflow-hidden bg-[var(--ch-bg-card)]">
+    <div
+      data-output
+      class="flex-1 overflow-y-auto p-3 font-mono text-[0.82em] color-[var(--ch-text-1)]"
+    >
+      <div v-for="(line, i) in lines" :key="i" class="whitespace-pre-wrap leading-5">{{ line }}</div>
     </div>
-    <div class="terminal-input-row">
-      <span class="prompt">$</span>
+    <div class="flex items-center gap-2 px-3 py-2 border-t border-[var(--ch-border)] bg-[var(--ch-bg-soft)]">
+      <span class="font-mono color-[var(--ch-accent)] font-bold select-none">$</span>
       <input
         data-cmd-input
         v-model="cmd"
@@ -105,6 +108,7 @@ function statusText(s: number): string {
         placeholder="curl https://challenge-…"
         spellcheck="false"
         autocomplete="off"
+        class="flex-1 bg-transparent border-none outline-none font-mono text-[0.85em] color-[var(--ch-text-1)]"
       />
     </div>
   </div>

@@ -5,6 +5,12 @@ vi.mock('vitepress', () => ({
   withBase: vi.fn((path: string) => path),
 }))
 
+const mockChallenges = [
+  { id: 1, title: 'SQL Injection Demo', url: '/challenge/sqli-demo', difficulty: 'easy', category: 'web' },
+  { id: 2, title: 'PHP File Inclusion Demo', url: '/challenge/php-demo', difficulty: 'easy', category: 'web' },
+  { id: 3, title: 'Hard Challenge', url: '/challenge/hard', difficulty: 'hard', category: 'web' },
+]
+
 let ChallengeList: typeof import('../../../.vitepress/theme/components/ChallengeList.vue').default
 
 beforeEach(async () => {
@@ -14,31 +20,42 @@ beforeEach(async () => {
 
 describe('ChallengeList', () => {
   it('renders a card for each challenge', () => {
-    const wrapper = mount(ChallengeList)
-    // The actual markdown files have their frontmatter parsed via markdownStub plugin,
-    // so sqli-demo.md and php-demo.md produce cards (index.md is filtered out)
+    const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
     const cards = wrapper.findAll('[data-challenge-card]')
-    expect(cards.length).toBeGreaterThanOrEqual(1)
+    expect(cards).toHaveLength(3)
   })
 
   it('renders challenge title in each card', () => {
-    const wrapper = mount(ChallengeList)
+    const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
     expect(wrapper.text()).toContain('SQL Injection Demo')
     expect(wrapper.text()).toContain('PHP File Inclusion Demo')
   })
 
   it('renders difficulty and category badges', () => {
-    const wrapper = mount(ChallengeList)
+    const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
     expect(wrapper.text()).toContain('easy')
     expect(wrapper.text()).toContain('web')
   })
 
   it('each card contains a link to the challenge page', () => {
-    const wrapper = mount(ChallengeList)
+    const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
     const links = wrapper.findAll('a[data-challenge-link]')
-    expect(links.length).toBeGreaterThanOrEqual(1)
+    expect(links).toHaveLength(3)
     const hrefs = links.map((l) => l.attributes('href'))
     expect(hrefs.some((h) => h?.includes('sqli-demo'))).toBe(true)
     expect(hrefs.some((h) => h?.includes('php-demo'))).toBe(true)
+  })
+
+  it('renders zero-padded id number for each card', () => {
+    const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
+    expect(wrapper.text()).toContain('#001')
+    expect(wrapper.text()).toContain('#002')
+    expect(wrapper.text()).toContain('#003')
+  })
+
+  it('applies semantic difficulty badge class for hard difficulty', () => {
+    const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
+    const hardBadge = wrapper.findAll('.ch-badge-hard')
+    expect(hardBadge.length).toBeGreaterThan(0)
   })
 })

@@ -13,107 +13,62 @@ const props = defineProps<{
   challenges: ChallengeData[]
 }>()
 
-// Load frontmatter from all challenge markdown files at build time via Vite glob
-const frontmatters = import.meta.glob('/docs/challenges/*.md', {
-  eager: true,
-  import: 'frontmatter',
-}) as Record<string, Record<string, unknown>>
-
-const challenges: ChallengeData[] = props.challenges.sort((a, b) => {
+const challenges: ChallengeData[] = [...props.challenges].sort((a, b) => {
   if (a.id === b.id) {
-    const difficulties = ['esay', 'medium', 'hard', 'mystery']
-    const findDifficulty = (challengeData: ChallengeData) => difficulties.findIndex((v) => v === challengeData.difficulty)
+    const difficulties = ['easy', 'medium', 'hard', 'mystery']
+    const findDifficulty = (c: ChallengeData) => difficulties.findIndex((v) => v === c.difficulty)
     return findDifficulty(a) - findDifficulty(b)
   }
   return a.id - b.id
 })
+
+// Static badge class maps (full class names required for UnoCSS extraction)
+const difficultyBadge: Record<string, string> = {
+  easy:    'ch-badge-easy',
+  medium:  'ch-badge-medium',
+  hard:    'ch-badge-hard',
+  mystery: 'ch-badge-mystery',
+}
+const categoryBadge: Record<string, string> = {
+  web: 'ch-badge-web',
+}
+
+function paddedId(id: number): string {
+  return `#${String(id).padStart(3, '0')}`
+}
 </script>
 
 <template>
-  <div class="challenge-list-page">
-    <header class="list-header">
-      <h1>Challenges</h1>
-      <p class="subtitle">Choose a challenge to begin</p>
+  <div class="max-w-[960px] mx-auto px-6 py-10">
+    <header class="mb-8">
+      <h1 class="text-[2em] font-bold m-0 mb-2 color-[var(--ch-text-1)]">Challenges</h1>
+      <p class="m-0 color-[var(--ch-text-2)]">Choose a challenge to begin</p>
     </header>
 
-    <div class="challenge-grid">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
       <a
         v-for="c in challenges"
         :key="c.url"
         data-challenge-card
         data-challenge-link
-        :href="c.url"
-        class="challenge-card"
+        :href="withBase(c.url)"
+        :class="['ch-card', 'before:absolute before:top-0 before:left-0 before:right-0 before:h-[3px] before:rounded-t-[10px] before:bg-[var(--ch-accent)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100']"
       >
-        <div class="card-title">{{ c.title }}</div>
-        <div class="card-meta">
-          <span v-if="c.difficulty" class="badge badge-difficulty">{{ c.difficulty }}</span>
-          <span v-if="c.category" class="badge badge-category">{{ c.category }}</span>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="font-mono text-[0.75em] color-[var(--ch-accent)] font-bold">{{ paddedId(c.id) }}</span>
+          <span class="font-semibold text-[1.05em] color-[var(--ch-text-1)]">{{ c.title }}</span>
+        </div>
+        <div class="flex gap-[6px] flex-wrap">
+          <span
+            v-if="c.difficulty"
+            :class="difficultyBadge[c.difficulty] ?? 'ch-badge'"
+          >{{ c.difficulty }}</span>
+          <span
+            v-if="c.category"
+            :class="categoryBadge[c.category] ?? 'ch-badge'"
+          >{{ c.category }}</span>
         </div>
       </a>
     </div>
   </div>
 </template>
-
-<style scoped>
-.challenge-list-page {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 40px 24px;
-}
-
-.list-header {
-  margin-bottom: 32px;
-}
-.list-header h1 {
-  font-size: 2em;
-  font-weight: 700;
-  margin: 0 0 8px;
-}
-.subtitle {
-  color: var(--vp-c-text-2);
-  margin: 0;
-}
-
-.challenge-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.challenge-card {
-  display: block;
-  padding: 20px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--vp-c-text-1);
-  background: var(--vp-c-bg-soft);
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.challenge-card:hover {
-  border-color: var(--vp-c-brand-1);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.card-title {
-  font-weight: 600;
-  font-size: 1.05em;
-  margin-bottom: 12px;
-}
-
-.card-meta {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.badge {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75em;
-  font-weight: 500;
-}
-.badge-difficulty { background: var(--vp-c-yellow-soft); color: var(--vp-c-yellow-3); }
-.badge-category   { background: var(--vp-c-indigo-soft); color: var(--vp-c-indigo-3); }
-</style>

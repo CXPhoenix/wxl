@@ -105,4 +105,12 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(tabIds).toContain('terminal')
     expect(tabIds).toContain('repeater')
   })
+
+  it('wraps Content in a vp-doc container for markdown typography', () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    const descPanel = wrapper.find('[data-description-panel]')
+    expect(descPanel.find('.vp-doc').exists()).toBe(true)
+  })
 })
