@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "crates/wasm-fs",
+    "crates/wasm-asgi",
+]
+resolver = "2"
