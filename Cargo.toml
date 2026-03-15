@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "crates/virtual-fs",
-    "crates/asgi-bridge",
+    "chall-wasm/virtual-fs",
+    "chall-wasm/asgi-bridge",
 ]
 resolver = "2"

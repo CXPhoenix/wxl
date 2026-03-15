@@ -2,7 +2,9 @@
   "scripts": {
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview"
+    "docs:preview": "vitepress preview",
+    "wasm:build": "wasm-pack build chall-wasm/virtual-fs --target web && wasm-pack build chall-wasm/asgi-bridge --target web",
+    "wasm:test": "cargo test --workspace"
   },
   "dependencies": {
     "idb": "^8.0.3",

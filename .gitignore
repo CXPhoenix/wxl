@@ -2,8 +2,6 @@
 # Dependencies
 # ===========================
 node_modules/
-.pnp
-.pnp.js
 
 # ===========================
 # Build Output
@@ -28,8 +26,6 @@ logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # ===========================
 # OS
@@ -51,10 +47,6 @@ Desktop.ini
 *.swp
 *.swo
 *~
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 
 # ===========================
 # TypeScript
@@ -68,15 +60,21 @@ coverage/
 .vitest-results/
 
 # ===========================
-# WASM / Rust / wasm-pack
+# Rust / WASM / wasm-pack
 # ===========================
 target/
-pkg/
 Cargo.lock
+# wasm-pack 標準輸出目錄
+pkg/
+chall-wasm/*/pkg/
+# 自訂 wasm-pack 輸出目錄（根目錄的隱藏資料夾）
+.wasm-fs-pkg/
+.wasm-asgi-pkg/
+# WASM 二進位檔（由 wasm-pack 產生）
 **/*.wasm
 
 # ===========================
-# Pyodide Cache
+# Pyodide / PHP-WASM Cache
 # ===========================
 pyodide-cache/
 *.pyc
