@@ -24,7 +24,8 @@
     "wasm:test": "cargo test --workspace",
     "dev": "pnpm wasm:build && pnpm docs:dev",
     "build": "pnpm wasm:build && pnpm docs:build",
-    "challenge:keygen": "node --experimental-strip-types scripts/challenge-keygen.ts"
+    "challenge:keygen": "node --experimental-strip-types scripts/challenge-keygen.ts",
+    "create:challenge": "node --experimental-strip-types scripts/create-challenge.ts"
   },
   "dependencies": {
     "idb": "^8.0.3",
