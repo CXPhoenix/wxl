@@ -3,7 +3,8 @@
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview",
-    "wasm:build": "wasm-pack build chall-wasm/virtual-fs --target web && wasm-pack build chall-wasm/asgi-bridge --target web",
+    "wasm:build": "wasm-pack build chall-wasm/virtual-fs --out-dir ../../docs/public/wasm/virtual-fs --target web && wasm-pack build chall-wasm/asgi-bridge --out-dir ../../docs/public/wasm/asgi-bridge --target web",
+    "build": "pnpm wasm:build && pnpm docs:build",
     "wasm:test": "cargo test --workspace"
   },
   "dependencies": {
