@@ -7,7 +7,7 @@ import TerminalPanel from '../components/TerminalPanel.vue'
 import RepeatPanel from '../components/RepeatPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
 import { useFlagVerifier } from '../../challenge/flag-verifier'
-import { PythonRuntime } from '../composables/usePythonRuntime'
+import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 
 const { frontmatter, page } = useData()
@@ -121,9 +121,11 @@ async function initRuntime(): Promise<void> {
 
   // 6. Initialize the appropriate runtime (only once — idempotency via initPromise)
   if (backend === 'flask' || backend === 'fastapi') {
-    const { default: loadPyodide } = await import(
-      /* @vite-ignore */ 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js'
-    )
+    await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js')
+    const loadPyodide = (globalThis as any).loadPyodide as LoadPyodideFn
+    if (typeof loadPyodide !== 'function') {
+      throw new Error('loadPyodide not available after loading pyodide.js')
+    }
     runtime = new PythonRuntime(loadPyodide)
     await (runtime as PythonRuntime).initialize(appCode, fsEntries, packages)
   } else if (backend === 'php') {

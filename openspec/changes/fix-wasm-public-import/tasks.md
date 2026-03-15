@@ -15,5 +15,5 @@
 ## 4. 驗證（developer starts dev server）
 
 - [x] 4.1 執行 `pnpm dev`，確認開發伺服器啟動時不出現 `Cannot import non-asset file` 錯誤
-- [ ] 4.2 在瀏覽器開啟任一 challenge 頁面，確認 WASM 模組正常載入（`runtimeReady` 變為 `true`，無 Runtime Error badge）
+- [x] 4.2 在瀏覽器開啟任一 challenge 頁面，確認 WASM 模組正常載入（`runtimeReady` 變為 `true`，無 Runtime Error badge）
 - [x] 4.3 執行 `pnpm docs:build`，確認 production build 正常完成
