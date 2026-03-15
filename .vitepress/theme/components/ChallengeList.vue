@@ -2,11 +2,16 @@
 import { withBase } from 'vitepress'
 
 interface ChallengeData {
+  id: number
   title: string
   url: string
   difficulty?: string
   category?: string
 }
+
+const props = defineProps<{
+  challenges: ChallengeData[]
+}>()
 
 // Load frontmatter from all challenge markdown files at build time via Vite glob
 const frontmatters = import.meta.glob('/docs/challenges/*.md', {
@@ -14,14 +19,14 @@ const frontmatters = import.meta.glob('/docs/challenges/*.md', {
   import: 'frontmatter',
 }) as Record<string, Record<string, unknown>>
 
-const challenges: ChallengeData[] = Object.entries(frontmatters)
-  .filter(([path]) => !path.endsWith('/index.md'))
-  .map(([path, fm]) => ({
-    title: (fm.title as string) ?? '',
-    url: withBase(path.replace(/^\/docs/, '').replace(/\.md$/, '').replace(/\/index$/, '/')),
-    difficulty: fm.difficulty as string | undefined,
-    category: fm.category as string | undefined,
-  }))
+const challenges: ChallengeData[] = props.challenges.sort((a, b) => {
+  if (a.id === b.id) {
+    const difficulties = ['esay', 'medium', 'hard', 'mystery']
+    const findDifficulty = (challengeData: ChallengeData) => difficulties.findIndex((v) => v === challengeData.difficulty)
+    return findDifficulty(a) - findDifficulty(b)
+  }
+  return a.id - b.id
+})
 </script>
 
 <template>

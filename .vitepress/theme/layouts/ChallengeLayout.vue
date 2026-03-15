@@ -95,7 +95,7 @@ onMounted(() => {
       </aside>
 
       <!-- Right column: interaction panels -->
-      <main class="interaction-column">
+      <main class="vp-raw interaction-column">
         <nav class="tab-bar">
           <button
             v-for="tab in tabs"

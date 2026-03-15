@@ -1,5 +1,0 @@
----
-title: Challenges
----
-
-<ChallengeList />
