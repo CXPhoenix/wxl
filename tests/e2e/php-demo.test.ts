@@ -3,7 +3,7 @@
  * PHP challenges use the same Service Worker routing path as Python.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { createRouter } from '../sw/router'
+import { createRouter } from '../../.vitepress/sw/router'
 import { PhpRuntime } from '../../chall-wasm/php-bridge/php-runtime'
 
 const SLUG = 'php-demo'

@@ -5,8 +5,8 @@
  * Uses mocked Pyodide to simulate Flask app response.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { createRouter } from '../sw/router'
-import { PythonRuntime } from '../python/python-runtime'
+import { createRouter } from '../../.vitepress/sw/router'
+import { PythonRuntime } from '../../chall-wasm/python-bridge/python-runtime'
 
 const SLUG = 'sqli-demo'
 const APP_CODE = `
