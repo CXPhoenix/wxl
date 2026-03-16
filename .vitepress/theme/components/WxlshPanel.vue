@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, type Ref } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useWxlsh, type PyodidePublicAPI } from '../composables/useWxlsh'
 
 const props = defineProps<{
   slug: string
   dispatch: (request: Request) => Promise<Response>
   disabled?: boolean
-  /** Pyodide instance passed down from ChallengeLayout when it becomes ready. */
-  pyodide?: Ref<PyodidePublicAPI | null>
+  /** Pyodide instance passed down from ChallengeLayout (already unwrapped by Vue). */
+  pyodide?: PyodidePublicAPI | null
 }>()
 
 // ─── xterm.js lazy references ─────────────────────────────────────────────────
@@ -20,7 +20,8 @@ let initTerminalPromise: Promise<void> | null = null
 
 // ─── wxlsh composable ─────────────────────────────────────────────────────────
 
-const pyodideRef: Ref<PyodidePublicAPI | null> = props.pyodide ?? ref(null)
+// computed() stays in sync with the prop as Pyodide loads (useWxlsh expects a Ref)
+const pyodideRef = computed(() => props.pyodide ?? null)
 
 const wxlsh = useWxlsh({
   slug: props.slug,

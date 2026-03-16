@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { ref } from 'vue'
 
 // ─── Mock CodeMirror ──────────────────────────────────────────────────────────
 
@@ -83,7 +82,6 @@ vi.mock('../../../.vitepress/theme/composables/useChallengePersistence', () => (
 const mockDispatch = vi.fn(async (_req: Request) => new Response('ok', { status: 200 }))
 
 async function mountPanel(pyodide: ReturnType<typeof vi.fn> | null = null, disabled = false) {
-  const pyRef = ref<{ runPythonAsync: ReturnType<typeof vi.fn>; globals: { set: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> } } | null>(pyodide)
   const wrapper = mount(
     (await import('../../../.vitepress/theme/components/CodeEditorPanel.vue')).default,
     {
@@ -91,7 +89,7 @@ async function mountPanel(pyodide: ReturnType<typeof vi.fn> | null = null, disab
         slug: 'test',
         dispatch: mockDispatch,
         disabled,
-        pyodide: pyRef,
+        pyodide: pyodide ?? null,
       },
       attachTo: document.body,
     },

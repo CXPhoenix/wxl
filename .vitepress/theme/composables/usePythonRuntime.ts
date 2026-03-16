@@ -109,6 +109,9 @@ async def _asgi_bridge(method, path, query_string, js_headers, body_bytes):
                 environ["CONTENT_LENGTH"] = v
             else:
                 environ["HTTP_" + key] = v
+        # Always override CONTENT_LENGTH with actual body size so Flask/Werkzeug
+        # can read the body even when the caller omits the Content-Length header.
+        environ["CONTENT_LENGTH"] = str(len(body))
         _w_status = [200]
         _w_headers = [[]]
         def _start_response(status, response_headers, exc_info=None):

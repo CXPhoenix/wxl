@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, onUnmounted, type Ref } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted } from 'vue'
 import { useChallengePersistence } from '../composables/useChallengePersistence'
 import type { PyodidePublicAPI } from '../composables/useWxlsh'
 
@@ -7,8 +7,8 @@ const props = defineProps<{
   slug: string
   dispatch: (request: Request) => Promise<Response>
   disabled?: boolean
-  /** Pyodide instance passed down from ChallengeLayout. */
-  pyodide?: Ref<PyodidePublicAPI | null>
+  /** Pyodide instance passed down from ChallengeLayout (already unwrapped by Vue). */
+  pyodide?: PyodidePublicAPI | null
 }>()
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ class _RequestsStub:
     class _Response:
         def __init__(self, status, headers, text):
             self.status_code = status
-            self.headers = dict(headers)
+            self.headers = {k: v for k, v in headers}
             self.text = text
             self.content = text.encode()
         def json(self):
@@ -175,29 +175,43 @@ class _RequestsStub:
         def __repr__(self):
             return f'<Response [{self.status_code}]>'
 
-    def _dispatch(self, method, url, **kwargs):
+    async def _dispatch(self, method, url, **kwargs):
         from js import _wxlsh_code_dispatch
-        headers = list((kwargs.get('headers') or {}).items())
-        body = kwargs.get('data') or kwargs.get('json', '')
-        if isinstance(body, dict):
-            body = _json.dumps(body)
-        r = _wxlsh_code_dispatch.call(method, url, headers, body or '')
-        return self._Response(r['status'], r['headers'], r['body'])
+        from urllib.parse import urlencode as _urlencode
+        headers = dict(kwargs.get('headers') or {})
+        data = kwargs.get('data')
+        json_body = kwargs.get('json')
+        if json_body is not None:
+            body = _json.dumps(json_body)
+            headers.setdefault('Content-Type', 'application/json')
+        elif isinstance(data, dict):
+            body = _urlencode(data)
+            headers.setdefault('Content-Type', 'application/x-www-form-urlencoded')
+        elif isinstance(data, str):
+            body = data
+        else:
+            body = ''
+        # _wxlsh_code_dispatch is a JS async function — await its Promise
+        r = await _wxlsh_code_dispatch(method, url, list(headers.items()), body or '')
+        status = int(r['status'])
+        text   = str(r['body'])
+        hdrs   = [[str(p[0]), str(p[1])] for p in r['headers']]
+        return self._Response(status, hdrs, text)
 
-    def get(self, url, **kw): return self._dispatch('GET', url, **kw)
-    def post(self, url, **kw): return self._dispatch('POST', url, **kw)
-    def put(self, url, **kw): return self._dispatch('PUT', url, **kw)
-    def delete(self, url, **kw): return self._dispatch('DELETE', url, **kw)
-    def patch(self, url, **kw): return self._dispatch('PATCH', url, **kw)
-    def head(self, url, **kw): return self._dispatch('HEAD', url, **kw)
-    def request(self, method, url, **kw): return self._dispatch(method.upper(), url, **kw)
+    async def get(self, url, **kw): return await self._dispatch('GET', url, **kw)
+    async def post(self, url, **kw): return await self._dispatch('POST', url, **kw)
+    async def put(self, url, **kw): return await self._dispatch('PUT', url, **kw)
+    async def delete(self, url, **kw): return await self._dispatch('DELETE', url, **kw)
+    async def patch(self, url, **kw): return await self._dispatch('PATCH', url, **kw)
+    async def head(self, url, **kw): return await self._dispatch('HEAD', url, **kw)
+    async def request(self, method, url, **kw): return await self._dispatch(method.upper(), url, **kw)
 
 requests = _RequestsStub()
 `
 }
 
 async function runCode() {
-  const py = props.pyodide?.value
+  const py = props.pyodide ?? null
   if (!py || !editorView.value) return
 
   const code = editorView.value.state.doc.toString()
@@ -205,21 +219,18 @@ async function runCode() {
   outputText.value = ''
 
   try {
-    // Inject dispatch bridge
-    const dispatchBridge = {
-      call: async (method: string, url: string, headers: [string, string][], body: string) => {
-        const req = new Request(url, {
-          method,
-          headers: Object.fromEntries(headers),
-          body: body || undefined,
-        })
-        const res = await props.dispatch(req)
-        const resHeaders = [...res.headers.entries()]
-        const text = await res.text()
-        return { status: res.status, headers: resHeaders, body: text }
-      },
-    }
-    py.globals.set('_wxlsh_code_dispatch', dispatchBridge)
+    // Inject dispatch bridge — a direct async callable so Python can `await` it
+    py.globals.set('_wxlsh_code_dispatch', async (method: string, url: string, headers: [string, string][], body: string) => {
+      const req = new Request(url, {
+        method,
+        headers: Object.fromEntries(headers),
+        body: body || undefined,
+      })
+      const res = await props.dispatch(req)
+      const resHeaders = [...res.headers.entries()]
+      const text = await res.text()
+      return { status: res.status, headers: resHeaders, body: text }
+    })
 
     // Capture stdout
     await py.runPythonAsync(`
@@ -242,7 +253,7 @@ sys.stdout = _wxlsh_stdout
   } finally {
     // Restore stdout
     try {
-      await props.pyodide?.value?.runPythonAsync('import sys; sys.stdout = sys.__stdout__')
+      await props.pyodide?.runPythonAsync('import sys; sys.stdout = sys.__stdout__')
     } catch { /* ignore */ }
     isRunning.value = false
     // Scroll output to bottom
@@ -273,12 +284,33 @@ async function handleLoad() {
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
+let _resizeObserver: ResizeObserver | null = null
+
 onMounted(async () => {
-  await initEditor()
   await refreshScriptList()
+  // Try immediate init (if panel is already visible)
+  await initEditor()
+  // Watch for when v-show reveals the panel (clientWidth/Height go from 0 → non-zero)
+  if (!editorView.value && editorContainerRef.value) {
+    _resizeObserver = new ResizeObserver(async () => {
+      if (editorView.value) {
+        _resizeObserver?.disconnect()
+        _resizeObserver = null
+        return
+      }
+      await initEditor()
+      if (editorView.value) {
+        _resizeObserver?.disconnect()
+        _resizeObserver = null
+      }
+    })
+    _resizeObserver.observe(editorContainerRef.value)
+  }
 })
 
 onUnmounted(() => {
+  _resizeObserver?.disconnect()
+  _resizeObserver = null
   editorView.value?.destroy()
   onDragEnd()
 })
@@ -294,18 +326,18 @@ onUnmounted(() => {
         data-run
         class="px-3 py-1 rounded text-[0.8em] font-medium border-none"
         :class="[
-          props.disabled || isRunning || !props.pyodide?.value
+          props.disabled || isRunning || !props.pyodide
             ? 'opacity-40 cursor-not-allowed bg-[var(--ch-bg-soft)] color-[var(--ch-text-2)]'
             : 'bg-[var(--ch-accent)] color-white cursor-pointer hover:opacity-90',
         ]"
-        :disabled="props.disabled || isRunning || !props.pyodide?.value"
+        :disabled="props.disabled || isRunning || !props.pyodide"
         @click="runCode"
-        title="Run (Ctrl+Enter)"
+        :title="props.disabled || !props.pyodide ? 'Waiting for runtime to initialize…' : 'Run (Ctrl+Enter)'"
       >
-        {{ isRunning ? 'Running…' : '▶ Run' }}
+        {{ isRunning ? 'Running…' : (props.disabled || !props.pyodide) ? 'Loading…' : '▶ Run' }}
       </button>
 
-      <span class="text-[0.75em] color-[var(--ch-text-2)] select-none">Ctrl+Enter</span>
+      <span v-if="!props.disabled && props.pyodide" class="text-[0.75em] color-[var(--ch-text-2)] select-none">Ctrl+Enter</span>
 
       <div class="flex-1" />
 
