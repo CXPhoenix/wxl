@@ -25,6 +25,10 @@ const fm = computed(() => frontmatter.value)
 const runtimeReady = ref(false)
 const runtimeError = ref<string | null>(null)
 
+// Pyodide instance — set after Python runtime init; passed to WxlshPanel + CodeEditorPanel
+type PyodidePublicAPI = { runPythonAsync(code: string): Promise<unknown>; globals: { get(k: string): unknown; set(k: string, v: unknown): void } }
+const pyodideInstance = ref<PyodidePublicAPI | null>(null)
+
 // ─── SW readiness gate ───────────────────────────────────────────────────────
 // swReady is true only when navigator.serviceWorker.controller is non-null.
 // Without this, tools appear enabled before SW can intercept requests.
@@ -169,6 +173,11 @@ async function initRuntime(): Promise<void> {
   }
 
   runtimeReady.value = true
+
+  // Expose Pyodide instance for wxlsh and code editor panels
+  if (runtime instanceof PythonRuntime) {
+    pyodideInstance.value = runtime.getPyodide() as PyodidePublicAPI | null
+  }
 }
 
 // ─── HANDLE_REQUEST listener ──────────────────────────────────────────────────
@@ -331,13 +340,13 @@ const categoryBadge: Record<string, string> = {
           <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
         <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
-          <WxlshPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
+          <WxlshPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
         </div>
-        <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-auto p-3">
+        <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
           <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
         <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
-          <CodeEditorPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
+          <CodeEditorPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
         </div>
       </main>
     </div>

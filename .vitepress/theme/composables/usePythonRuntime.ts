@@ -17,7 +17,7 @@ interface PyodideInstance {
   runPythonAsync(code: string): Promise<unknown>
   loadPackage(packages: string | string[]): Promise<void>
   FS: { writeFile(path: string, data: Uint8Array | string): void }
-  globals: { get(name: string): unknown }
+  globals: { get(name: string): unknown; set(name: string, value: unknown): void }
 }
 
 /**
@@ -28,6 +28,9 @@ export class PythonRuntime {
   private pyodide: PyodideInstance | null = null
   private initPromise: Promise<void> | null = null
   private readonly loadPyodide: LoadPyodideFn
+
+  /** Returns the Pyodide instance after initialization, or null if not ready. */
+  getPyodide(): PyodideInstance | null { return this.pyodide }
 
   constructor(loadPyodide: LoadPyodideFn) {
     this.loadPyodide = loadPyodide
