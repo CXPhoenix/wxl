@@ -36,6 +36,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (!CHALLENGE_HOST_RE.test(url.hostname)) return  // pass through
 
+  // Intercepts both regular fetch and navigation requests (request.mode === 'navigate'),
+  // e.g. when BrowserPanel iframe link clicks are handled via dispatch().
   event.respondWith(handleChallengeRequest(event.request, url))
 })
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 
 const props = defineProps<{
   slug: string
@@ -7,12 +7,8 @@ const props = defineProps<{
   disabled?: boolean
 }>()
 
-type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-const methods: Method[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
-
 const url = ref(`https://challenge-${props.slug}.localhost/`)
-const method = ref<Method>('GET')
-const body = ref('')
+const iframeRef = useTemplateRef<HTMLIFrameElement>('iframeEl')
 
 type ResponseState =
   | { type: 'idle' }
@@ -21,11 +17,9 @@ type ResponseState =
 
 const responseState = ref<ResponseState>({ type: 'idle' })
 
-async function send() {
-  const req = new Request(url.value, {
-    method: method.value,
-    body: method.value !== 'GET' && body.value ? body.value : undefined,
-  })
+async function navigate() {
+  if (props.disabled) return
+  const req = new Request(url.value, { method: 'GET' })
   const res = await props.dispatch(req)
   const ct = res.headers.get('content-type') ?? ''
   const text = await res.text()
@@ -39,50 +33,72 @@ async function send() {
     responseState.value = { type: 'text', content: formatted }
   }
 }
+
+// Intercept <a> clicks inside the iframe and handle them via dispatch().
+// Called on iframe load to (re-)attach the listener after srcdoc updates.
+function attachIframeLinkInterceptor() {
+  const iframe = iframeRef.value
+  if (!iframe) return
+  try {
+    const doc = iframe.contentDocument
+    if (!doc) return
+    doc.addEventListener('click', (e) => {
+      const target = (e.target as HTMLElement).closest('a')
+      if (!target) return
+      const href = target.getAttribute('href')
+      if (!href || href.startsWith('#')) return
+      e.preventDefault()
+      // Resolve relative URLs against the challenge base
+      const base = `https://challenge-${props.slug}.localhost/`
+      url.value = new URL(href, base).href
+      navigate()
+    })
+  } catch {
+    // Cross-origin frames: silently ignore (shouldn't happen with srcdoc + allow-same-origin)
+  }
+}
 </script>
 
 <template>
   <div class="flex flex-col h-full gap-2">
+    <!-- Address bar -->
     <div class="flex gap-2 flex-shrink-0">
-      <select
-        v-model="method"
-        class="px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.85em] cursor-pointer"
-      >
-        <option v-for="m in methods" :key="m" :value="m">{{ m }}</option>
-      </select>
       <input
+        data-url-input
         v-model="url"
         type="text"
-        placeholder="URL"
+        placeholder="https://challenge-…"
+        @keydown.enter="navigate"
         class="flex-1 px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.85em] font-mono outline-none focus:border-[var(--ch-accent)]"
       />
       <button
-        data-send
+        data-go
         class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] border-none"
         :class="props.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'"
         :disabled="props.disabled"
-        @click="send"
-      >{{ props.disabled ? 'Loading…' : 'Send' }}</button>
+        @click="navigate"
+      >{{ props.disabled ? 'Loading…' : 'Go' }}</button>
     </div>
 
-    <textarea
-      v-if="method !== 'GET'"
-      v-model="body"
-      placeholder="Request body"
-      class="w-full px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.85em] font-mono resize-y outline-none focus:border-[var(--ch-accent)]"
-      rows="4"
-    />
-
+    <!-- Response viewport -->
     <iframe
       v-if="responseState.type === 'html'"
-      sandbox="allow-scripts allow-forms"
+      ref="iframeEl"
+      sandbox="allow-scripts allow-forms allow-same-origin"
       :srcdoc="responseState.content"
       class="flex-1 w-full rounded border border-[var(--ch-border)] bg-white"
+      @load="attachIframeLinkInterceptor"
     />
     <pre
       v-else-if="responseState.type === 'text'"
       data-response-text
       class="flex-1 m-0 p-3 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.8em] font-mono overflow-auto whitespace-pre-wrap"
     >{{ responseState.content }}</pre>
+    <div
+      v-else
+      class="flex-1 flex items-center justify-center color-[var(--ch-text-2)] text-[0.85em]"
+    >
+      Enter a URL and press Go
+    </div>
   </div>
 </template>

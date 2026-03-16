@@ -11,22 +11,22 @@
 
 ## 3. Bug 修復：Service Worker iframe 導航
 
-- [ ] 3.1 確認 `docs/public/challenge-sw.js` 的 fetch handler 不排除 `request.mode === "navigate"`，以實作 Service Worker handles navigation requests from iframe link clicks 與 Service Worker intercepts challenge-*.localhost requests（修改版）
+- [x] 3.1 確認 `docs/public/challenge-sw.js` 的 fetch handler 不排除 `request.mode === "navigate"`，以實作 Service Worker handles navigation requests from iframe link clicks 與 Service Worker intercepts challenge-*.localhost requests（修改版）
 
 ## 4. Browser Panel 重寫
 
-- [ ] 4.1 移除 `BrowserPanel.vue` 中的 HTTP method selector（select 元件與 methods 陣列）及 request body textarea，以實作 Browser Panel simulates a web browser address bar and viewport（BrowserPanel iframe 連結導航攔截設計決策）
-- [ ] 4.2 在 URL input 上加入 `@keydown.enter` 觸發 `navigate()`，加入 "Go" button 取代原本的 "Send" button
-- [ ] 4.3 在 iframe `load` 事件後用 `contentDocument.addEventListener('click', ...)` 攔截 `<a>` 點擊，`preventDefault()` 後取出 href 呼叫 `navigate()`，更新 URL bar，實作 link click in iframe triggers in-panel navigation
-- [ ] 4.4 加入 `sandbox="allow-scripts allow-forms allow-same-origin"` 至 iframe（原本缺少 `allow-same-origin`）
-- [ ] 4.5 撰寫 `BrowserPanel.vue` 的單元測試，覆蓋：Enter 鍵導航、連結點擊攔截、HTML/JSON 回應顯示
+- [x] 4.1 移除 `BrowserPanel.vue` 中的 HTTP method selector（select 元件與 methods 陣列）及 request body textarea，以實作 Browser Panel simulates a web browser address bar and viewport（BrowserPanel iframe 連結導航攔截設計決策）
+- [x] 4.2 在 URL input 上加入 `@keydown.enter` 觸發 `navigate()`，加入 "Go" button 取代原本的 "Send" button
+- [x] 4.3 在 iframe `load` 事件後用 `contentDocument.addEventListener('click', ...)` 攔截 `<a>` 點擊，`preventDefault()` 後取出 href 呼叫 `navigate()`，更新 URL bar，實作 link click in iframe triggers in-panel navigation
+- [x] 4.4 加入 `sandbox="allow-scripts allow-forms allow-same-origin"` 至 iframe（原本缺少 `allow-same-origin`）
+- [x] 4.5 撰寫 `BrowserPanel.vue` 的單元測試，覆蓋：Enter 鍵導航、連結點擊攔截、HTML/JSON 回應顯示
 
 ## 5. challenge-persistence（IndexedDB 持久化層）
 
-- [ ] 5.1 建立 `.vitepress/theme/composables/useChallengePersistence.ts`，使用 `idb` 套件開啟 `challenge-tools` DB（version 1），建立 `code-scripts` 與 `terminal-history` object stores，以實作 useChallengePersistence manages an IndexedDB database for user tool data
-- [ ] 5.2 實作 `saveScript`、`listScripts`、`loadScript`、`deleteScript` 函式（含 `updatedAt` 排序），以實作 Code scripts can be saved, listed, loaded, and deleted
-- [ ] 5.3 實作 `appendHistory`（含重複命令去重）與 `loadHistory(limit?)` 函式，以實作 Terminal history is persisted to IndexedDB
-- [ ] 5.4 撰寫 `useChallengePersistence` 的單元測試（mock `idb`），覆蓋所有 CRUD 與去重邏輯
+- [x] 5.1 建立 `.vitepress/theme/composables/useChallengePersistence.ts`，使用 `idb` 套件開啟 `challenge-tools` DB（version 1），建立 `code-scripts` 與 `terminal-history` object stores，以實作 useChallengePersistence manages an IndexedDB database for user tool data
+- [x] 5.2 實作 `saveScript`、`listScripts`、`loadScript`、`deleteScript` 函式（含 `updatedAt` 排序），以實作 Code scripts can be saved, listed, loaded, and deleted
+- [x] 5.3 實作 `appendHistory`（含重複命令去重）與 `loadHistory(limit?)` 函式，以實作 Terminal history is persisted to IndexedDB
+- [x] 5.4 撰寫 `useChallengePersistence` 的單元測試（mock `idb`），覆蓋所有 CRUD 與去重邏輯
 
 ## 6. wxlsh-parser Rust WASM 實作
 
