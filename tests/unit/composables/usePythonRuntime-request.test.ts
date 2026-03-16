@@ -3,19 +3,20 @@ import { PythonRuntime } from '../../../.vitepress/theme/composables/usePythonRu
 
 const APP_CODE = 'app = lambda scope, receive, send: None'
 
+/**
+ * Build a mock Pyodide that responds to globals.get('_asgi_bridge') with a
+ * function returning the given status/body/headers as the JSON string format
+ * that PythonRuntime.handleRequest() expects.
+ */
 function makeMockFlaskPyodide(status: number, body: string, headers: [string, string][] = []) {
+  const responseJson = JSON.stringify({ status, headers, body: btoa(body) })
   const pyodide = {
-    runPythonAsync: vi.fn().mockImplementation(async (code: string) => {
-      if (code === APP_CODE) return undefined
-    }),
+    runPythonAsync: vi.fn().mockResolvedValue(undefined),
     FS: { writeFile: vi.fn() },
     globals: {
       get: vi.fn().mockImplementation((name: string) => {
-        if (name === 'app') {
-          return async (_scope: unknown, _receive: unknown, send: (event: unknown) => Promise<void>) => {
-            await send({ type: 'http.response.start', status, headers })
-            await send({ type: 'http.response.body', body: new TextEncoder().encode(body), more_body: false })
-          }
+        if (name === '_asgi_bridge') {
+          return vi.fn().mockResolvedValue(responseJson)
         }
       }),
     },
@@ -39,20 +40,16 @@ describe('PythonRuntime.handleRequest()', () => {
     expect(text).toBe('Hello, World!')
   })
 
-  it('passes correct ASGI scope for GET /users?id=1', async () => {
-    const scopeCapture: unknown[] = []
+  it('passes correct arguments to _asgi_bridge for GET /users?id=1', async () => {
+    const bridgeSpy = vi.fn().mockResolvedValue(
+      JSON.stringify({ status: 200, headers: [], body: btoa('') }),
+    )
     const pyodide = {
-      runPythonAsync: vi.fn(),
+      runPythonAsync: vi.fn().mockResolvedValue(undefined),
       FS: { writeFile: vi.fn() },
       globals: {
         get: vi.fn().mockImplementation((name: string) => {
-          if (name === 'app') {
-            return async (scope: unknown, _receive: unknown, send: (event: unknown) => Promise<void>) => {
-              scopeCapture.push(scope)
-              await send({ type: 'http.response.start', status: 200, headers: [] })
-              await send({ type: 'http.response.body', body: new Uint8Array(), more_body: false })
-            }
-          }
+          if (name === '_asgi_bridge') return bridgeSpy
         }),
       },
     }
@@ -63,11 +60,10 @@ describe('PythonRuntime.handleRequest()', () => {
     const request = new Request('https://challenge-test.localhost/users?id=1')
     await runtime.handleRequest(request)
 
-    expect(scopeCapture).toHaveLength(1)
-    const scope = scopeCapture[0] as Record<string, unknown>
-    expect(scope['type']).toBe('http')
-    expect(scope['method']).toBe('GET')
-    expect(scope['path']).toBe('/users')
-    expect(scope['query_string']).toBe('id=1')
+    expect(bridgeSpy).toHaveBeenCalledOnce()
+    const [method, path, qs] = bridgeSpy.mock.calls[0] as [string, string, string, ...unknown[]]
+    expect(method).toBe('GET')
+    expect(path).toBe('/users')
+    expect(qs).toBe('id=1')
   })
 })

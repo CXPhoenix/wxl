@@ -15,16 +15,18 @@ app = 'sqli_app'
 `
 
 function makeMockFlaskPyodide(output: string, status = 200) {
+  const responseJson = JSON.stringify({
+    status,
+    headers: [['content-type', 'text/html']],
+    body: btoa(output),
+  })
   const pyodide = {
-    runPythonAsync: vi.fn(),
+    runPythonAsync: vi.fn().mockResolvedValue(undefined),
     FS: { writeFile: vi.fn() },
     globals: {
       get: vi.fn().mockImplementation((name: string) => {
-        if (name === 'app') {
-          return async (_scope: unknown, _recv: unknown, send: (e: unknown) => Promise<void>) => {
-            await send({ type: 'http.response.start', status, headers: [['content-type', 'text/html']] })
-            await send({ type: 'http.response.body', body: new TextEncoder().encode(output), more_body: false })
-          }
+        if (name === '_asgi_bridge') {
+          return vi.fn().mockResolvedValue(responseJson)
         }
       }),
     },

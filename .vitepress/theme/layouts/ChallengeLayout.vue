@@ -84,7 +84,7 @@ async function initRuntime(): Promise<void> {
   }
 
   // 1. Load virtual-fs WASM module
-  const { default: initWasm, wasm_fs_init, wasm_fs_read } = await import(
+  const { default: initWasm, wasm_fs_reset, wasm_fs_read } = await import(
     '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
@@ -93,10 +93,12 @@ async function initRuntime(): Promise<void> {
   const hexKey = fsKeyParts.join('')
   const keyBytes = hexToBytes(hexKey)
 
-  // 3. Initialize FS store with encrypted blobs (using virtual-fs WASM)
+  // 3. Reset FS store and populate with this challenge's encrypted blobs.
+  //    wasm_fs_reset (unlike wasm_fs_init) always clears existing data first,
+  //    ensuring cross-challenge navigation doesn't leave stale blobs in the store.
   const paths = Object.keys(encryptedFs)
   const blobs = paths.map((p) => encryptedFs[p])
-  wasm_fs_init(paths, blobs)
+  wasm_fs_reset(paths, blobs)
 
   // 4. Decrypt all FS entries; separate __app__ from the rest
   const fsEntries: Record<string, Uint8Array> = {}
@@ -129,8 +131,29 @@ async function initRuntime(): Promise<void> {
     runtime = new PythonRuntime(loadPyodide)
     await (runtime as PythonRuntime).initialize(appCode, fsEntries, packages)
   } else if (backend === 'php') {
-    runtime = new PhpRuntime(() => {
-      throw new Error('PHP runtime loader not configured')
+    runtime = new PhpRuntime(async () => {
+      // Dynamically import PhpWeb (Emscripten-based) and wrap it as PhpInstance.
+      // The adapter captures stdout via the 'output' DOM event and exposes
+      // writeFile() through the Emscripten FS.
+      const { PhpWeb } = await import('php-wasm/PhpWeb.mjs')
+      const php = new PhpWeb()
+      const phpBinary = await (php as any).binary
+
+      return {
+        async run(code: string) {
+          let output = ''
+          const handler = (e: Event) => {
+            output += (e as CustomEvent).detail[0]
+          }
+          php.addEventListener('output', handler)
+          const exitCode = await (php as any).run(code) as number
+          php.removeEventListener('output', handler)
+          return { output, headers: [] as string[], exitCode }
+        },
+        writeFile(path: string, data: Uint8Array) {
+          phpBinary.FS.writeFile(path, data)
+        },
+      }
     })
     await (runtime as PhpRuntime).initialize(appCode, fsEntries)
   }

@@ -12,6 +12,7 @@ function makeMockPyodide(micropipInstall?: ReturnType<typeof vi.fn>) {
   })
   const pyodide = {
     runPythonAsync,
+    loadPackage: vi.fn().mockResolvedValue(undefined),
     FS: { writeFile: vi.fn() },
     globals: { get: vi.fn().mockReturnValue(vi.fn()) },
   }
