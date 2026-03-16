@@ -53,6 +53,24 @@ ChallengeLayout.vue 在 `onMounted` 時初始化 WASM 虛擬 FS，再根據 `bac
 
 這些測試 mock 屬於**測試程式碼層的修改**，不涉及生產邏輯，只需更新 mock 使其與實作保持一致。
 
+### Flask sqlite3：native packages 用 loadPackage，pip packages 用 micropip
+
+Pyodide 對部分 stdlib 模組（sqlite3、ssl、lzma）採用「unvendored」策略，不隨主 bundle 下載，需顯式呼叫 `pyodide.loadPackage('sqlite3')` 才能使用。這類模組**不能**透過 micropip 安裝（micropip 是 PyPI wrapper，找不到 sqlite3）。
+
+修復策略：
+1. 建立 `PYODIDE_NATIVE_PKGS` 白名單（`['sqlite3', 'ssl', 'lzma', 'numpy', 'pandas']`）
+2. `_init()` 中先將 packages 分成 `nativePkgs` 與 `pipPkgs` 兩組
+3. 先 `await pyodide.loadPackage(nativePkgs)`，再 `await micropip.install(pipPkgs)`
+4. `BASE_PACKAGES.flask` 加入 `'sqlite3'`
+
+替代方案 A：在 Flask challenge 的 frontmatter 加 `packages: [sqlite3]` — 需要每個使用 sqlite3 的挑戰都手動聲明，易漏；方案 B（本方案）自動處理，較可靠。
+
+### PHP WASM：php-wasm 排除 optimizeDeps
+
+Vite 的 `optimizeDeps` 預設會用 esbuild 預打包 `node_modules`，但 Emscripten 生成的 WASM loader（如 `php-web.mjs`）內含 `new URL("file.wasm", import.meta.url)` 動態路徑解析，esbuild 預打包後 `import.meta.url` 指向 Vite cache 目錄而非原始檔，導致 WASM binary 找不到，`phpBinary` 為 undefined，訪問 `.FS` 屬性時 crash。
+
+修復：在 `.vitepress/config.mts` 加 `optimizeDeps: { exclude: ['php-wasm'] }`，讓 Vite 保留 php-wasm 的 ES module 原始結構，runtime 期間由 browser 直接解析 `import.meta.url`。
+
 ## Risks / Trade-offs
 
 - **[風險] php-wasm 首次載入時間長**：`PhpWeb` 需要載入 ~10 MB 的 WASM binary。緩解：已有 loading 狀態 UI，用戶在 runtime ready 前無法送出請求。

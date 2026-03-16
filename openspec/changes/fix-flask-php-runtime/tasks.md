@@ -12,6 +12,17 @@
 - [x] 2.4 Adapter 的 `writeFile(path, data)` 方法：呼叫 `phpBinary.FS.writeFile(path, data)`（對應 spec：Virtual FS entries are mounted into php-wasm before execution）
 - [ ] 2.5 手動測試：啟動 `pnpm dev`，導覽至 PHP（php-demo）挑戰，確認不再出現「PHP runtime loader not configured」錯誤，送出 GET 請求能收到 PHP 執行結果
 
+## 4. 修復 Flask sqlite3 — 區分 native 與 pip 套件
+
+- [ ] 4.1 在 `ChallengeLayout.vue` 的 `BASE_PACKAGES.flask`（或對應位置）加入 `'sqlite3'`，確保 Flask 挑戰初始化時會載入 sqlite3（對應 spec：Python challenge runtime initializes on first mount）
+- [ ] 4.2 在 `usePythonRuntime.ts` 的 `_init()` 中加入 `PYODIDE_NATIVE_PKGS` 白名單（`['sqlite3', 'ssl', 'lzma', 'numpy', 'pandas']`），將 native packages 路由到 `pyodide.loadPackage()` 而非 `micropip.install()`（對應 design 決策：Flask sqlite3：native packages 用 loadPackage，pip packages 用 micropip）
+- [ ] 4.3 確認 `pnpm test` 所有測試仍通過（無回歸）
+
+## 5. 修復 PHP WASM — Vite optimizeDeps 排除 php-wasm
+
+- [ ] 5.1 在 `.vitepress/config.mts` 的 Vite 設定中加入 `optimizeDeps: { exclude: ['php-wasm'] }`，避免 Vite esbuild 預處理 php-wasm 破壞 `import.meta.url` 的 WASM 路徑解析（對應 design 決策：PHP WASM：php-wasm 排除 optimizeDeps）
+- [ ] 5.2 手動測試：`pnpm dev` 後導覽至 PHP（php-demo）挑戰，確認不再出現「Cannot read properties of undefined (reading 'FS')」，PhpWeb binary 可正常載入
+
 ## 3. 修復既有失敗測試
 
 - [x] 3.1 `tests/__mocks__/virtual-fs.ts`：補上 `wasm_fs_reset` no-op export（對應 design 決策：測試 mock 需同步更新），避免使用 ChallengeLayout 的測試找不到此函式
