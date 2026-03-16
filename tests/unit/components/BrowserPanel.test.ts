@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import BrowserPanel from '../../../.vitepress/theme/components/BrowserPanel.vue'
 
 describe('BrowserPanel', () => {
@@ -98,5 +98,160 @@ describe('BrowserPanel', () => {
     })
     const goBtn = wrapper.find('[data-go]')
     expect(goBtn.attributes('disabled')).toBeDefined()
+  })
+})
+
+// ─── Form submit interception tests ───────────────────────────────────────────
+
+/** Mount BrowserPanel, navigate to get the HTML iframe, trigger the load event to
+ *  attach the form/link interceptors, and return helpers for the test. */
+async function mountWithIframe(slug: string, dispatch: ReturnType<typeof vi.fn>) {
+  const wrapper = mount(BrowserPanel, {
+    props: { slug, dispatch },
+    attachTo: document.body,
+  })
+  // First call: navigate to render the iframe
+  await wrapper.find('[data-go]').trigger('click')
+  await flushPromises()
+
+  const iframeEl = wrapper.find('iframe').element as HTMLIFrameElement
+  // In jsdom, srcdoc does not fire the load event automatically — trigger manually
+  // to call attachIframeLinkInterceptor and attach the submit listener
+  iframeEl.dispatchEvent(new Event('load'))
+
+  const doc = iframeEl.contentDocument!
+  return { wrapper, iframeEl, doc }
+}
+
+/** Create a form element in the given document and append it to body. */
+function makeForm(
+  doc: Document,
+  opts: { method?: string; action?: string; enctype?: string; fields?: Record<string, string> } = {},
+): HTMLFormElement {
+  const form = doc.createElement('form')
+  if (opts.method) form.setAttribute('method', opts.method)
+  if (opts.action) form.setAttribute('action', opts.action)
+  if (opts.enctype) form.setAttribute('enctype', opts.enctype)
+  for (const [name, value] of Object.entries(opts.fields ?? {})) {
+    const input = doc.createElement('input')
+    input.setAttribute('type', 'text')
+    input.setAttribute('name', name)
+    input.setAttribute('value', value)
+    form.appendChild(input)
+  }
+  doc.body.appendChild(form)
+  return form
+}
+
+describe('BrowserPanel — form submit interception', () => {
+  it('3.1 POST form with default enctype is submitted via dispatch with urlencoded content-type', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
+
+    const { doc } = await mountWithIframe('sqli-demo', mockDispatch)
+
+    const form = makeForm(doc, {
+      method: 'POST',
+      action: '/login',
+      fields: { username: 'admin', password: "' OR 1=1--" },
+    })
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    expect(mockDispatch).toHaveBeenCalledTimes(2)
+    const req: Request = mockDispatch.mock.calls[1][0]
+    expect(req.method).toBe('POST')
+    expect(req.url).toBe('https://challenge-sqli-demo.localhost/login')
+    expect(req.headers.get('content-type')).toContain('application/x-www-form-urlencoded')
+  })
+
+  it('3.2 POST form with multipart/form-data enctype dispatches without manually set content-type boundary', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
+
+    const { doc } = await mountWithIframe('test', mockDispatch)
+
+    const form = makeForm(doc, {
+      method: 'POST',
+      action: '/upload',
+      enctype: 'multipart/form-data',
+      fields: { file_name: 'test.txt' },
+    })
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    expect(mockDispatch).toHaveBeenCalledTimes(2)
+    const req: Request = mockDispatch.mock.calls[1][0]
+    expect(req.method).toBe('POST')
+    expect(req.url).toBe('https://challenge-test.localhost/upload')
+    // content-type for FormData body is set by the fetch API (includes boundary),
+    // or null — either way it must NOT be the urlencoded type
+    const ct = req.headers.get('content-type')
+    expect(ct).not.toContain('application/x-www-form-urlencoded')
+  })
+
+  it('3.3 GET form appends fields to query string', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('<p>results</p>', { headers: { 'Content-Type': 'text/html' } }))
+
+    const { doc } = await mountWithIframe('test', mockDispatch)
+
+    const form = makeForm(doc, {
+      method: 'GET',
+      action: '/search',
+      fields: { q: 'hello world' },
+    })
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    expect(mockDispatch).toHaveBeenCalledTimes(2)
+    const req: Request = mockDispatch.mock.calls[1][0]
+    expect(req.method).toBe('GET')
+    const url = new URL(req.url)
+    expect(url.hostname).toBe('challenge-test.localhost')
+    expect(url.pathname).toBe('/search')
+    expect(url.searchParams.get('q')).toBe('hello world')
+  })
+
+  it('3.4 form action relative URL resolves to challenge origin, not localhost:5173', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
+
+    const { doc } = await mountWithIframe('sqli-demo', mockDispatch)
+
+    const form = makeForm(doc, { method: 'POST', action: '/login' })
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    const req: Request = mockDispatch.mock.calls[1][0]
+    expect(req.url).toBe('https://challenge-sqli-demo.localhost/login')
+    expect(req.url).not.toContain('localhost:5173')
+  })
+
+  it('3.5 form with no action attribute submits to current url.value', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
+
+    const { wrapper, doc } = await mountWithIframe('sqli-demo', mockDispatch)
+
+    // Default url.value is https://challenge-sqli-demo.localhost/
+    const form = makeForm(doc, { method: 'POST' /* no action */ })
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    const req: Request = mockDispatch.mock.calls[1][0]
+    const currentUrl = (wrapper.vm as unknown as { $props: { slug: string } }).$props.slug
+    expect(req.url).toContain('challenge-sqli-demo.localhost')
+    wrapper.unmount()
   })
 })

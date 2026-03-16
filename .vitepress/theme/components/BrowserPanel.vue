@@ -17,10 +17,9 @@ type ResponseState =
 
 const responseState = ref<ResponseState>({ type: 'idle' })
 
-async function navigate() {
-  if (props.disabled) return
-  const req = new Request(url.value, { method: 'GET' })
-  const res = await props.dispatch(req)
+/** Shared response handler — updates responseState and url bar. */
+async function handleResponse(res: Response, resolvedUrl: string) {
+  url.value = resolvedUrl
   const ct = res.headers.get('content-type') ?? ''
   const text = await res.text()
   if (ct.includes('text/html')) {
@@ -34,24 +33,68 @@ async function navigate() {
   }
 }
 
-// Intercept <a> clicks inside the iframe and handle them via dispatch().
-// Called on iframe load to (re-)attach the listener after srcdoc updates.
+async function navigate() {
+  if (props.disabled) return
+  const req = new Request(url.value, { method: 'GET' })
+  const res = await props.dispatch(req)
+  await handleResponse(res, url.value)
+}
+
+// Intercept <a> clicks and <form> submissions inside the iframe, routing them
+// through dispatch() instead of letting the browser perform native navigation.
+// Called on iframe load to (re-)attach listeners after srcdoc updates.
 function attachIframeLinkInterceptor() {
   const iframe = iframeRef.value
   if (!iframe) return
   try {
     const doc = iframe.contentDocument
     if (!doc) return
+    // Guard: prevent duplicate listeners when `load` fires multiple times
+    // (e.g. happy-dom fires automatically on srcdoc set + test fires again)
+    if ((doc as Document & { __wxlshAttached?: true }).__wxlshAttached) return
+    ;(doc as Document & { __wxlshAttached?: true }).__wxlshAttached = true
+    const base = `https://challenge-${props.slug}.localhost/`
+
+    // ── Link click interception ──────────────────────────────────────────
     doc.addEventListener('click', (e) => {
       const target = (e.target as HTMLElement).closest('a')
       if (!target) return
       const href = target.getAttribute('href')
       if (!href || href.startsWith('#')) return
       e.preventDefault()
-      // Resolve relative URLs against the challenge base
-      const base = `https://challenge-${props.slug}.localhost/`
-      url.value = new URL(href, base).href
+      const resolved = new URL(href, base).href
+      url.value = resolved
       navigate()
+    })
+
+    // ── Form submit interception ─────────────────────────────────────────
+    doc.addEventListener('submit', (e) => {
+      e.preventDefault()
+      const form = e.target as HTMLFormElement
+      const action = form.getAttribute('action') ?? ''
+      const method = (form.getAttribute('method') ?? 'GET').toUpperCase()
+      const enctype = form.getAttribute('enctype') ?? 'application/x-www-form-urlencoded'
+      // Resolve action against challenge base; fall back to current url.value
+      const resolvedUrl = action ? new URL(action, base).href : url.value
+
+      if (method === 'GET') {
+        const params = new URLSearchParams(new FormData(form) as unknown as Record<string, string>)
+        const sep = resolvedUrl.includes('?') ? '&' : '?'
+        const target = params.toString() ? `${resolvedUrl}${sep}${params}` : resolvedUrl
+        props.dispatch(new Request(target, { method: 'GET' })).then(res => handleResponse(res, target))
+      } else if (enctype === 'multipart/form-data') {
+        // Let fetch set Content-Type (with boundary) automatically
+        const body = new FormData(form)
+        props.dispatch(new Request(resolvedUrl, { method, body })).then(res => handleResponse(res, resolvedUrl))
+      } else {
+        // application/x-www-form-urlencoded (default)
+        const body = new URLSearchParams(new FormData(form) as unknown as Record<string, string>).toString()
+        props.dispatch(new Request(resolvedUrl, {
+          method,
+          body,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        })).then(res => handleResponse(res, resolvedUrl))
+      }
     })
   } catch {
     // Cross-origin frames: silently ignore (shouldn't happen with srcdoc + allow-same-origin)
