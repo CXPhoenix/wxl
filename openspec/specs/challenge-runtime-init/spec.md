@@ -13,7 +13,12 @@ When a challenge page mounts, the ChallengeLayout SHALL decrypt all FS entries u
 #### Scenario: Python challenge runtime initializes on first mount
 
 - **WHEN** a user navigates to a Python challenge page (`backend: flask` or `backend: fastapi`)
-- **THEN** ChallengeLayout SHALL reconstruct the AES-GCM key from `fsKeyParts`, call `wasm_fs_init` with `encryptedFs` paths and blobs, call `wasm_fs_read` to decrypt each entry, call `PythonRuntime.initialize(appCode, fsEntries, packages)`, and display a loading state until initialization completes
+- **THEN** ChallengeLayout SHALL reconstruct the AES-GCM key from `fsKeyParts`, call `wasm_fs_reset` with `encryptedFs` paths and blobs to clear any previous challenge data and load the current challenge's encrypted blobs, call `wasm_fs_read` to decrypt each entry, call `PythonRuntime.initialize(appCode, fsEntries, packages)`, and display a loading state until initialization completes
+
+#### Scenario: WASM FS store is reset on each challenge mount
+
+- **WHEN** a user navigates from one challenge page to another within the same SPA session
+- **THEN** ChallengeLayout SHALL call `wasm_fs_reset` (not `wasm_fs_init`) so that the WASM store is cleared and repopulated with the current challenge's encrypted blobs before decryption
 
 #### Scenario: Runtime initialization is idempotent
 
@@ -27,36 +32,19 @@ When a challenge page mounts, the ChallengeLayout SHALL decrypt all FS entries u
 
 
 <!-- @trace
-source: runtime-init-and-fastapi-challenge
+source: fix-flask-php-runtime
 updated: 2026-03-16
 code:
-  - scripts/challenge-keygen.ts
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/challenge/config.ts
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
   - tests/__mocks__/virtual-fs.ts
-  - docs/challenge/php-demo/flag.txt
-  - docs/challenge/sqli-demo/app.py
-  - docs/challenge/fastapi-demo/app.py
-  - docs/challenge/php-demo.md
-  - vitest.config.ts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/php-demo/index.php
-  - .vitepress/theme/components/RepeatPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - .vitepress/workers/router.ts
   - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/fastapi-demo/flag.txt
+  - .vitepress/config.mts
   - docs/public/challenge-sw.js
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/challenge/plugin.ts
+  - docs/index.md
+  - .vitepress/theme/layouts/ChallengeLayout.vue
 tests:
-  - tests/unit/challenge/plugin.test.ts
-  - tests/unit/workers/router.test.ts
+  - tests/e2e/flask-sqli.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
   - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/challenge/config.test.ts
 -->
 
 ---
