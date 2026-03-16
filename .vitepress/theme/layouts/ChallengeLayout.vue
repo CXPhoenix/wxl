@@ -44,6 +44,12 @@ const tabs: { id: Tab; label: string }[] = [
 
 // ─── Challenge dispatch: fetch → SW → MessageChannel relay ───────────────────
 async function dispatch(request: Request): Promise<Response> {
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+    return new Response(
+      JSON.stringify({ error: 'Service Worker not ready — please refresh the page.' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
   return fetch(request)
 }
 

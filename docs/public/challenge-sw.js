@@ -50,14 +50,9 @@ async function handleChallengeRequest(request, url) {
   try {
     const { backend, port } = entry
 
-    if (backend === 'php') {
-      // PHP runtime: not using MessageChannel relay (handled separately)
-      return jsonResponse({ error: 'php runtime not available via relay' }, 503)
-    }
-
-    if (backend === 'flask' || backend === 'fastapi') {
+    if (backend === 'flask' || backend === 'fastapi' || backend === 'php') {
       if (!port) {
-        return jsonResponse({ error: 'python runtime not ready (no port registered)' }, 503)
+        return jsonResponse({ error: 'runtime not ready (no port registered)' }, 503)
       }
       return await relayRequest(port, request)
     }

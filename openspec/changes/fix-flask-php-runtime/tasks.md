@@ -23,6 +23,12 @@
 - [x] 5.1 在 `.vitepress/config.mts` 的 Vite 設定中加入 `optimizeDeps: { exclude: ['php-wasm'] }`，避免 Vite esbuild 預處理 php-wasm 破壞 `import.meta.url` 的 WASM 路徑解析（對應 design 決策：PHP WASM：php-wasm 排除 optimizeDeps）
 - [ ] 5.2 手動測試：`pnpm dev` 後導覽至 PHP（php-demo）挑戰，確認不再出現「Cannot read properties of undefined (reading 'FS')」，PhpWeb binary 可正常載入
 
+## 6. 修復 SW — PHP relay stub 與 SW 未就緒的 dispatch 錯誤
+
+- [x] 6.1 `docs/public/challenge-sw.js`：移除 PHP 特殊 stub（直接回傳 503 的分支），讓 `backend === 'php'` 走與 flask/fastapi 相同的 `relayRequest(port, request)` 路徑（對應 design 決策：PHP 透過 MessageChannel relay；滿足 spec：PHP challenge page loads without runtime error）
+- [x] 6.2 `ChallengeLayout.vue`：`dispatch` 函數加入 SW controller 檢查，若 `navigator.serviceWorker.controller` 為 null 則回傳 503 錯誤訊息，取代瀏覽器直接拋出 ERR_CONNECTION_REFUSED（對應 spec：Challenge page initializes WASM runtime on mount）
+- [x] 6.3 確認 `pnpm test` 所有測試仍通過（無回歸）
+
 ## 3. 修復既有失敗測試
 
 - [x] 3.1 `tests/__mocks__/virtual-fs.ts`：補上 `wasm_fs_reset` no-op export（對應 design 決策：測試 mock 需同步更新），避免使用 ChallengeLayout 的測試找不到此函式
