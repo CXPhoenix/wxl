@@ -41,6 +41,8 @@ vi.mock('@xterm/addon-fit', () => {
   return { FitAddon: MockFitAddon }
 })
 
+vi.mock('@xterm/xterm/css/xterm.css', () => ({}))
+
 // ─── Mock useWxlsh ────────────────────────────────────────────────────────────
 
 const mockExecute = vi.fn(async (_input: string) => ({ output: 'ok', clear: false }))

@@ -15,6 +15,8 @@ const props = defineProps<{
 let terminal: import('@xterm/xterm').Terminal | null = null
 let fitAddon: import('@xterm/addon-fit').FitAddon | null = null
 const containerRef = ref<HTMLDivElement | null>(null)
+// Guard against concurrent initTerminal() calls (e.g. onMounted + ResizeObserver race)
+let initTerminalPromise: Promise<void> | null = null
 
 // ─── wxlsh composable ─────────────────────────────────────────────────────────
 
@@ -166,10 +168,21 @@ async function initTerminal() {
   const { clientWidth, clientHeight } = containerRef.value
   if (clientWidth === 0 || clientHeight === 0) return
 
+  // Prevent concurrent calls (e.g. onMounted + ResizeObserver racing during lazy import)
+  if (initTerminalPromise) return initTerminalPromise
+  initTerminalPromise = _doInitTerminal()
+  await initTerminalPromise
+}
+
+async function _doInitTerminal() {
+  if (!containerRef.value) return
+
   const [{ Terminal }, { FitAddon }] = await Promise.all([
     import('@xterm/xterm'),
     import('@xterm/addon-fit'),
   ])
+  // Load xterm CSS (hides helper textarea, styles the viewport correctly)
+  await import('@xterm/xterm/css/xterm.css')
 
   // Match VitePress CSS variables as closely as possible
   const term = new Terminal({
