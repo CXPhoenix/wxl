@@ -29,6 +29,11 @@
 - [x] 6.2 `ChallengeLayout.vue`：`dispatch` 函數加入 SW controller 檢查，若 `navigator.serviceWorker.controller` 為 null 則回傳 503 錯誤訊息，取代瀏覽器直接拋出 ERR_CONNECTION_REFUSED（對應 spec：Challenge page initializes WASM runtime on mount）
 - [x] 6.3 確認 `pnpm test` 所有測試仍通過（無回歸）
 
+## 7. 修復 WSGI/ASGI 橋接 — _asgi_bridge 同時支援 Flask (WSGI) 與 FastAPI (ASGI)
+
+- [x] 7.1 在 `usePythonRuntime.ts` 的 `_asgi_bridge` 中加入 `_is_wsgi()` 偵測函式，當 app 為 2-arg 非 coroutine callable（WSGI）時走 WSGI 路徑（呼叫 `app(environ, start_response)`），否則走原有 ASGI 路徑（`await app(scope, receive, send)`）（修復：Flask.__call__() takes 3 positional arguments but 4 were given）
+- [x] 7.2 確認 `pnpm test` 所有測試仍通過（無回歸）
+
 ## 3. 修復既有失敗測試
 
 - [x] 3.1 `tests/__mocks__/virtual-fs.ts`：補上 `wasm_fs_reset` no-op export（對應 design 決策：測試 mock 需同步更新），避免使用 ChallengeLayout 的測試找不到此函式
