@@ -65,7 +65,7 @@ function hexToBytes(hex: string): Uint8Array {
 
 /** Map backend type to its required base micropip packages */
 const BASE_PACKAGES: Record<string, string[]> = {
-  flask:   ['flask'],
+  flask:   ['flask', 'sqlite3'],
   fastapi: ['fastapi', 'anyio'],
 }
 

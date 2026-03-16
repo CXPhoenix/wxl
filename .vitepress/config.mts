@@ -8,6 +8,9 @@ export default defineConfig({
   srcDir: "docs",
   vite: {
     plugins: [UnoCSS(), wasm(), topLevelAwait()],
+    optimizeDeps: {
+      exclude: ['php-wasm'],
+    },
   },
 
   title: "Web Exploitation Challenges",

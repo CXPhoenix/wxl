@@ -1,5 +1,8 @@
 export type LoadPyodideFn = (opts?: Record<string, unknown>) => Promise<PyodideInstance>
 
+/** Pyodide built-in packages that must be loaded via loadPackage(), not micropip */
+const PYODIDE_NATIVE_PKGS = new Set(['sqlite3', 'ssl', 'lzma', 'numpy', 'pandas'])
+
 type AsgiSendEvent =
   | { type: 'http.response.start'; status: number; headers: [string, string][] }
   | { type: 'http.response.body'; body: Uint8Array; more_body: boolean }
@@ -41,9 +44,15 @@ export class PythonRuntime {
     for (const [path, data] of Object.entries(fsEntries)) {
       this.pyodide.FS.writeFile(path, data)
     }
-    if (packages.length > 0) {
+    const nativePkgs = packages.filter((p) => PYODIDE_NATIVE_PKGS.has(p))
+    const pipPkgs = packages.filter((p) => !PYODIDE_NATIVE_PKGS.has(p))
+
+    if (nativePkgs.length > 0) {
+      await this.pyodide.loadPackage(nativePkgs)
+    }
+    if (pipPkgs.length > 0) {
       await this.pyodide.loadPackage('micropip')
-      const pkgJson = JSON.stringify(packages)
+      const pkgJson = JSON.stringify(pipPkgs)
       await this.pyodide.runPythonAsync(
         `import micropip; await micropip.install(${pkgJson})`,
       )

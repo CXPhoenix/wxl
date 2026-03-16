@@ -59,6 +59,42 @@ describe('PythonRuntime - micropip packages', () => {
     expect(hasMicropip).toBe(false)
   })
 
+  it('[RED] routes native packages (sqlite3) to loadPackage, not micropip.install', async () => {
+    const { loadPyodide, pyodide, runPythonAsync } = makeMockPyodide()
+    const runtime = new PythonRuntime(loadPyodide)
+
+    await runtime.initialize(APP_CODE, {}, ['sqlite3', 'flask'])
+
+    // sqlite3 must be passed to loadPackage (native Pyodide package)
+    const loadPackageCalls = pyodide.loadPackage.mock.calls.map((c: unknown[]) => c[0])
+    const nativeCall = loadPackageCalls.find(
+      (arg: unknown) => Array.isArray(arg) && (arg as string[]).includes('sqlite3'),
+    )
+    expect(nativeCall).toBeDefined()
+
+    // flask must appear in micropip.install call
+    const micropipInstallCode = runPythonAsync.mock.calls
+      .map((c: string[]) => c[0] as string)
+      .find((c) => c.includes('micropip.install'))
+    expect(micropipInstallCode).toBeDefined()
+    expect(micropipInstallCode).toContain('flask')
+
+    // sqlite3 must NOT be passed to micropip.install
+    expect(micropipInstallCode).not.toContain('sqlite3')
+  })
+
+  it('[RED] skips micropip entirely when all packages are native', async () => {
+    const { loadPyodide, runPythonAsync } = makeMockPyodide()
+    const runtime = new PythonRuntime(loadPyodide)
+
+    await runtime.initialize(APP_CODE, {}, ['sqlite3'])
+
+    const hasMicropipInstall = runPythonAsync.mock.calls
+      .map((c: string[]) => c[0] as string)
+      .some((c) => c.includes('micropip.install'))
+    expect(hasMicropipInstall).toBe(false)
+  })
+
   it('[RED] rejects initialize() when micropip install fails', async () => {
     const { loadPyodide, runPythonAsync } = makeMockPyodide()
     runPythonAsync.mockImplementation(async (code: string) => {
