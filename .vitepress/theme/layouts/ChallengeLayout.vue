@@ -3,8 +3,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
 import { Content } from 'vitepress/client'
 import BrowserPanel from '../components/BrowserPanel.vue'
-import TerminalPanel from '../components/TerminalPanel.vue'
+import WxlshPanel from '../components/WxlshPanel.vue'
 import RepeatPanel from '../components/RepeatPanel.vue'
+import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
 import { useFlagVerifier } from '../../challenge/flag-verifier'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
@@ -24,6 +25,17 @@ const fm = computed(() => frontmatter.value)
 const runtimeReady = ref(false)
 const runtimeError = ref<string | null>(null)
 
+// ─── SW readiness gate ───────────────────────────────────────────────────────
+// swReady is true only when navigator.serviceWorker.controller is non-null.
+// Without this, tools appear enabled before SW can intercept requests.
+const swReady = ref(
+  typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    ? navigator.serviceWorker.controller != null
+    : false,
+)
+
+const toolsDisabled = computed(() => !runtimeReady.value || !swReady.value)
+
 let runtime: PythonRuntime | PhpRuntime | null = null
 let challengePort: MessagePort | null = null  // port1 — page listens here
 
@@ -34,22 +46,17 @@ function toggleDescription() {
 }
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
-type Tab = 'browser' | 'terminal' | 'repeater'
+type Tab = 'browser' | 'terminal' | 'repeater' | 'code'
 const activeTab = ref<Tab>('browser')
 const tabs: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
   { id: 'terminal', label: 'Terminal' },
   { id: 'repeater', label: 'Repeater' },
+  { id: 'code', label: 'Code' },
 ]
 
 // ─── Challenge dispatch: fetch → SW → MessageChannel relay ───────────────────
 async function dispatch(request: Request): Promise<Response> {
-  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && !navigator.serviceWorker.controller) {
-    return new Response(
-      JSON.stringify({ error: 'Service Worker not ready — please refresh the page.' }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
   return fetch(request)
 }
 
@@ -138,9 +145,6 @@ async function initRuntime(): Promise<void> {
     await (runtime as PythonRuntime).initialize(appCode, fsEntries, packages)
   } else if (backend === 'php') {
     runtime = new PhpRuntime(async () => {
-      // Dynamically import PhpWeb (Emscripten-based) and wrap it as PhpInstance.
-      // The adapter captures stdout via the 'output' DOM event and exposes
-      // writeFile() through the Emscripten FS.
       const { PhpWeb } = await import('php-wasm/PhpWeb.mjs')
       const php = new PhpWeb()
       const phpBinary = await (php as any).binary
@@ -216,9 +220,9 @@ onMounted(async () => {
   // Register with SW (transfers port2)
   registerWithSW(mc)
 
-  // Re-register on SW update (controllerchange)
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // Re-register on SW update with a fresh MessageChannel
       const mc2 = new MessageChannel()
       challengePort?.removeEventListener('message', handleRequest)
       challengePort?.close()
@@ -226,6 +230,8 @@ onMounted(async () => {
       challengePort.addEventListener('message', handleRequest)
       challengePort.start()
       registerWithSW(mc2)
+      // SW now controls the page — unlock the readiness gate
+      swReady.value = true
     })
   }
 
@@ -322,13 +328,16 @@ const categoryBadge: Record<string, string> = {
         </nav>
 
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
-          <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
+          <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
-        <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-auto p-3">
-          <TerminalPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
+        <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
+          <WxlshPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-auto p-3">
-          <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
+          <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
+        </div>
+        <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
+          <CodeEditorPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
       </main>
     </div>

@@ -1,13 +1,13 @@
 ## 1. 依賴安裝與 Rust Crate 初始化
 
-- [ ] 1.1 安裝新依賴：`xterm`、`@xterm/addon-fit`、`codemirror`、`@codemirror/lang-python`、`@codemirror/autocomplete`（package.json 新增依賴，遵循新依賴設計決策）
-- [ ] 1.2 在 `chall-wasm/` 下新增 `wxlsh-parser` Rust crate（`Cargo.toml` workspace member），建立基本 crate 結構以支援 wxlsh uses Rust WASM for command parsing
-- [ ] 1.3 更新 `package.json` 的 `wasm:build` script，加入 `wxlsh-parser` 的 wasm-pack 指令
+- [x] 1.1 安裝新依賴：`xterm`、`@xterm/addon-fit`、`codemirror`、`@codemirror/lang-python`、`@codemirror/autocomplete`（package.json 新增依賴，遵循新依賴設計決策）
+- [x] 1.2 在 `chall-wasm/` 下新增 `wxlsh-parser` Rust crate（`Cargo.toml` workspace member），建立基本 crate 結構以支援 wxlsh uses Rust WASM for command parsing
+- [x] 1.3 更新 `package.json` 的 `wasm:build` script，加入 `wxlsh-parser` 的 wasm-pack 指令
 
 ## 2. Bug 修復：SW Readiness Gate
 
-- [ ] 2.1 在 `ChallengeLayout.vue` 新增 `swReady` ref，初始值為 `navigator.serviceWorker.controller != null`；監聽 `controllerchange` 事件將其設為 `true`，以實作 ChallengeLayout gates all tool panels on both runtimeReady and swReady
-- [ ] 2.2 將所有工具面板的 `disabled` prop 從 `!runtimeReady` 改為 `computed(() => !runtimeReady.value || !swReady.value)`
+- [x] 2.1 在 `ChallengeLayout.vue` 新增 `swReady` ref，初始值為 `navigator.serviceWorker.controller != null`；監聽 `controllerchange` 事件將其設為 `true`，以實作 ChallengeLayout gates all tool panels on both runtimeReady and swReady
+- [x] 2.2 將所有工具面板的 `disabled` prop 從 `!runtimeReady` 改為 `computed(() => !runtimeReady.value || !swReady.value)`
 
 ## 3. Bug 修復：Service Worker iframe 導航
 
@@ -64,10 +64,10 @@
 
 ## 11. ChallengeLayout 整合
 
-- [ ] 11.1 在 `ChallengeLayout.vue` 匯入並加入第四個 tab（Code），label "Code"，render `CodeEditorPanel`，以實作 ChallengeLayout provides three switchable interaction panels（升級為四個 tab）
-- [ ] 11.2 將 `TerminalPanel` import 替換為 `WxlshPanel`，以實作 Terminal Panel accepts curl and HTTPie-style commands（以 wxlsh 取代）
-- [ ] 11.3 套用 SW Readiness Gate 修復（task 2.1/2.2）至 layout，所有 `disabled` prop 更新，實作 ChallengeLayout gates all tool panels on both runtimeReady and swReady
-- [ ] 11.4 更新 ChallengeLayout.vue 的單元測試：新增 Code tab 覆蓋、swReady gate 行為、四個 tab 切換狀態保留
+- [x] 11.1 在 `ChallengeLayout.vue` 匯入並加入第四個 tab（Code），label "Code"，render `CodeEditorPanel`，以實作 ChallengeLayout provides three switchable interaction panels（升級為四個 tab）
+- [x] 11.2 將 `TerminalPanel` import 替換為 `WxlshPanel`，以實作 Terminal Panel accepts curl and HTTPie-style commands（以 wxlsh 取代）
+- [x] 11.3 套用 SW Readiness Gate 修復（task 2.1/2.2）至 layout，所有 `disabled` prop 更新，實作 ChallengeLayout gates all tool panels on both runtimeReady and swReady
+- [x] 11.4 更新 ChallengeLayout.vue 的單元測試：新增 Code tab 覆蓋、swReady gate 行為、四個 tab 切換狀態保留
 - [ ] 11.5 確認 Challenge layout renders a left-right split view（左右分欄）在加入第四個 tab 後仍正確運作
 - [ ] 11.6 確認 Challenge pages use a custom VitePress layout registered as "challenge" frontmatter 機制不受本次改動影響；確認 Layout is activated via frontmatter, not component embedding 語意不變
 - [ ] 11.7 確認 Description panel renders markdown via Content component and is collapsible 與 Flag submit form is fixed at the bottom of the left column 在新佈局下仍正常運作
