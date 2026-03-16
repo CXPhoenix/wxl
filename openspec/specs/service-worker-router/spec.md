@@ -8,11 +8,11 @@ TBD - created by archiving change 'web-exploit-challenge-platform'. Update Purpo
 
 ### Requirement: Service Worker intercepts challenge-*.localhost requests
 
-A Service Worker registered at the root scope SHALL intercept all `fetch` events where the request URL host matches the pattern `challenge-<slug>.localhost`. Requests not matching this pattern SHALL pass through to the network unchanged.
+A Service Worker registered at the root scope SHALL intercept all `fetch` events where the request URL host matches the pattern `challenge-<slug>.localhost`. Requests not matching this pattern SHALL pass through to the network unchanged. This interception SHALL apply to both regular fetch requests and navigation requests (`request.mode === "navigate"`).
 
 #### Scenario: Matching request is intercepted
 
-- **WHEN** a fetch event fires with URL `http://challenge-sqli-basic.localhost/api/users`
+- **WHEN** a fetch event fires with URL `https://challenge-sqli-basic.localhost/api/users`
 - **THEN** the Service Worker SHALL intercept the request and NOT forward it to the network
 
 #### Scenario: Non-matching request passes through
@@ -20,67 +20,40 @@ A Service Worker registered at the root scope SHALL intercept all `fetch` events
 - **WHEN** a fetch event fires with URL `https://vitepress.dev/some/path`
 - **THEN** the Service Worker SHALL call `event.respondWith` with the original network fetch
 
+#### Scenario: Navigation request to challenge origin is intercepted
+
+- **WHEN** a navigation fetch event fires with URL `https://challenge-sqli-basic.localhost/`
+- **THEN** the Service Worker SHALL intercept it and route via MessageChannel relay
+
 
 <!-- @trace
-source: web-exploit-challenge-platform
-updated: 2026-03-15
+source: challenge-tools-evolution
+updated: 2026-03-16
 code:
-  - chall-wasm/asgi-bridge/src/lib.rs
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/components/FlagSubmit.vue
-  - chall-wasm/asgi-bridge/Cargo.toml
-  - chall-wasm/virtual-fs/src/tests.rs
-  - .vitepress/theme/components/SourceViewer.vue
-  - public/challenge-sw.js
-  - .vitepress/challenge/crypto.ts
-  - chall-wasm/asgi-bridge/src/scope.rs
-  - chall-wasm/asgi-bridge/src/tests.rs
-  - .vitepress/challenge/plugin.ts
-  - chall-wasm/virtual-fs/Cargo.toml
-  - chall-wasm/php-bridge/php-runtime.ts
-  - chall-wasm/virtual-fs/src/wasm_api.rs
-  - LICENSE
-  - chall-wasm/python-bridge/python-runtime.ts
-  - chall-wasm/virtual-fs/src/crypto.rs
-  - chall-wasm/virtual-fs/src/idb.rs
-  - .vitepress/config.mts
-  - .vitepress/sw/router.ts
-  - docs/challenges/sqli-demo.md
-  - package.json
   - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
   - .vitepress/theme/components/TerminalPanel.vue
-  - chall-wasm/asgi-bridge/src/events.rs
-  - vitest.config.ts
-  - .vitepress/theme/index.ts
-  - .vitepress/theme/components/ChallengeLayout.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
   - .vitepress/theme/components/RepeatPanel.vue
-  - .vitepress/challenge/config.ts
-  - .vitepress/challenge/flag-verifier.ts
-  - docs/challenges/php-demo.md
-  - chall-wasm/virtual-fs/src/lib.rs
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
 tests:
-  - chall-wasm/python-bridge/python-runtime-fs.test.ts
-  - .vitepress/sw/router.test.ts
-  - chall-wasm/php-bridge/php-runtime-fs.test.ts
-  - tests/e2e/flask-sqli.test.ts
-  - chall-wasm/php-bridge/php-runtime.test.ts
-  - .vitepress/theme/components/SourceViewer.test.ts
-  - chall-wasm/php-bridge/php-runtime-singleton.test.ts
-  - .vitepress/theme/components/BrowserPanel.test.ts
-  - .vitepress/challenge/flag-verifier-global.test.ts
-  - .vitepress/challenge/config.test.ts
-  - chall-wasm/php-bridge/php-runtime-headers.test.ts
-  - .vitepress/challenge/flag-verifier.test.ts
-  - chall-wasm/php-bridge/php-runtime-post.test.ts
-  - chall-wasm/python-bridge/python-runtime-request.test.ts
-  - .vitepress/challenge/plugin.test.ts
-  - .vitepress/theme/components/ChallengeLayout.test.ts
-  - tests/e2e/php-demo.test.ts
-  - .vitepress/theme/components/FlagSubmit.test.ts
-  - .vitepress/theme/components/RepeatPanel.test.ts
-  - .vitepress/theme/components/TerminalPanel.test.ts
-  - .vitepress/challenge/plugin-obfuscation.test.ts
-  - chall-wasm/python-bridge/python-runtime.test.ts
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
 -->
 
 ---
@@ -374,4 +347,49 @@ tests:
   - tests/unit/components/BrowserPanel.test.ts
   - tests/unit/workers/router.test.ts
   - .vitepress/theme/composables/usePhpRuntime.test.ts
+-->
+
+---
+### Requirement: Service Worker handles navigation requests from iframe link clicks
+
+The Service Worker SHALL handle `fetch` events with `request.mode === "navigate"` for URLs matching `challenge-<slug>.localhost`. Navigation requests SHALL be treated identically to regular fetch requests: routed through the registered challenge's `MessagePort` relay. The Service Worker SHALL NOT distinguish between navigation and non-navigation requests for challenge-origin URLs.
+
+#### Scenario: iframe link click navigation request is intercepted
+
+- **WHEN** a link inside the Browser Panel iframe is clicked, triggering a navigation fetch to `https://challenge-<slug>.localhost/path`
+- **THEN** the Service Worker SHALL intercept the navigation request, relay it via MessageChannel, and return the response so the page-side handler can update the iframe
+
+#### Scenario: Navigation request outside challenge origin passes through
+
+- **WHEN** a navigation fetch event fires for a URL that does not match `challenge-*.localhost`
+- **THEN** the Service Worker SHALL NOT intercept it and SHALL pass it through to the network
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
 -->
