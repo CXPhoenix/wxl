@@ -1,11 +1,11 @@
 ## 1. Rust WASM 核心改造
 
-- [ ] 1.1 在 `chall-wasm/virtual-fs/src/` 新增 custom section 讀取模組，實作 `"chall-data"` custom section 資料格式解析（magic header `CHWD`、版本驗證、欄位解包），對應 spec「Custom section uses binary-packed format with magic header」
-- [ ] 1.2 新增 Level 2 金鑰混淆策略的 XOR chain key derivation 模組，實作「Key material is obfuscated using XOR chain with compile-time constants」：定義 3 個 32-byte compile-time const masks，從 custom section 的 key_material XOR 還原 AES-256 key
-- [ ] 1.3 修改 WASM API 介面變更：`wasm_fs_init` / `wasm_fs_read` / `wasm_fs_write` / `wasm_fs_reset` 移除外部 key 參數，改為內部持有 key（對應 spec「Rust WASM module encrypts and stores FS content in IndexedDB」和「FS content is decrypted on read and mounted into runtime memory」）
-- [ ] 1.4 實作 `wasm_verify_flag(flag_bytes) -> bool` export function，內部執行 PBKDF2-HMAC-SHA256 + constant-time comparison（對應 spec「Flag verification is performed inside WASM」和「Flag verification uses PBKDF2 without storing plaintext flag」）
-- [ ] 1.5 修改 `wasm_fs_init(slug)` 從 custom section 讀取「FS is initialized from build-time encrypted blob」並初始化 IndexedDB
-- [ ] 1.6 修改 `wasm_fs_reset(slug)` 從 custom section 重新載入（對應 spec「FS supports reset to initial state」）
+- [x] 1.1 在 `chall-wasm/virtual-fs/src/` 新增 custom section 讀取模組，實作 `"chall-data"` custom section 資料格式解析（magic header `CHWD`、版本驗證、欄位解包），對應 spec「Custom section uses binary-packed format with magic header」
+- [x] 1.2 新增 Level 2 金鑰混淆策略的 XOR chain key derivation 模組，實作「Key material is obfuscated using XOR chain with compile-time constants」：定義 3 個 32-byte compile-time const masks，從 custom section 的 key_material XOR 還原 AES-256 key
+- [x] 1.3 修改 WASM API 介面變更：`wasm_fs_init` / `wasm_fs_read` / `wasm_fs_write` / `wasm_fs_reset` 移除外部 key 參數，改為內部持有 key（對應 spec「Rust WASM module encrypts and stores FS content in IndexedDB」和「FS content is decrypted on read and mounted into runtime memory」）
+- [x] 1.4 實作 `wasm_verify_flag(flag_bytes) -> bool` export function，內部執行 PBKDF2-HMAC-SHA256 + constant-time comparison（對應 spec「Flag verification is performed inside WASM」和「Flag verification uses PBKDF2 without storing plaintext flag」）
+- [x] 1.5 修改 `wasm_fs_init(slug)` 從 custom section 讀取「FS is initialized from build-time encrypted blob」並初始化 IndexedDB
+- [x] 1.6 修改 `wasm_fs_reset(slug)` 從 custom section 重新載入（對應 spec「FS supports reset to initial state」）
 
 ## 2. Build Pipeline 改造
 
