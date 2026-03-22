@@ -98,17 +98,15 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(panel.classes()).not.toContain('collapsed')
   })
 
-  it('renders four interaction tabs (Browser, Terminal, Repeater, Code)', () => {
+  it('renders active interaction tabs (Browser, Repeater)', () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
     const tabs = wrapper.findAll('[data-tab]')
-    expect(tabs).toHaveLength(4)
+    expect(tabs).toHaveLength(2)
     const tabIds = tabs.map(t => t.attributes('data-tab'))
     expect(tabIds).toContain('browser')
-    expect(tabIds).toContain('terminal')
     expect(tabIds).toContain('repeater')
-    expect(tabIds).toContain('code')
   })
 
   it('wraps Content in a vp-doc container for markdown typography', () => {
@@ -137,6 +135,26 @@ describe('ChallengeLayout (VitePress layout)', () => {
     // All panels should be disabled because SW controller is null (swReady=false)
     const browserPanel = wrapper.find('[data-browser-panel]')
     expect(browserPanel.attributes('data-disabled')).toBe('true')
+  })
+
+  it('dispatch returns 503 with runtime not ready when runtime has not initialized', async () => {
+    // Runtime stays null in test env: frontmatter has no encryptedFs/fsKeyParts
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    await wrapper.vm.$nextTick()
+
+    // Get dispatch from the BrowserPanel's props
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+    const bpWrapper = wrapper.findComponent(BrowserPanel)
+    expect(bpWrapper.exists()).toBe(true)
+
+    const dispatch = bpWrapper.props('dispatch') as (req: Request) => Promise<Response>
+    const res = await dispatch(new Request('https://challenge-sqli.localhost/'))
+
+    expect(res.status).toBe(503)
+    const body = await res.json()
+    expect(body.error).toBe('runtime not ready')
   })
 
   it('enables panels when swReady becomes true via controllerchange', async () => {

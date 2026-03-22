@@ -59,9 +59,15 @@ const tabs: { id: Tab; label: string }[] = [
   // { id: 'code', label: 'Code' },
 ]
 
-// ─── Challenge dispatch: fetch → SW → MessageChannel relay ───────────────────
+// ─── Challenge dispatch: directly call runtime (bypasses SW round-trip) ──────
 async function dispatch(request: Request): Promise<Response> {
-  return fetch(request)
+  if (!runtime) {
+    return new Response(JSON.stringify({ error: 'runtime not ready' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+  return (runtime as PythonRuntime | PhpRuntime).handleRequest(request)
 }
 
 // ─── Flag verification ────────────────────────────────────────────────────────

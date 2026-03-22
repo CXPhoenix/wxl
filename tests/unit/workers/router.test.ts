@@ -102,6 +102,58 @@ describe('runtime dispatch', () => {
   })
 })
 
+// ─── registration wait mechanism ─────────────────────────────────────────────
+
+describe('Service Worker waits for challenge registration on registry miss', () => {
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it('resolves fetch when registration arrives before timeout', async () => {
+    const pythonDispatch = vi.fn().mockResolvedValue(new Response('ok'))
+    const router = createRouter({ python: pythonDispatch }, { registrationTimeout: 200 })
+
+    // Dispatch before registration
+    const dispatchPromise = router.dispatch(new Request('https://challenge-sqli.localhost/'))
+
+    // Registration arrives synchronously
+    router.handleMessage({ type: 'REGISTER_CHALLENGE', slug: 'sqli', backend: 'flask' })
+
+    const res = await dispatchPromise
+    expect(res.status).toBe(200)
+    expect(pythonDispatch).toHaveBeenCalledOnce()
+  })
+
+  it('returns 503 after timeout if registration never arrives', async () => {
+    vi.useFakeTimers()
+    const router = createRouter({ python: vi.fn() }, { registrationTimeout: 3000 })
+
+    const dispatchPromise = router.dispatch(new Request('https://challenge-unregistered.localhost/'))
+    vi.advanceTimersByTime(3001)
+
+    const res = await dispatchPromise
+    expect(res.status).toBe(503)
+    const body = await res.json()
+    expect(body.error).toBe('challenge not registered')
+  })
+
+  it('resolves all pending fetches for the same slug when registration arrives', async () => {
+    const pythonDispatch = vi.fn().mockResolvedValue(new Response('ok'))
+    const router = createRouter({ python: pythonDispatch }, { registrationTimeout: 200 })
+
+    const d1 = router.dispatch(new Request('https://challenge-sqli.localhost/a'))
+    const d2 = router.dispatch(new Request('https://challenge-sqli.localhost/b'))
+
+    router.handleMessage({ type: 'REGISTER_CHALLENGE', slug: 'sqli', backend: 'flask' })
+
+    const [res1, res2] = await Promise.all([d1, d2])
+    expect(res1.status).toBe(200)
+    expect(res2.status).toBe(200)
+    expect(pythonDispatch).toHaveBeenCalledTimes(2)
+  })
+})
+
 // ─── 5.7 error handling ──────────────────────────────────────────────────────
 
 describe('runtime error handling', () => {

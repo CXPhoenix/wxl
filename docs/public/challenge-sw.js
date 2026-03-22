@@ -14,6 +14,9 @@ const CHALLENGE_HOST_RE = /^challenge-[^.]+\.localhost$/
 /** slug → { backend: string, port: MessagePort } */
 const registry = new Map()
 
+/** slug → Array of resolve callbacks waiting for registration */
+const pendingRegistrations = new Map()
+
 const production = self.location.hostname !== 'localhost'
 
 // ─── Message handling ─────────────────────────────────────────────────────
@@ -23,12 +26,46 @@ self.addEventListener('message', (event) => {
   if (!msg?.type) return
 
   if (msg.type === 'REGISTER_CHALLENGE') {
-    registry.set(msg.slug, { backend: msg.backend ?? 'flask', port: msg.port ?? null })
+    const entry = { backend: msg.backend ?? 'flask', port: msg.port ?? null }
+    registry.set(msg.slug, entry)
     event.source?.postMessage({ type: 'REGISTERED' })
+
+    // Resolve any fetches that arrived before registration
+    const resolvers = pendingRegistrations.get(msg.slug)
+    if (resolvers) {
+      resolvers.forEach(r => r(entry))
+      pendingRegistrations.delete(msg.slug)
+    }
   } else if (msg.type === 'UNREGISTER_CHALLENGE') {
     registry.delete(msg.slug)
   }
 })
+
+// ─── Wait for registration (safety net for SW-intercepted sub-resource loads) ─
+
+function waitForRegistration(slug, timeoutMs) {
+  return new Promise((resolve) => {
+    const resolvers = pendingRegistrations.get(slug) ?? []
+
+    function onRegistered(entry) {
+      clearTimeout(timer)
+      resolve(entry)
+    }
+
+    const timer = setTimeout(() => {
+      const current = pendingRegistrations.get(slug)
+      if (current) {
+        const idx = current.indexOf(onRegistered)
+        if (idx !== -1) current.splice(idx, 1)
+        if (current.length === 0) pendingRegistrations.delete(slug)
+      }
+      resolve(undefined)
+    }, timeoutMs)
+
+    resolvers.push(onRegistered)
+    pendingRegistrations.set(slug, resolvers)
+  })
+}
 
 // ─── Fetch interception ───────────────────────────────────────────────────
 
@@ -43,7 +80,11 @@ self.addEventListener('fetch', (event) => {
 
 async function handleChallengeRequest(request, url) {
   const slug = url.hostname.replace(/^challenge-/, '').replace(/\.localhost$/, '')
-  const entry = registry.get(slug)
+  let entry = registry.get(slug)
+
+  if (!entry) {
+    entry = await waitForRegistration(slug, 3000)
+  }
 
   if (!entry) {
     return jsonResponse({ error: 'challenge not registered' }, 503)
