@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { validateChallengeConfig } from '../../../.vitepress/challenge/config'
+import { validateChallengeConfig, LEGACY_FIELDS } from '../../../.vitepress/challenge/config'
 
 describe('ChallengeConfig validation', () => {
   const minimal = {
     title: 'SQL Injection Basic',
-    flag_verifier: 'abc123hash',
-    fs_key: 'a'.repeat(64),
     backend: 'flask' as const,
     app: './app.py',
     fs: { '/flag.txt': './flag.txt' },
@@ -18,16 +16,6 @@ describe('ChallengeConfig validation', () => {
   it('throws when title is missing', () => {
     const { title: _, ...rest } = minimal
     expect(() => validateChallengeConfig(rest as any)).toThrow(/title/)
-  })
-
-  it('throws when flag_verifier is missing', () => {
-    const { flag_verifier: _, ...rest } = minimal
-    expect(() => validateChallengeConfig(rest as any)).toThrow(/flag_verifier/)
-  })
-
-  it('throws when fs_key is missing', () => {
-    const { fs_key: _, ...rest } = minimal
-    expect(() => validateChallengeConfig(rest as any)).toThrow(/fs_key/)
   })
 
   it('throws when backend is missing', () => {
@@ -58,13 +46,26 @@ describe('ChallengeConfig validation', () => {
     const config = validateChallengeConfig({ ...minimal, source_visible: true })
     expect(config.source_visible).toBe(true)
   })
+
+  it('accepts optional wasmModule field', () => {
+    const config = validateChallengeConfig({ ...minimal, wasmModule: '/challenge/sqli-demo/runtime.wasm' })
+    expect(config.wasmModule).toBe('/challenge/sqli-demo/runtime.wasm')
+  })
+
+  it('does not require wasmModule (auto-populated by build pipeline)', () => {
+    const config = validateChallengeConfig(minimal)
+    expect(config.wasmModule).toBeUndefined()
+  })
+
+  it('does not require flag_verifier or fs_key (now in WASM)', () => {
+    // These fields should NOT be required — they are embedded in per-challenge WASM
+    expect(() => validateChallengeConfig(minimal)).not.toThrow()
+  })
 })
 
 describe('ChallengeConfig packages field', () => {
   const minimal = {
     title: 'Test',
-    flag_verifier: 'hash',
-    fs_key: 'a'.repeat(64),
     backend: 'flask' as const,
     app: './app.py',
     fs: { '/flag.txt': './flag.txt' },
@@ -89,5 +90,14 @@ describe('ChallengeConfig packages field', () => {
     const config = validateChallengeConfig({ ...minimal, backend: 'fastapi', packages: ['fastapi', 'anyio'] })
     expect(config.packages).toEqual(['fastapi', 'anyio'])
     expect(config.backend).toBe('fastapi')
+  })
+})
+
+describe('Legacy field detection', () => {
+  it('exports LEGACY_FIELDS constant', () => {
+    expect(LEGACY_FIELDS).toContain('fs_key')
+    expect(LEGACY_FIELDS).toContain('fsKeyParts')
+    expect(LEGACY_FIELDS).toContain('encryptedFs')
+    expect(LEGACY_FIELDS).toContain('flag_verifier')
   })
 })

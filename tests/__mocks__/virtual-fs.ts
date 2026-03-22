@@ -1,8 +1,12 @@
 // Test stub for /wasm/virtual-fs/virtual_fs.js
-// Provides no-op implementations of wasm_fs_init, wasm_fs_reset, and wasm_fs_read
-export function wasm_fs_init(_paths: string[], _blobs: string[]): void {}
-export function wasm_fs_reset(_paths: string[], _blobs: string[]): void {}
-export function wasm_fs_read(_key: Uint8Array, _path: string): Uint8Array {
+// Provides no-op implementations matching the new WASM API (no external key params)
+export function wasm_fs_init(_slug: string, _payload_bytes: Uint8Array): void {}
+export function wasm_fs_reset(_slug: string): void {}
+export function wasm_fs_read(_path: string): Uint8Array {
   return new Uint8Array()
+}
+export function wasm_fs_write(_path: string, _plaintext: Uint8Array): void {}
+export function wasm_verify_flag(_flag_bytes: Uint8Array): boolean {
+  return false
 }
 export default async function init(): Promise<void> {}

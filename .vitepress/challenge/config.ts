@@ -1,21 +1,22 @@
 export type BackendType = 'flask' | 'fastapi' | 'php'
 
+export const LEGACY_FIELDS = ['fs_key', 'fsKeyParts', 'encryptedFs', 'flag_verifier'] as const
+
 export interface ChallengeConfig {
   title: string
-  flag_verifier: string
-  fs_key: string
   backend: BackendType
   app: string
   fs: Record<string, string>
   source_visible: boolean
   packages: string[]
+  wasmModule?: string
   // optional metadata
   difficulty?: string
   category?: string
   description?: string
 }
 
-const REQUIRED: (keyof ChallengeConfig)[] = ['title', 'flag_verifier', 'fs_key', 'backend', 'app', 'fs']
+const REQUIRED: (keyof ChallengeConfig)[] = ['title', 'backend', 'app', 'fs']
 const VALID_BACKENDS: BackendType[] = ['flask', 'fastapi', 'php']
 
 export function validateChallengeConfig(raw: unknown): ChallengeConfig {
@@ -36,13 +37,12 @@ export function validateChallengeConfig(raw: unknown): ChallengeConfig {
 
   return {
     title: obj.title as string,
-    flag_verifier: obj.flag_verifier as string,
-    fs_key: obj.fs_key as string,
     backend: obj.backend as BackendType,
     app: obj.app as string,
     fs: obj.fs as Record<string, string>,
     source_visible: (obj.source_visible as boolean) ?? false,
     packages: (Array.isArray(obj.packages) ? obj.packages : []) as string[],
+    wasmModule: obj.wasmModule as string | undefined,
     difficulty: obj.difficulty as string | undefined,
     category: obj.category as string | undefined,
     description: obj.description as string | undefined,
