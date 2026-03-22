@@ -193,6 +193,7 @@ class _RequestsStub:
             body = ''
         # _wxlsh_code_dispatch is a JS async function — await its Promise
         r = await _wxlsh_code_dispatch(method, url, list(headers.items()), body or '')
+        r = r.to_py()  # convert JsProxy → native Python dict/list/str
         status = int(r['status'])
         text   = str(r['body'])
         hdrs   = [[str(p[0]), str(p[1])] for p in r['headers']]

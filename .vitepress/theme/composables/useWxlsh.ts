@@ -152,6 +152,7 @@ class _WxlshDispatch:
 
 class _WxlshResponse:
     def __init__(self, raw):
+        raw = raw.to_py()  # convert JsProxy → native Python dict/list/str
         self.status_code = int(raw['status'])
         self._headers = dict(raw['headers'])
         self.text = raw['body']

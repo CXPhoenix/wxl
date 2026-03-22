@@ -81,7 +81,7 @@ def _is_wsgi(application):
 
 async def _asgi_bridge(method, path, query_string, js_headers, body_bytes):
     body = bytes(body_bytes) if body_bytes else b""
-    headers_pairs = list(js_headers) if js_headers else []
+    headers_pairs = js_headers.to_py() if js_headers else []
 
     if _is_wsgi(app):
         # ── WSGI path (Flask) ────────────────────────────────────────────────
