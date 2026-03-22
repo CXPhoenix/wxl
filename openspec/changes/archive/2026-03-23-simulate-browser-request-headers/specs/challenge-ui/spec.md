@@ -2,7 +2,7 @@
 
 ### Requirement: BrowserPanel sends realistic browser-like HTTP requests
 
-The `BrowserPanel.vue` component SHALL construct all HTTP requests using a `buildBrowserRequest()` helper that attaches a complete set of simulated browser headers. Every request dispatched from BrowserPanel SHALL include static headers common to all browser requests, plus context-specific dynamic headers that reflect the request origin (address bar navigation, link click, or form submission).
+Every request dispatched from `BrowserPanel.vue` SHALL include a complete set of simulated browser headers for display in the Network Traffic panel. `BrowserPanel` SHALL attach request-context metadata via `X-Wxlsh-Context` and `X-Wxlsh-Referer` headers; `useTrafficLog.wrap()` SHALL consume these metadata headers (stripping them before dispatch to the runtime), then synthesize the full simulated header set — including static browser identity headers and context-specific dynamic headers — for the recorded `TrafficEntry`. The synthesized headers SHALL follow HTTP/1.1 Title-Case convention and Chrome's conventional header ordering (Host first, Connection second, Accept-Encoding and Accept-Language last).
 
 #### Scenario: Address bar navigation includes full browser headers
 
