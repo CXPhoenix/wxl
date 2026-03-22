@@ -9,11 +9,11 @@
 
 ## 2. Build Pipeline 改造
 
-- [ ] 2.1 重寫 `scripts/challenge-keygen.ts`：產生 per-challenge random key、加密 FS entries、計算 flag_verifier、執行 Level 2 金鑰混淆、打包為 binary blob（對應 design「Build script 重構」和 spec「Build script produces per-challenge WASM binary with embedded payload」）
-- [ ] 2.2 實作 WASM custom section 注入邏輯（Node.js），將 binary blob 注入複製的 template.wasm 為 `"chall-data"` section
-- [ ] 2.3 整合 post-build 混淆 pipeline：`wasm-strip` → `wasm-opt -O4` → `wasm-mutate`（對應 design「Post-build WASM 混淆 pipeline」和 spec「Post-build obfuscation pipeline strips symbols and applies mutations」）
-- [ ] 2.4 新增 `binaryen` 為 devDependency，更新 `package.json` build scripts 加入 `cargo install wasm-tools` 步驟
-- [ ] 2.5 確保 template.wasm 在 Rust build 後自動產出並經過 strip + opt 處理（對應 design「Per-challenge WASM binary 透過 post-build 注入產生」）
+- [x] 2.1 重寫 `scripts/challenge-keygen.ts`：產生 per-challenge random key、加密 FS entries、計算 flag_verifier、執行 Level 2 金鑰混淆、打包為 binary blob（對應 design「Build script 重構」和 spec「Build script produces per-challenge WASM binary with embedded payload」）
+- [x] 2.2 實作 WASM custom section 注入邏輯（Node.js），將 binary blob 注入複製的 template.wasm 為 `"chall-data"` section
+- [x] 2.3 整合 post-build 混淆 pipeline：`wasm-strip` → `wasm-opt -O4` → `wasm-mutate`（對應 design「Post-build WASM 混淆 pipeline」和 spec「Post-build obfuscation pipeline strips symbols and applies mutations」）
+- [x] 2.4 新增 `binaryen` 為 devDependency，更新 `package.json` build scripts 加入 `cargo install wasm-tools` 步驟
+- [x] 2.5 確保 template.wasm 在 Rust build 後自動產出並經過 strip + opt 處理（對應 design「Per-challenge WASM binary 透過 post-build 注入產生」）
 
 ## 3. Frontmatter Schema 與 VitePress Plugin 改造
 
