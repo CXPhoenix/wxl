@@ -7,7 +7,7 @@ const props = defineProps<{
   disabled?: boolean
 }>()
 
-const requestText = ref(`GET / HTTP/1.1\r\nHost: challenge-${props.slug}.localhost\r\n\r\n`)
+const requestText = ref(`GET / HTTP/1.1\r\nHost: challenge-${props.slug}.localhost\r\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.9\r\nAccept-Encoding: gzip, deflate, br\r\nConnection: keep-alive\r\n\r\n`)
 const responseText = ref('')
 const snapshots = ref<{ name: string; content: string }[]>([])
 
