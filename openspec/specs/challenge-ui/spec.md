@@ -2,17 +2,27 @@
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render three panels accessible via tab navigation: Browser Panel, Terminal Panel, and Repeater Panel. All three panels SHALL share a single `useChallengeHttp` composable for issuing requests.
+The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, Repeater Panel, and Network Panel. All panels that issue HTTP requests SHALL share a single `trackedDispatch` wrapper for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
 
 #### Scenario: User switches between panels without losing state
 
-- **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history)
+- **WHEN** a user switches from the Browser Panel to the Network Panel and back
+- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries)
 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
 - **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
+
+#### Scenario: Network tab is available alongside Browser and Repeater
+
+- **WHEN** the challenge page loads
+- **THEN** the tab navigation SHALL display three tabs: Browser, Repeater, and Network
+
+#### Scenario: RepeatPanel receives injected request from Network panel
+
+- **WHEN** the Network panel emits a Send to Repeater event
+- **THEN** ChallengeLayout SHALL set the injected request content on RepeatPanel and switch the active tab to Repeater
 
 
 <!-- @trace
@@ -151,6 +161,22 @@ tests:
   - tests/unit/components/WxlshPanel.test.ts
   - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
+
+<!-- @trace
+source: add-network-traffic-panel
+updated: 2026-03-22
+code:
+  - .vitepress/theme/components/NetworkPanel.vue
+  - .vitepress/theme/composables/useTrafficLog.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/components/RepeatPanel.vue
+tests:
+  - tests/unit/components/NetworkPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useTrafficLog.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
 -->
 
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
@@ -738,22 +764,27 @@ tests:
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, wxlsh Terminal Panel, Repeater Panel, and Code Editor Panel. All four panels SHALL share a single `dispatch` function for issuing requests. The tab bar SHALL display labels: "Browser", "Terminal", "Repeater", "Code". The layout SHALL receive the challenge `slug` from the page's frontmatter via VitePress's `useData()` composable.
+The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, Repeater Panel, and Network Panel. All panels that issue HTTP requests SHALL share a single `trackedDispatch` wrapper for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
 
 #### Scenario: User switches between panels without losing state
 
-- **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, response history, editor content)
+- **WHEN** a user switches from the Browser Panel to the Network Panel and back
+- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries)
 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
-- **THEN** the request SHALL target `https://challenge-<slug>.localhost` and be intercepted by the Service Worker
+- **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
 
-#### Scenario: Layout is activated via frontmatter, not component embedding
+#### Scenario: Network tab is available alongside Browser and Repeater
 
-- **WHEN** a challenge `.md` file declares `layout: challenge` in its frontmatter
-- **THEN** VitePress SHALL render the `ChallengeLayout.vue` layout without any `<ChallengeLayout>` tag in the `.md` content body
+- **WHEN** the challenge page loads
+- **THEN** the tab navigation SHALL display three tabs: Browser, Repeater, and Network
+
+#### Scenario: RepeatPanel receives injected request from Network panel
+
+- **WHEN** the Network panel emits a Send to Repeater event
+- **THEN** ChallengeLayout SHALL set the injected request content on RepeatPanel and switch the active tab to Repeater
 
 ---
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
