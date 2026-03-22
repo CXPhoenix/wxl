@@ -5,11 +5,13 @@ import { Content } from 'vitepress/client'
 import BrowserPanel from '../components/BrowserPanel.vue'
 import WxlshPanel from '../components/WxlshPanel.vue'
 import RepeatPanel from '../components/RepeatPanel.vue'
+import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
 import { useFlagVerifier } from '../../challenge/flag-verifier'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
+import { useTrafficLog } from '../composables/useTrafficLog'
 
 const { frontmatter, page } = useData()
 
@@ -50,13 +52,14 @@ function toggleDescription() {
 }
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
-type Tab = 'browser' | 'terminal' | 'repeater' | 'code'
+type Tab = 'browser' | 'terminal' | 'repeater' | 'code' | 'network'
 const activeTab = ref<Tab>('browser')
 const tabs: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
   // { id: 'terminal', label: 'Terminal' },
   { id: 'repeater', label: 'Repeater' },
   // { id: 'code', label: 'Code' },
+  { id: 'network', label: 'Network' },
 ]
 
 // ─── Challenge dispatch: directly call runtime (bypasses SW round-trip) ──────
@@ -68,6 +71,17 @@ async function dispatch(request: Request): Promise<Response> {
     })
   }
   return (runtime as PythonRuntime | PhpRuntime).handleRequest(request)
+}
+
+// ─── Traffic log ──────────────────────────────────────────────────────────────
+const { trafficLog, wrap: wrapDispatch, clear: clearTrafficLog } = useTrafficLog()
+const trackedDispatch = wrapDispatch(dispatch)
+
+// ─── Send to Repeater ─────────────────────────────────────────────────────────
+const repeaterInjectedRequest = ref<string | null>(null)
+function onSendToRepeater(rawRequest: string) {
+  repeaterInjectedRequest.value = rawRequest
+  activeTab.value = 'repeater'
 }
 
 // ─── Flag verification ────────────────────────────────────────────────────────
@@ -343,17 +357,20 @@ const categoryBadge: Record<string, string> = {
         </nav>
 
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
-          <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
+          <BrowserPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" />
         </div>
         <!-- <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
-          <WxlshPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
+          <WxlshPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
         </div> -->
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
-          <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
+          <RepeatPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :injectedRequest="repeaterInjectedRequest" />
         </div>
         <!-- <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
-          <CodeEditorPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
+          <CodeEditorPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
         </div> -->
+        <div v-show="activeTab === 'network'" data-panel="network" class="flex-1 overflow-hidden">
+          <NetworkPanel :trafficLog="trafficLog" @clear="clearTrafficLog" @sendToRepeater="onSendToRepeater" />
+        </div>
       </main>
     </div>
   </div>
