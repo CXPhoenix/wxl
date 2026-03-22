@@ -339,15 +339,15 @@ const categoryBadge: Record<string, string> = {
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
           <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
-        <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
+        <!-- <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
           <WxlshPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
-        </div>
+        </div> -->
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
           <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
-        <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
+        <!-- <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
           <CodeEditorPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
-        </div>
+        </div> -->
       </main>
     </div>
   </div>
