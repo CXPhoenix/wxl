@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
 
 const props = defineProps<{
   slug: string
@@ -9,6 +10,7 @@ const props = defineProps<{
 
 const requestText = ref(`GET / HTTP/1.1\r\nHost: challenge-${props.slug}.localhost\r\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.9\r\nAccept-Encoding: gzip, deflate, br\r\nConnection: keep-alive\r\n\r\n`)
 const responseText = ref('')
+const localStorageSnapshots = useLocalStorage(`challenge-${props.slug}.localhost:repeater-snapshots`, "[]")
 const snapshots = ref<{ name: string; content: string }[]>([])
 
 async function send() {
@@ -31,10 +33,19 @@ async function send() {
   }
 }
 
+function snapshotSave2LocalStorage() {
+  localStorageSnapshots.value = JSON.stringify(snapshots.value)
+}
+
+function snapshotLoadFromLocalStorage() {
+  snapshots.value = Array.from(JSON.parse(localStorageSnapshots.value))
+}
+
 function saveSnapshot() {
   const name = window.prompt('Snapshot name:')?.trim()
   if (!name) return
   snapshots.value.push({ name, content: requestText.value })
+  snapshotSave2LocalStorage()
 }
 
 function restoreSnapshot(content: string) {
@@ -43,6 +54,7 @@ function restoreSnapshot(content: string) {
 
 function deleteSnapshot(idx: number) {
   snapshots.value.splice(idx, 1)
+  snapshotSave2LocalStorage()
 }
 
 function parseRawRequest(raw: string): Request | null {
@@ -76,6 +88,10 @@ function parseRawRequest(raw: string): Request | null {
     body: bodyStr || undefined,
   })
 }
+
+onMounted(() => {
+  snapshotLoadFromLocalStorage()
+})
 </script>
 
 <template>
