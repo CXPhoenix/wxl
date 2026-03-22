@@ -50,7 +50,7 @@ tests:
 ---
 ### Requirement: ChallengeLayout establishes MessageChannel with Service Worker
 
-After runtime initialization, ChallengeLayout SHALL create a `MessageChannel`, send `port2` to the Service Worker via the `REGISTER_CHALLENGE` message as a transferable, and listen on `port1` for `HANDLE_REQUEST` messages.
+After runtime initialization, ChallengeLayout SHALL create a `MessageChannel`, send `port2` to the Service Worker via the `REGISTER_CHALLENGE` message as a transferable, and listen on `port1` for `HANDLE_REQUEST` messages. The `dispatch` function passed to child components (BrowserPanel, RepeatPanel) SHALL call `runtime.handleRequest(request)` directly instead of calling `fetch(request)` through the Service Worker. The Service Worker MessageChannel relay SHALL remain active for iframe sub-resource loads that bypass the page-level dispatch.
 
 #### Scenario: MessagePort is transferred to Service Worker at registration
 
@@ -62,38 +62,27 @@ After runtime initialization, ChallengeLayout SHALL create a `MessageChannel`, s
 - **WHEN** a `HANDLE_REQUEST` message arrives on `port1` from the Service Worker
 - **THEN** ChallengeLayout SHALL reconstruct a `Request` from the serialized data, call `runtime.handleRequest(request)`, serialize the response `{ status, headers, body }`, and post it to `event.data.responsePort`
 
+#### Scenario: dispatch calls runtime directly without going through Service Worker
+
+- **WHEN** BrowserPanel or RepeatPanel calls `dispatch(request)` after runtime is ready
+- **THEN** the dispatch function SHALL call `runtime.handleRequest(request)` directly and return the response, without issuing a `fetch()` that would be intercepted by the Service Worker
+
+#### Scenario: dispatch returns error response when runtime is not ready
+
+- **WHEN** `dispatch(request)` is called before the runtime has finished initializing
+- **THEN** the dispatch function SHALL return an HTTP 503 response with `{ "error": "runtime not ready" }`
+
 
 <!-- @trace
-source: runtime-init-and-fastapi-challenge
-updated: 2026-03-16
+source: fix-challenge-registration-race
+updated: 2026-03-22
 code:
-  - scripts/challenge-keygen.ts
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/challenge/config.ts
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - tests/__mocks__/virtual-fs.ts
-  - docs/challenge/php-demo/flag.txt
-  - docs/challenge/sqli-demo/app.py
-  - docs/challenge/fastapi-demo/app.py
-  - docs/challenge/php-demo.md
-  - vitest.config.ts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/php-demo/index.php
-  - .vitepress/theme/components/RepeatPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - .vitepress/workers/router.ts
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/fastapi-demo/flag.txt
   - docs/public/challenge-sw.js
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/challenge/plugin.ts
+  - .vitepress/workers/router.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
 tests:
-  - tests/unit/challenge/plugin.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/workers/router.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/challenge/config.test.ts
 -->
 
 ---
