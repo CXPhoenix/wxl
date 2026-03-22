@@ -23,7 +23,7 @@
     "wasm:build": "wasm-pack build chall-wasm/virtual-fs --out-dir ../../.vitepress/wasm/virtual-fs --target web && wasm-pack build chall-wasm/asgi-bridge --out-dir ../../.vitepress/wasm/asgi-bridge --target web && wasm-pack build chall-wasm/wxlsh-parser --out-dir ../../.vitepress/wasm/wxlsh-parser --target web",
     "wasm:test": "cargo test --workspace",
     "wasm:tools": "cargo install wasm-tools 2>/dev/null || true",
-    "dev": "pnpm wasm:build && pnpm docs:dev",
+    "dev": "pnpm wasm:build && pnpm challenge:keygen && pnpm docs:dev",
     "build": "pnpm wasm:build && pnpm challenge:keygen && pnpm docs:build",
     "challenge:keygen": "node --experimental-strip-types scripts/challenge-keygen.ts",
     "create:challenge": "node --experimental-strip-types scripts/create-challenge.ts"
