@@ -56,10 +56,10 @@ type Tab = 'browser' | 'terminal' | 'repeater' | 'code' | 'network'
 const activeTab = ref<Tab>('browser')
 const tabs: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
-  // { id: 'terminal', label: 'Terminal' },
-  { id: 'repeater', label: 'Repeater' },
-  // { id: 'code', label: 'Code' },
   { id: 'network', label: 'Network' },
+  { id: 'repeater', label: 'Repeater' },
+  // { id: 'terminal', label: 'Terminal' },
+  // { id: 'code', label: 'Code' },
 ]
 
 // ─── Challenge dispatch: directly call runtime (bypasses SW round-trip) ──────
