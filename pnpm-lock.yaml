@@ -66,6 +66,9 @@ importers:
       '@vueuse/core':
         specifier: ^14.2.1
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
+      binaryen:
+        specifier: ^122.0.0
+        version: 122.0.0
       happy-dom:
         specifier: ^20.8.4
         version: 20.8.4
@@ -1737,6 +1740,10 @@ packages:
     resolution: {integrity: sha512-ZS2cqFHPZOy4wLxvzqfQvDjCOifn+7uCPqNmYRIBM/03+yllON+4fNnsD0VJdW0p97y+E+dTRNPStWNqMBq+9g==}
     engines: {node: '>=10'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+  binaryen@122.0.0:
+    resolution: {integrity: sha512-XOvjvucq04e5UW0cuoiEZX4wxzepuF7q8sz24JtaXltqjgCqQOZHPXAq5ja/eLljF/orWYmaxuWivpp7paVUCQ==}
+    hasBin: true
 
   birpc@2.9.0:
     resolution: {integrity: sha512-KrayHS5pBi69Xi9JmvoqrIgYGDkD6mcSe/i6YKi3w5kekCLzrX4+nawcXqrj2tIp50Kw/mT/s3p+GVK0A0sKxw==}
@@ -4695,6 +4702,8 @@ snapshots:
       tar: 6.2.1
     transitivePeerDependencies:
       - debug
+
+  binaryen@122.0.0: {}
 
   birpc@2.9.0: {}
 
