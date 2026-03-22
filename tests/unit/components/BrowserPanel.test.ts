@@ -143,6 +143,85 @@ function makeForm(
   return form
 }
 
+// ─── withContext: request context metadata headers ────────────────────────────
+// Forbidden request headers (User-Agent, Sec-*, etc.) cannot be set on Request
+// objects in JS. BrowserPanel passes context via X-Wxlsh-* metadata headers;
+// useTrafficLog.wrap() uses them to build the full simulated header set for display.
+
+describe('BrowserPanel — request context metadata (withContext)', () => {
+  it('address bar navigation sets X-Wxlsh-Context: navigation', async () => {
+    const mockDispatch = vi.fn().mockResolvedValue(
+      new Response('OK', { headers: { 'Content-Type': 'text/plain' } }),
+    )
+    const wrapper = mount(BrowserPanel, {
+      props: { slug: 'test', dispatch: mockDispatch },
+    })
+    await wrapper.find('[data-go]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const req: Request = mockDispatch.mock.calls[0][0]
+    expect(req.headers.get('X-Wxlsh-Context')).toBe('navigation')
+    expect(req.headers.get('X-Wxlsh-Referer')).toBeNull()
+  })
+
+  it('link click sets X-Wxlsh-Context: link and X-Wxlsh-Referer', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<a href="/page2">link</a>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('page2', { headers: { 'Content-Type': 'text/plain' } }))
+    const { doc } = await mountWithIframe('test', mockDispatch)
+
+    const link = doc.createElement('a')
+    link.setAttribute('href', '/page2')
+    doc.body.appendChild(link)
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    const req: Request = mockDispatch.mock.calls[1][0]
+    expect(req.headers.get('X-Wxlsh-Context')).toBe('link')
+    expect(req.headers.get('X-Wxlsh-Referer')).toBeTruthy()
+  })
+
+  it('form POST sets X-Wxlsh-Context: form-post and X-Wxlsh-Referer', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('ok', { headers: { 'Content-Type': 'text/plain' } }))
+    const { doc } = await mountWithIframe('sqli-demo', mockDispatch)
+
+    const form = makeForm(doc, {
+      method: 'POST',
+      action: '/login',
+      fields: { username: 'admin', password: 'secret' },
+    })
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    const req: Request = mockDispatch.mock.calls[1][0]
+    expect(req.headers.get('X-Wxlsh-Context')).toBe('form-post')
+    expect(req.headers.get('X-Wxlsh-Referer')).toBeTruthy()
+  })
+
+  it('form GET sets X-Wxlsh-Context: form-get and X-Wxlsh-Referer', async () => {
+    const mockDispatch = vi.fn()
+      .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response('results', { headers: { 'Content-Type': 'text/plain' } }))
+    const { doc } = await mountWithIframe('test', mockDispatch)
+
+    const form = makeForm(doc, {
+      method: 'GET',
+      action: '/search',
+      fields: { q: 'test' },
+    })
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flushPromises()
+
+    const req: Request = mockDispatch.mock.calls[1][0]
+    expect(req.headers.get('X-Wxlsh-Context')).toBe('form-get')
+    expect(req.headers.get('X-Wxlsh-Referer')).toBeTruthy()
+  })
+})
+
+// ─── Form submit interception tests ───────────────────────────────────────────
+
 describe('BrowserPanel — form submit interception', () => {
   it('3.1 POST form with default enctype is submitted via dispatch with urlencoded content-type', async () => {
     const mockDispatch = vi.fn()

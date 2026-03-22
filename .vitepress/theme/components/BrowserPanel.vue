@@ -10,6 +10,19 @@ const props = defineProps<{
 const url = ref(`https://challenge-${props.slug}.localhost/`)
 const iframeRef = useTemplateRef<HTMLIFrameElement>('iframeEl')
 
+// ─── Request context metadata (consumed by useTrafficLog for display headers) ─
+// Forbidden request headers (User-Agent, Referer, Sec-*, etc.) cannot be set
+// on Request objects via the Fetch API. Instead, we pass context via custom
+// X-Wxlsh-* headers; useTrafficLog.wrap() reads them, strips them, and uses
+// them to build the full simulated browser header set for the traffic log.
+
+function withContext(init: RequestInit, context: string, referer?: string): RequestInit {
+  const headers = new Headers(init.headers)
+  headers.set('X-Wxlsh-Context', context)
+  if (referer) headers.set('X-Wxlsh-Referer', referer)
+  return { ...init, headers }
+}
+
 type ResponseState =
   | { type: 'idle' }
   | { type: 'html'; content: string }
@@ -35,7 +48,7 @@ async function handleResponse(res: Response, resolvedUrl: string) {
 
 async function navigate() {
   if (props.disabled) return
-  const req = new Request(url.value, { method: 'GET' })
+  const req = new Request(url.value, withContext({ method: 'GET' }, 'navigation'))
   const res = await props.dispatch(req)
   await handleResponse(res, url.value)
 }
@@ -62,9 +75,11 @@ function attachIframeLinkInterceptor() {
       const href = target.getAttribute('href')
       if (!href || href.startsWith('#')) return
       e.preventDefault()
+      const referer = url.value
       const resolved = new URL(href, base).href
       url.value = resolved
-      navigate()
+      const req = new Request(resolved, withContext({ method: 'GET' }, 'link', referer))
+      props.dispatch(req).then(res => handleResponse(res, resolved))
     })
 
     // ── Form submit interception ─────────────────────────────────────────
@@ -76,24 +91,28 @@ function attachIframeLinkInterceptor() {
       const enctype = form.getAttribute('enctype') ?? 'application/x-www-form-urlencoded'
       // Resolve action against challenge base; fall back to current url.value
       const resolvedUrl = action ? new URL(action, base).href : url.value
+      const referer = url.value
 
       if (method === 'GET') {
         const params = new URLSearchParams(new FormData(form) as unknown as Record<string, string>)
         const sep = resolvedUrl.includes('?') ? '&' : '?'
         const target = params.toString() ? `${resolvedUrl}${sep}${params}` : resolvedUrl
-        props.dispatch(new Request(target, { method: 'GET' })).then(res => handleResponse(res, target))
+        const req = new Request(target, withContext({ method: 'GET' }, 'form-get', referer))
+        props.dispatch(req).then(res => handleResponse(res, target))
       } else if (enctype === 'multipart/form-data') {
         // Let fetch set Content-Type (with boundary) automatically
         const body = new FormData(form)
-        props.dispatch(new Request(resolvedUrl, { method, body })).then(res => handleResponse(res, resolvedUrl))
+        const req = new Request(resolvedUrl, withContext({ method, body }, 'form-post', referer))
+        props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
       } else {
         // application/x-www-form-urlencoded (default)
-        const body = new URLSearchParams(new FormData(form) as unknown as Record<string, string>).toString()
-        props.dispatch(new Request(resolvedUrl, {
+        const bodyStr = new URLSearchParams(new FormData(form) as unknown as Record<string, string>).toString()
+        const req = new Request(resolvedUrl, withContext({
           method,
-          body,
+          body: bodyStr,
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        })).then(res => handleResponse(res, resolvedUrl))
+        }, 'form-post', referer))
+        props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
       }
     })
   } catch {

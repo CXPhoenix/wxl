@@ -157,17 +157,9 @@ function onClear() {
               </button>
             </div>
 
-            <!-- Detail content -->
-            <pre
-              data-detail-content
-              class="m-0 p-3 overflow-auto font-mono text-[0.78em] leading-relaxed whitespace-pre-wrap color-[var(--ch-text-1)] max-h-48"
-            >
-              <template v-if="detailTab === 'request'">{{ formatRawRequest(entry) }}</template>
-              <template v-else>HTTP/1.1 {{ entry.status }}
-{{ entry.responseHeaders.map(([k, v]) => `${k}: ${v}`).join('\n') }}
-
-{{ entry.responseBody }}</template>
-            </pre>
+            <!-- Detail content: no whitespace inside <pre> to avoid leading spaces -->
+            <!-- eslint-disable-next-line vue/html-indent -->
+            <pre data-detail-content class="m-0 p-3 overflow-auto font-mono text-[0.78em] leading-relaxed whitespace-pre-wrap color-[var(--ch-text-1)] max-h-48">{{ detailTab === 'request' ? formatRawRequest(entry) : `HTTP/1.1 ${entry.status}\n${entry.responseHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${entry.responseBody}` }}</pre>
           </div>
         </template>
       </div>
