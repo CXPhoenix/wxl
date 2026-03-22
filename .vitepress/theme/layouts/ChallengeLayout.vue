@@ -54,9 +54,9 @@ type Tab = 'browser' | 'terminal' | 'repeater' | 'code'
 const activeTab = ref<Tab>('browser')
 const tabs: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
-  { id: 'terminal', label: 'Terminal' },
+  // { id: 'terminal', label: 'Terminal' },
   { id: 'repeater', label: 'Repeater' },
-  { id: 'code', label: 'Code' },
+  // { id: 'code', label: 'Code' },
 ]
 
 // ─── Challenge dispatch: fetch → SW → MessageChannel relay ───────────────────
@@ -83,7 +83,7 @@ function hexToBytes(hex: string): Uint8Array {
 /** Map backend type to its required base micropip packages */
 const BASE_PACKAGES: Record<string, string[]> = {
   flask:   ['flask', 'sqlite3'],
-  fastapi: ['fastapi', 'anyio'],
+  fastapi: ['fastapi', 'anyio', 'sqlite3'],
 }
 
 // ─── Runtime initialization ───────────────────────────────────────────────────
