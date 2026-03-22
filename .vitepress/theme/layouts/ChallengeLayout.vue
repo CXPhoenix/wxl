@@ -8,10 +8,10 @@ import RepeatPanel from '../components/RepeatPanel.vue'
 import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
-import { useFlagVerifier } from '../../challenge/flag-verifier'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 import { useTrafficLog } from '../composables/useTrafficLog'
+import { extractCustomSection } from '../composables/useWasmLoader'
 
 const { frontmatter, page } = useData()
 
@@ -84,20 +84,14 @@ function onSendToRepeater(rawRequest: string) {
   activeTab.value = 'repeater'
 }
 
-// ─── Flag verification ────────────────────────────────────────────────────────
-const { verify: verifyFlag } = useFlagVerifier(slug.value)
+// ─── Flag verification (via WASM) ────────────────────────────────────────────
+// wasm_verify_flag is set after WASM init; holds a reference to the export
+let wasmVerifyFlag: ((flagBytes: Uint8Array) => boolean) | null = null
+
 async function verify(submitted: string): Promise<boolean> {
-  return verifyFlag(submitted, fm.value.flag_verifier ?? fm.value.flagVerifier ?? '')
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
-  }
-  return bytes
+  if (!wasmVerifyFlag) return false
+  const flagBytes = new TextEncoder().encode(submitted)
+  return wasmVerifyFlag(flagBytes)
 }
 
 /** Map backend type to its required base micropip packages */
@@ -110,44 +104,50 @@ const BASE_PACKAGES: Record<string, string[]> = {
 
 async function initRuntime(): Promise<void> {
   const backend: string = fm.value.backend ?? 'flask'
-  const encryptedFs: Record<string, string> | undefined = fm.value.encryptedFs
-  const fsKeyParts: string[] | undefined = fm.value.fsKeyParts
+  const wasmModule: string | undefined = fm.value.wasmModule
   const extraPackages: string[] = fm.value.packages ?? []
 
-  // Guard: skip if frontmatter doesn't have processed FS data (e.g., placeholder)
-  if (!encryptedFs || !fsKeyParts || Object.keys(encryptedFs).length === 0) {
-    runtimeError.value = 'Challenge FS data not available (run pnpm challenge:keygen first)'
+  // Guard: skip if frontmatter doesn't have wasmModule (not yet processed)
+  if (!wasmModule) {
+    runtimeError.value = 'Challenge WASM not available (run pnpm challenge:keygen first)'
     return
   }
 
-  // 1. Load virtual-fs WASM module
-  const { default: initWasm, wasm_fs_reset, wasm_fs_read } = await import(
+  // 1. Fetch per-challenge WASM binary and extract custom section payload
+  const wasmResponse = await fetch(wasmModule)
+  const wasmBytes = new Uint8Array(await wasmResponse.arrayBuffer())
+  const payloadBytes = extractCustomSection(wasmBytes, 'chall-data')
+
+  if (!payloadBytes) {
+    runtimeError.value = 'No chall-data section found in WASM binary'
+    return
+  }
+
+  // 2. Instantiate the per-challenge WASM module
+  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_verify_flag } = await import(
     '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
 
-  // 2. Reconstruct key from 3 obfuscated fragments
-  const hexKey = fsKeyParts.join('')
-  const keyBytes = hexToBytes(hexKey)
+  // 3. Initialize FS from the custom section payload (key derivation happens inside WASM)
+  wasm_fs_init(slug.value, payloadBytes)
 
-  // 3. Reset FS store and populate with this challenge's encrypted blobs.
-  //    wasm_fs_reset (unlike wasm_fs_init) always clears existing data first,
-  //    ensuring cross-challenge navigation doesn't leave stale blobs in the store.
-  const paths = Object.keys(encryptedFs)
-  const blobs = paths.map((p) => encryptedFs[p])
-  wasm_fs_reset(paths, blobs)
+  // 4. Store flag verifier reference for later use
+  wasmVerifyFlag = wasm_verify_flag
 
-  // 4. Decrypt all FS entries; separate __app__ from the rest
+  // 5. Decrypt all FS entries; separate __app__ from the rest
+  //    wasm_fs_read no longer needs an external key — it uses the internally-derived key
   const fsEntries: Record<string, Uint8Array> = {}
   let appCode = ''
 
-  for (const path of paths) {
-    const decrypted: Uint8Array = wasm_fs_read(keyBytes, path)
-    if (path === '__app__') {
-      appCode = new TextDecoder().decode(decrypted)
-    } else {
-      fsEntries[path] = decrypted
-    }
+  // Read __app__ entry
+  const appBytes: Uint8Array = wasm_fs_read('__app__')
+  appCode = new TextDecoder().decode(appBytes)
+
+  // Read other FS entries (from frontmatter fs map keys)
+  const fsPaths = Object.keys(fm.value.fs ?? {})
+  for (const path of fsPaths) {
+    fsEntries[path] = wasm_fs_read(path)
   }
 
   if (!appCode) {

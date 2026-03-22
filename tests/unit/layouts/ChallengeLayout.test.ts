@@ -11,7 +11,6 @@ vi.mock('vitepress', () => ({
         difficulty: 'easy',
         category: 'web',
         backend: 'flask',
-        flag_verifier: 'abc123',
         slug: 'sqli-demo',
       },
     },
@@ -44,9 +43,9 @@ vi.mock('../../../.vitepress/theme/components/FlagSubmit.vue', () => ({
   default: defineComponent({ props: ['verify'], template: '<div data-flag-submit />' }),
 }))
 
-// Mock flag verifier
-vi.mock('../../../.vitepress/challenge/flag-verifier', () => ({
-  useFlagVerifier: () => ({ verify: vi.fn().mockResolvedValue(false) }),
+// Mock WASM loader (extractCustomSection)
+vi.mock('../../../.vitepress/theme/composables/useWasmLoader', () => ({
+  extractCustomSection: vi.fn().mockReturnValue(null),
 }))
 
 let ChallengeLayout: typeof import('../../../.vitepress/theme/layouts/ChallengeLayout.vue').default
@@ -177,7 +176,7 @@ describe('ChallengeLayout (VitePress layout)', () => {
   })
 
   it('dispatch returns 503 with runtime not ready when runtime has not initialized', async () => {
-    // Runtime stays null in test env: frontmatter has no encryptedFs/fsKeyParts
+    // Runtime stays null in test env: frontmatter has no wasmModule
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })

@@ -17,24 +17,24 @@
 
 ## 3. Frontmatter Schema 與 VitePress Plugin 改造
 
-- [ ] 3.1 修改 `.vitepress/challenge/config.ts` frontmatter schema：移除 `fs_key`、`fsKeyParts`、`encryptedFs`、`flag_verifier` 欄位，新增 `wasmModule` 欄位（對應 spec「Frontmatter schema defines challenge metadata」和 design「Frontmatter 簡化與 wasmModule 欄位」）
-- [ ] 3.2 修改 `.vitepress/challenge/plugin.ts`：移除加密邏輯和 key obfuscation，改為只讀取公開 metadata 並委託 build script 處理加密（對應 spec「VitePress plugin processes challenge frontmatter at build time」和「Build plugin encrypts app source file and stores it under reserved key」遷移至 build script）
-- [ ] 3.3 更新所有挑戰 markdown 檔案（`docs/challenge/*.md`）：移除 `fs_key`、`fsKeyParts`、`encryptedFs`、`flag_verifier`，保留公開欄位
-- [ ] 3.4 新增 legacy 欄位偵測：若 frontmatter 含已廢棄欄位，emit build warning（對應 spec scenario「Frontmatter containing legacy key fields causes build warning」）
+- [x] 3.1 修改 `.vitepress/challenge/config.ts` frontmatter schema：移除 `fs_key`、`fsKeyParts`、`encryptedFs`、`flag_verifier` 欄位，新增 `wasmModule` 欄位（對應 spec「Frontmatter schema defines challenge metadata」和 design「Frontmatter 簡化與 wasmModule 欄位」）
+- [x] 3.2 修改 `.vitepress/challenge/plugin.ts`：移除加密邏輯和 key obfuscation，改為只讀取公開 metadata 並委託 build script 處理加密（對應 spec「VitePress plugin processes challenge frontmatter at build time」和「Build plugin encrypts app source file and stores it under reserved key」遷移至 build script）
+- [x] 3.3 更新所有挑戰 markdown 檔案（`docs/challenge/*.md`）：移除 `fs_key`、`fsKeyParts`、`encryptedFs`、`flag_verifier`，保留公開欄位
+- [x] 3.4 新增 legacy 欄位偵測：若 frontmatter 含已廢棄欄位，emit build warning（對應 spec scenario「Frontmatter containing legacy key fields causes build warning」）
 
 ## 4. 前端 Runtime 整合
 
-- [ ] 4.1 修改 `ChallengeLayout.vue`：從 `wasmModule` 載入 per-challenge WASM，呼叫新的 `wasm_fs_init(slug)` API（對應 spec「Challenge page initializes WASM runtime on mount」）
-- [ ] 4.2 修改 `usePythonRuntime.ts` 和 `usePhpRuntime.ts`：移除 JS 側金鑰組裝邏輯（`fsKeyParts.join('')`），改用不帶 key 參數的 `wasm_fs_read(path)`
-- [ ] 4.3 修改 flag 提交流程：改為呼叫 `wasm_verify_flag(flag_bytes)` 而非 JS 側 PBKDF2 驗證（對應 design「Flag 驗證移入 WASM」）
-- [ ] 4.4 移除或簡化 `.vitepress/challenge/crypto.ts` 和 `.vitepress/challenge/flag-verifier.ts`（前端不再需要加解密和 flag 驗證邏輯）
-- [ ] 4.5 確認「App code is decrypted from encryptedFs and executed」流程：修改 `wasm_fs_reset(slug)` 呼叫點從 custom section 重新載入，確保 `__app__` entry 正確解密
+- [x] 4.1 修改 `ChallengeLayout.vue`：從 `wasmModule` 載入 per-challenge WASM，呼叫新的 `wasm_fs_init(slug)` API（對應 spec「Challenge page initializes WASM runtime on mount」）
+- [x] 4.2 修改 `usePythonRuntime.ts` 和 `usePhpRuntime.ts`：移除 JS 側金鑰組裝邏輯（`fsKeyParts.join('')`），改用不帶 key 參數的 `wasm_fs_read(path)`
+- [x] 4.3 修改 flag 提交流程：改為呼叫 `wasm_verify_flag(flag_bytes)` 而非 JS 側 PBKDF2 驗證（對應 design「Flag 驗證移入 WASM」）
+- [x] 4.4 移除或簡化 `.vitepress/challenge/crypto.ts` 和 `.vitepress/challenge/flag-verifier.ts`（前端不再需要加解密和 flag 驗證邏輯）
+- [x] 4.5 確認「App code is decrypted from encryptedFs and executed」流程：修改 `wasm_fs_reset(slug)` 呼叫點從 custom section 重新載入，確保 `__app__` entry 正確解密
 
 ## 5. 測試與驗證
 
-- [ ] 5.1 更新 Rust 單元測試：測試 custom section 解析、XOR key derivation、flag verification
-- [ ] 5.2 更新 `tests/__mocks__/virtual-fs.ts` mock 配合新 API（無 key 參數）
-- [ ] 5.3 更新 `tests/unit/challenge/plugin.test.ts` 和 `config.test.ts` 配合新 frontmatter schema
-- [ ] 5.4 更新 `tests/unit/composables/` 下的 runtime 測試配合新 WASM 載入流程
-- [ ] 5.5 更新 E2E 測試（`tests/e2e/`）確認挑戰端到端正常運作
-- [ ] 5.6 驗證 build output 中 HTML source 不包含任何 key/encrypted data（對應 spec scenario「No encrypted data in HTML hydration output」）
+- [x] 5.1 更新 Rust 單元測試：測試 custom section 解析、XOR key derivation、flag verification
+- [x] 5.2 更新 `tests/__mocks__/virtual-fs.ts` mock 配合新 API（無 key 參數）
+- [x] 5.3 更新 `tests/unit/challenge/plugin.test.ts` 和 `config.test.ts` 配合新 frontmatter schema
+- [x] 5.4 更新 `tests/unit/composables/` 下的 runtime 測試配合新 WASM 載入流程
+- [x] 5.5 更新 E2E 測試（`tests/e2e/`）確認挑戰端到端正常運作
+- [x] 5.6 驗證 build output 中 HTML source 不包含任何 key/encrypted data（對應 spec scenario「No encrypted data in HTML hydration output」）
