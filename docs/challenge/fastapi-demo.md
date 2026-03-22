@@ -10,6 +10,7 @@ fs:
   /flag.txt: ./fastapi-demo/flag.txt
 description: >
   A FastAPI notes app with an IDOR vulnerability. Can you access a note that doesn't belong to you?
+wasmModule: /challenge/fastapi-demo/runtime.wasm
 ---
 
 # FastAPI IDOR Demo

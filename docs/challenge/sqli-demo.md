@@ -10,6 +10,7 @@ fs:
   /flag.txt: ./sqli-demo/flag.txt
 description: >
   A simple Flask app with a SQL injection vulnerability. Can you retrieve all users from the database?
+wasmModule: /challenge/sqli-demo/runtime.wasm
 ---
 
 # SQL Injection Demo

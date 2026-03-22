@@ -10,6 +10,7 @@ fs:
   /flag.txt: ./php-demo/flag.txt
 description: >
   A PHP application with a file inclusion vulnerability. Can you read the flag?
+wasmModule: /challenge/php-demo/runtime.wasm
 ---
 
 # PHP File Inclusion Demo
