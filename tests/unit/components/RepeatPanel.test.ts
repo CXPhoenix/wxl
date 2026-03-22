@@ -28,6 +28,7 @@ describe('RepeatPanel', () => {
   })
 
   it('saves and restores request snapshot', async () => {
+    vi.stubGlobal('prompt', vi.fn(() => 'My Snapshot'))
     const mockDispatch = vi.fn()
     const wrapper = mount(RepeatPanel, {
       props: { slug: 'test', dispatch: mockDispatch },
@@ -48,5 +49,6 @@ describe('RepeatPanel', () => {
     await snapshot.trigger('click')
 
     expect((textarea.element as HTMLTextAreaElement).value).toContain('GET /secret')
+    vi.unstubAllGlobals()
   })
 })

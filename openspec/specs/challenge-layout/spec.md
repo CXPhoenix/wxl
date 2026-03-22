@@ -63,56 +63,42 @@ tests:
 ---
 ### Requirement: Challenge layout renders a left-right split view
 
-The `ChallengeLayout.vue` SHALL render a two-column layout: a left column containing the markdown description panel and flag submit form, and a right column containing the Browser, Terminal, and Repeater interaction panels.
+The `ChallengeLayout.vue` SHALL render a two-column layout: a left column containing the markdown description panel and flag submit form, and a right column containing the Browser, wxlsh Terminal, Repeater, and Code Editor interaction panels (four tabs total).
 
 #### Scenario: Left and right columns are both visible
 
 - **WHEN** a challenge page loads
-- **THEN** the left column (description + flag submit) and the right column (interaction panels) SHALL both be visible simultaneously
+- **THEN** the left column (description + flag submit) and the right column (interaction panels with four tabs) SHALL both be visible simultaneously
 
 
 <!-- @trace
-source: vitepress-platform-refactor
-updated: 2026-03-15
+source: challenge-tools-evolution
+updated: 2026-03-16
 code:
-  - env.d.ts
-  - vitest.config.ts
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
   - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
   - .vitepress/theme/composables/usePythonRuntime.ts
-  - tsconfig.json
-  - docs/challenges/sqli-demo.md
   - package.json
-  - .vitepress/theme/Layout.vue
-  - .vitepress/theme/composables/usePhpRuntime.ts
-  - chall-wasm/python-bridge/python-runtime.ts
-  - docs/challenges/php-demo.md
-  - .vitepress/theme/index.ts
-  - .vitepress/config.mts
-  - docs/challenges/challenges.data.ts
-  - chall-wasm/php-bridge/php-runtime.ts
-  - .vitepress/theme/layouts/ChallengeListLayout.vue
-  - docs/challenges/index.md
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
 tests:
-  - .vitepress/theme/composables/usePhpRuntime-singleton.test.ts
-  - chall-wasm/php-bridge/php-runtime.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-fs.test.ts
-  - chall-wasm/python-bridge/python-runtime.test.ts
-  - chall-wasm/php-bridge/php-runtime-fs.test.ts
-  - .vitepress/theme/composables/usePythonRuntime-fs.test.ts
-  - chall-wasm/python-bridge/python-runtime-request.test.ts
-  - tests/e2e/flask-sqli.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-headers.test.ts
-  - chall-wasm/python-bridge/python-runtime-fs.test.ts
-  - chall-wasm/php-bridge/php-runtime-post.test.ts
-  - .vitepress/theme/layouts/ChallengeLayout.test.ts
-  - tests/e2e/php-demo.test.ts
-  - .vitepress/theme/composables/usePythonRuntime-request.test.ts
-  - .vitepress/theme/layouts/ChallengeListLayout.test.ts
-  - chall-wasm/php-bridge/php-runtime-singleton.test.ts
-  - .vitepress/theme/composables/usePhpRuntime.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-post.test.ts
-  - .vitepress/theme/composables/usePythonRuntime.test.ts
-  - chall-wasm/php-bridge/php-runtime-headers.test.ts
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
 -->
 
 ---
@@ -297,4 +283,54 @@ tests:
   - .vitepress/theme/composables/usePhpRuntime-post.test.ts
   - .vitepress/theme/composables/usePythonRuntime.test.ts
   - chall-wasm/php-bridge/php-runtime-headers.test.ts
+-->
+
+---
+### Requirement: ChallengeLayout gates all tool panels on both runtimeReady and swReady
+
+`ChallengeLayout.vue` SHALL maintain two separate reactive booleans: `runtimeReady` (set to `true` when the Python/PHP/WASM runtime finishes initialization) and `swReady` (set to `true` when `navigator.serviceWorker.controller` is non-null). All tool panels (Browser, Terminal, Repeater, Code) SHALL receive a `disabled` prop computed as `!runtimeReady || !swReady`. The SW readiness MUST be established before `swReady` is set to `true`.
+
+#### Scenario: Tools are disabled until both runtime and SW are ready
+
+- **WHEN** the runtime has finished loading but `navigator.serviceWorker.controller` is still null
+- **THEN** all tool panels SHALL have `disabled: true` and SHALL NOT allow the user to send requests
+
+#### Scenario: Tools are enabled once both are ready
+
+- **WHEN** both `runtimeReady` and `swReady` are true
+- **THEN** all tool panels SHALL have `disabled: false` and SHALL accept user input
+
+#### Scenario: swReady becomes true on controllerchange
+
+- **WHEN** the page loads without an active SW controller (e.g., hard refresh) and the SW takes control via `controllerchange`
+- **THEN** `swReady` SHALL be set to `true` and the tools SHALL become enabled
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
 -->

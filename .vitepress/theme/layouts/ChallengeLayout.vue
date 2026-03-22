@@ -3,8 +3,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
 import { Content } from 'vitepress/client'
 import BrowserPanel from '../components/BrowserPanel.vue'
-import TerminalPanel from '../components/TerminalPanel.vue'
+import WxlshPanel from '../components/WxlshPanel.vue'
 import RepeatPanel from '../components/RepeatPanel.vue'
+import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
 import { useFlagVerifier } from '../../challenge/flag-verifier'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
@@ -24,6 +25,21 @@ const fm = computed(() => frontmatter.value)
 const runtimeReady = ref(false)
 const runtimeError = ref<string | null>(null)
 
+// Pyodide instance — set after Python runtime init; passed to WxlshPanel + CodeEditorPanel
+type PyodidePublicAPI = { runPythonAsync(code: string): Promise<unknown>; globals: { get(k: string): unknown; set(k: string, v: unknown): void } }
+const pyodideInstance = ref<PyodidePublicAPI | null>(null)
+
+// ─── SW readiness gate ───────────────────────────────────────────────────────
+// swReady is true only when navigator.serviceWorker.controller is non-null.
+// Without this, tools appear enabled before SW can intercept requests.
+const swReady = ref(
+  typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    ? navigator.serviceWorker.controller != null
+    : false,
+)
+
+const toolsDisabled = computed(() => !runtimeReady.value || !swReady.value)
+
 let runtime: PythonRuntime | PhpRuntime | null = null
 let challengePort: MessagePort | null = null  // port1 — page listens here
 
@@ -34,12 +50,13 @@ function toggleDescription() {
 }
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
-type Tab = 'browser' | 'terminal' | 'repeater'
+type Tab = 'browser' | 'terminal' | 'repeater' | 'code'
 const activeTab = ref<Tab>('browser')
 const tabs: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
-  { id: 'terminal', label: 'Terminal' },
+  // { id: 'terminal', label: 'Terminal' },
   { id: 'repeater', label: 'Repeater' },
+  // { id: 'code', label: 'Code' },
 ]
 
 // ─── Challenge dispatch: fetch → SW → MessageChannel relay ───────────────────
@@ -65,8 +82,8 @@ function hexToBytes(hex: string): Uint8Array {
 
 /** Map backend type to its required base micropip packages */
 const BASE_PACKAGES: Record<string, string[]> = {
-  flask:   ['flask'],
-  fastapi: ['fastapi', 'anyio'],
+  flask:   ['flask', 'sqlite3'],
+  fastapi: ['fastapi', 'anyio', 'sqlite3'],
 }
 
 // ─── Runtime initialization ───────────────────────────────────────────────────
@@ -84,7 +101,7 @@ async function initRuntime(): Promise<void> {
   }
 
   // 1. Load virtual-fs WASM module
-  const { default: initWasm, wasm_fs_init, wasm_fs_read } = await import(
+  const { default: initWasm, wasm_fs_reset, wasm_fs_read } = await import(
     '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
@@ -93,10 +110,12 @@ async function initRuntime(): Promise<void> {
   const hexKey = fsKeyParts.join('')
   const keyBytes = hexToBytes(hexKey)
 
-  // 3. Initialize FS store with encrypted blobs (using virtual-fs WASM)
+  // 3. Reset FS store and populate with this challenge's encrypted blobs.
+  //    wasm_fs_reset (unlike wasm_fs_init) always clears existing data first,
+  //    ensuring cross-challenge navigation doesn't leave stale blobs in the store.
   const paths = Object.keys(encryptedFs)
   const blobs = paths.map((p) => encryptedFs[p])
-  wasm_fs_init(paths, blobs)
+  wasm_fs_reset(paths, blobs)
 
   // 4. Decrypt all FS entries; separate __app__ from the rest
   const fsEntries: Record<string, Uint8Array> = {}
@@ -129,13 +148,36 @@ async function initRuntime(): Promise<void> {
     runtime = new PythonRuntime(loadPyodide)
     await (runtime as PythonRuntime).initialize(appCode, fsEntries, packages)
   } else if (backend === 'php') {
-    runtime = new PhpRuntime(() => {
-      throw new Error('PHP runtime loader not configured')
+    runtime = new PhpRuntime(async () => {
+      const { PhpWeb } = await import('php-wasm/PhpWeb.mjs')
+      const php = new PhpWeb()
+      const phpBinary = await (php as any).binary
+
+      return {
+        async run(code: string) {
+          let output = ''
+          const handler = (e: Event) => {
+            output += (e as CustomEvent).detail[0]
+          }
+          php.addEventListener('output', handler)
+          const exitCode = await (php as any).run(code) as number
+          php.removeEventListener('output', handler)
+          return { output, headers: [] as string[], exitCode }
+        },
+        writeFile(path: string, data: Uint8Array) {
+          phpBinary.FS.writeFile(path, data)
+        },
+      }
     })
     await (runtime as PhpRuntime).initialize(appCode, fsEntries)
   }
 
   runtimeReady.value = true
+
+  // Expose Pyodide instance for wxlsh and code editor panels
+  if (runtime instanceof PythonRuntime) {
+    pyodideInstance.value = runtime.getPyodide() as PyodidePublicAPI | null
+  }
 }
 
 // ─── HANDLE_REQUEST listener ──────────────────────────────────────────────────
@@ -187,9 +229,9 @@ onMounted(async () => {
   // Register with SW (transfers port2)
   registerWithSW(mc)
 
-  // Re-register on SW update (controllerchange)
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // Re-register on SW update with a fresh MessageChannel
       const mc2 = new MessageChannel()
       challengePort?.removeEventListener('message', handleRequest)
       challengePort?.close()
@@ -197,6 +239,8 @@ onMounted(async () => {
       challengePort.addEventListener('message', handleRequest)
       challengePort.start()
       registerWithSW(mc2)
+      // SW now controls the page — unlock the readiness gate
+      swReady.value = true
     })
   }
 
@@ -293,14 +337,17 @@ const categoryBadge: Record<string, string> = {
         </nav>
 
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
-          <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
+          <BrowserPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
-        <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-auto p-3">
-          <TerminalPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
+        <!-- <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
+          <WxlshPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
+        </div> -->
+        <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
+          <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" />
         </div>
-        <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-auto p-3">
-          <RepeatPanel :slug="slug" :dispatch="dispatch" :disabled="!runtimeReady" />
-        </div>
+        <!-- <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
+          <CodeEditorPanel :slug="slug" :dispatch="dispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
+        </div> -->
       </main>
     </div>
   </div>

@@ -122,6 +122,37 @@ tests:
   - chall-wasm/php-bridge/php-runtime-headers.test.ts
 -->
 
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
 
 The Browser Panel SHALL provide: a URL input field pre-populated with `http://challenge-<slug>.localhost/`, an HTTP method selector (GET, POST, PUT, DELETE, PATCH), a request body editor (shown for non-GET methods), a "Send" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
@@ -197,6 +228,37 @@ tests:
   - .vitepress/theme/components/TerminalPanel.test.ts
   - .vitepress/challenge/plugin-obfuscation.test.ts
   - chall-wasm/python-bridge/python-runtime.test.ts
+-->
+
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
 -->
 
 ### Requirement: Terminal Panel accepts curl and HTTPie-style commands
@@ -281,6 +343,37 @@ tests:
   - chall-wasm/python-bridge/python-runtime.test.ts
 -->
 
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
 ### Requirement: Repeater Panel provides raw HTTP request editing
 
 The Repeater Panel SHALL provide a text area for editing a raw HTTP/1.1 request (method, path, headers, body). It SHALL provide a "Send" button and display the raw HTTP response (status line, headers, body) in a separate read-only text area. The panel SHALL support saving and loading named request snapshots.
@@ -361,6 +454,37 @@ tests:
   - .vitepress/theme/components/TerminalPanel.test.ts
   - .vitepress/challenge/plugin-obfuscation.test.ts
   - chall-wasm/python-bridge/python-runtime.test.ts
+-->
+
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
 -->
 
 ### Requirement: White-box mode displays app source code viewer
@@ -470,6 +594,37 @@ The Vue components `BrowserPanel.vue`, `TerminalPanel.vue`, `RepeatPanel.vue`, `
 - **WHEN** the user switches between dark and light mode
 - **THEN** all challenge UI components SHALL update their visual appearance through CSS custom property resolution without requiring Vue component re-renders or class changes
 
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
 ---
 
 ### Requirement: Challenge UI applies the platform color palette
@@ -550,79 +705,172 @@ tests:
   - chall-wasm/python-bridge/python-runtime.test.ts
 -->
 
+
+<!-- @trace
+source: challenge-tools-evolution
+updated: 2026-03-16
+code:
+  - Cargo.toml
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/composables/useWxlsh.ts
+  - docs/public/challenge-sw.js
+  - .vitepress/theme/components/TerminalPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - chall-wasm/wxlsh-parser/src/lib.rs
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - package.json
+  - .vitepress/theme/components/RepeatPanel.vue
+  - chall-wasm/wxlsh-parser/Cargo.toml
+  - chall-wasm/wxlsh-parser/src/commands.rs
+  - chall-wasm/wxlsh-parser/src/parser.rs
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/WxlshPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/TerminalPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL be implemented as a VitePress custom layout (registered under the name `challenge` in `theme/index.ts`) rather than an embeddable Vue component used inside `.md` files. It SHALL render three panels accessible via tab navigation: Browser Panel, Terminal Panel, and Repeater Panel. All three panels SHALL share a single `useChallengeHttp` composable for issuing requests. The layout SHALL receive the challenge `slug` from the page's frontmatter via VitePress's `useData()` composable rather than as a component prop.
+The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, wxlsh Terminal Panel, Repeater Panel, and Code Editor Panel. All four panels SHALL share a single `dispatch` function for issuing requests. The tab bar SHALL display labels: "Browser", "Terminal", "Repeater", "Code". The layout SHALL receive the challenge `slug` from the page's frontmatter via VitePress's `useData()` composable.
 
 #### Scenario: User switches between panels without losing state
 
 - **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history)
+- **THEN** each panel SHALL retain its previous input state (URL, response history, editor content)
 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
-- **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
+- **THEN** the request SHALL target `https://challenge-<slug>.localhost` and be intercepted by the Service Worker
 
 #### Scenario: Layout is activated via frontmatter, not component embedding
 
 - **WHEN** a challenge `.md` file declares `layout: challenge` in its frontmatter
-- **THEN** VitePress SHALL render the `ChallengeLayout.vue` layout without any `<ChallengeLayout>` or `<ChallengeUI>` tag appearing in the `.md` content body
+- **THEN** VitePress SHALL render the `ChallengeLayout.vue` layout without any `<ChallengeLayout>` tag in the `.md` content body
 
 ---
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
 
-The Browser Panel SHALL provide: a URL input field pre-populated with `http://challenge-<slug>.localhost/`, an HTTP method selector (GET, POST, PUT, DELETE, PATCH), a request body editor (shown for non-GET methods), a "Send" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
+The Browser Panel SHALL provide: a URL input field pre-populated with `https://challenge-<slug>.localhost/` and a "Go" button. The HTTP method selector SHALL NOT be present. Pressing Enter in the URL field SHALL trigger a GET fetch identical to clicking the "Go" button. The iframe SHALL use `sandbox="allow-scripts allow-forms allow-same-origin"`. Link clicks within the iframe SHALL be intercepted, the URL bar SHALL be updated to the link's href, and a new GET fetch SHALL be dispatched automatically.
+
+#### Scenario: Enter key in URL bar triggers navigation
+
+- **WHEN** the user types a URL in the address bar and presses Enter
+- **THEN** the Browser Panel SHALL dispatch a GET request to that URL and render the response
+
+#### Scenario: Link click in iframe triggers in-panel navigation
+
+- **WHEN** the user clicks a link inside the rendered HTML iframe
+- **THEN** the Browser Panel SHALL intercept the click, update the URL bar to the link's href, and dispatch a new GET request without leaving the page
 
 #### Scenario: HTML response is rendered in sandboxed iframe
 
 - **WHEN** the challenge app returns a response with `Content-Type: text/html`
-- **THEN** the Browser Panel SHALL render the HTML in a sandboxed iframe
+- **THEN** the Browser Panel SHALL render the HTML in the sandboxed iframe
 
 #### Scenario: Non-HTML response is shown as formatted text
 
 - **WHEN** the challenge app returns `Content-Type: application/json`
-- **THEN** the Browser Panel SHALL display the JSON as syntax-highlighted text, not rendered HTML
+- **THEN** the Browser Panel SHALL display the JSON as formatted text, not rendered HTML
+
+---
+### Requirement: Browser Panel intercepts HTML form submissions inside the iframe
+
+The Browser Panel SHALL attach a `submit` event listener to the iframe's `contentDocument` (alongside the existing `click` listener for anchor tags). When a form is submitted inside the iframe, the panel SHALL:
+1. Call `preventDefault()` to suppress the native browser form navigation
+2. Resolve the form's `action` attribute (or the current URL if absent) against the challenge base URL `https://challenge-<slug>.localhost/`
+3. Read the form's `method` attribute (defaulting to `GET` if absent)
+4. Serialize the form fields according to the form's `enctype`:
+   - `application/x-www-form-urlencoded` (default): use `URLSearchParams` as the request body with `Content-Type: application/x-www-form-urlencoded`
+   - `multipart/form-data`: use `FormData` as the request body without manually setting `Content-Type` (the browser SHALL generate the boundary automatically)
+   - GET method: append fields as a query string to the resolved URL; no request body
+5. Call `dispatch(new Request(resolvedUrl, { method, headers, body }))` and pass the response to `handleResponse()`
+
+#### Scenario: POST form with default enctype is submitted
+
+- **WHEN** the user submits an HTML form with `method="POST"` and no explicit `enctype` inside the iframe
+- **THEN** the Browser Panel SHALL call `dispatch()` with a POST request whose `Content-Type` is `application/x-www-form-urlencoded` and whose body contains the serialized form fields
+
+#### Scenario: POST form with multipart/form-data enctype is submitted
+
+- **WHEN** the user submits an HTML form with `enctype="multipart/form-data"` inside the iframe
+- **THEN** the Browser Panel SHALL call `dispatch()` with a POST request whose body is a `FormData` object (allowing the browser to set the `Content-Type` boundary automatically)
+
+#### Scenario: GET form appends fields to query string
+
+- **WHEN** the user submits an HTML form with `method="GET"` inside the iframe
+- **THEN** the Browser Panel SHALL resolve the action URL, append all form fields as a query string, and call `dispatch()` with a GET request (no body)
+
+#### Scenario: Form action relative URL resolves to challenge origin
+
+- **WHEN** a form has `action="/login"` and the current challenge slug is `sqli-demo`
+- **THEN** the resolved URL SHALL be `https://challenge-sqli-demo.localhost/login`, not `http://localhost:5173/login`
+
+#### Scenario: Form with no action attribute submits to current URL
+
+- **WHEN** a form has no `action` attribute
+- **THEN** the Browser Panel SHALL use the current value of the URL bar (`url.value`) as the submission target
+
+
+<!-- @trace
+source: fix-browser-form-submit
+updated: 2026-03-16
+code:
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/components/CodeEditorPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
+-->
 
 ---
 ### Requirement: Terminal Panel accepts curl and HTTPie-style commands
 
-The Terminal Panel SHALL provide a terminal-style input prompt that accepts: `curl <url> [-X method] [-H header] [-d body]` syntax and `http [METHOD] <url> [header:value] [field=value]` (HTTPie) syntax. It SHALL display responses in a terminal-style output area with scrollback history.
+The Terminal Panel SHALL be implemented as `WxlshPanel.vue` using xterm.js as the display layer and the `wxlsh` command dispatcher. It SHALL display the brand name "wxlsh" (not "bash") and a startup banner on first render. The previous `<div>`-based terminal UI and TypeScript CLI parser SHALL be removed. All terminal functionality SHALL be provided by `WxlshPanel` as specified in the `wxlsh-terminal` capability spec.
 
-#### Scenario: curl GET command sends request and displays response
+#### Scenario: Terminal tab renders xterm.js terminal
 
-- **WHEN** a user types `curl http://challenge-sqli.localhost/users` and presses Enter
-- **THEN** the Terminal Panel SHALL send a GET request and display the response headers and body in the output area
+- **WHEN** the user clicks the "Terminal" tab
+- **THEN** the panel SHALL render an xterm.js canvas with the wxlsh banner
 
-#### Scenario: curl POST with data is handled
+#### Scenario: curl command sends HTTP request via dispatch
 
-- **WHEN** a user types `curl -X POST http://challenge-sqli.localhost/login -d "user=admin&pass='"` and presses Enter
-- **THEN** the Terminal Panel SHALL send a POST request with the specified body
+- **WHEN** the user types `curl https://challenge-sqli.localhost/users` and presses Enter
+- **THEN** the Terminal Panel SHALL send a GET request and display the response headers and body in the terminal output
 
 #### Scenario: Invalid command shows usage hint
 
 - **WHEN** a user types an unrecognized command
-- **THEN** the Terminal Panel SHALL display an error message with supported command syntax
+- **THEN** the Terminal Panel SHALL display "wxlsh: <command>: command not found" and suggest using `help`
 
 ---
 ### Requirement: Repeater Panel provides raw HTTP request editing
 
-The Repeater Panel SHALL provide a text area for editing a raw HTTP/1.1 request (method, path, headers, body). It SHALL provide a "Send" button and display the raw HTTP response (status line, headers, body) in a separate read-only text area. The panel SHALL support saving and loading named request snapshots.
+The Repeater Panel SHALL retain its core functionality (raw HTTP/1.1 request editing, send, response display, named snapshots). The visual presentation SHALL be upgraded: snapshot list SHALL be displayed as a named sidebar list rather than bottom inline chips, the "Save" button SHALL prompt the user for a snapshot name, and the textarea and response area SHALL use consistent monospace typography with improved line-height and border treatment.
 
 #### Scenario: Raw request is parsed and sent
 
 - **WHEN** a user edits a raw HTTP request in the Repeater Panel and clicks "Send"
-- **THEN** the panel SHALL parse the raw text into method, path, headers, and body, then dispatch via `useChallengeHttp`
+- **THEN** the panel SHALL parse the raw text into method, path, headers, and body, then dispatch via `dispatch`
 
 #### Scenario: Raw response is displayed
 
 - **WHEN** the response is received
-- **THEN** the Repeater Panel SHALL display the status line, all response headers, and the raw body in the response text area
+- **THEN** the Repeater Panel SHALL display the status line, all response headers, and the raw body
 
-#### Scenario: Snapshot can be saved and restored
+#### Scenario: Named snapshot can be saved and restored
 
-- **WHEN** a user saves a request snapshot with a name
-- **THEN** selecting that snapshot SHALL restore the request text area to the saved content
+- **WHEN** a user clicks "Save", enters a name, and confirms
+- **THEN** the snapshot SHALL appear in the sidebar list and selecting it SHALL restore the request content
 
 ---
 ### Requirement: White-box mode displays app source code viewer

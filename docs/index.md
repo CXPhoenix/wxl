@@ -1,11 +1,10 @@
 ---
-# https://vitepress.dev/reference/default-theme-home-page
 layout: home
 
 hero:
-  name: "Web Exploitation Challenges"
-  text: "完全基於前端 WASM 的挑戰平台"
-  tagline: My great project tagline
+  name: "WXL"
+  text: "網站滲透實驗室"
+  tagline: 完全基於前端 WASM 的挑戰平台
   actions:
     - theme: brand
       text: Challenges
