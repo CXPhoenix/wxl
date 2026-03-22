@@ -350,6 +350,53 @@ tests:
 -->
 
 ---
+### Requirement: Service Worker waits for challenge registration on registry miss
+
+When a fetch event arrives at the Service Worker and the target slug is not yet in the registry, the Service Worker SHALL NOT immediately return HTTP 503. Instead, it SHALL wait for a `REGISTER_CHALLENGE` message for that slug (with a timeout of 3 seconds). Once registration arrives, the Service Worker SHALL retry the request dispatch. If the timeout expires before registration, the Service Worker SHALL return HTTP 503.
+
+#### Scenario: Fetch arrives before registration and succeeds after waiting
+
+- **WHEN** a fetch event arrives for `challenge-<slug>.localhost` and the slug is not yet in the registry
+- **AND** a `REGISTER_CHALLENGE` message for that slug arrives within 3 seconds
+- **THEN** the Service Worker SHALL hold the fetch response, register the challenge, then dispatch the request and return the runtime's response
+
+#### Scenario: Fetch times out waiting for registration and returns 503
+
+- **WHEN** a fetch event arrives for `challenge-<slug>.localhost` and the slug is not yet in the registry
+- **AND** no `REGISTER_CHALLENGE` message arrives within 3 seconds
+- **THEN** the Service Worker SHALL return HTTP 503 with body `{ "error": "challenge not registered" }`
+
+#### Scenario: Multiple concurrent fetches wait for the same slug registration
+
+- **WHEN** multiple fetch events arrive for the same `challenge-<slug>.localhost` before registration
+- **AND** a `REGISTER_CHALLENGE` message for that slug subsequently arrives
+- **THEN** all waiting fetch requests SHALL be unblocked and dispatched after registration
+
+
+<!-- @trace
+source: fix-challenge-registration-race
+updated: 2026-03-22
+code:
+  - docs/public/challenge-sw.js
+  - .vitepress/workers/router.ts
+tests:
+  - tests/unit/workers/router.test.ts
+-->
+
+
+<!-- @trace
+source: fix-challenge-registration-race
+updated: 2026-03-22
+code:
+  - docs/public/challenge-sw.js
+  - .vitepress/workers/router.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+tests:
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/workers/router.test.ts
+-->
+
+---
 ### Requirement: Service Worker handles navigation requests from iframe link clicks
 
 The Service Worker SHALL handle `fetch` events with `request.mode === "navigate"` for URLs matching `challenge-<slug>.localhost`. Navigation requests SHALL be treated identically to regular fetch requests: routed through the registered challenge's `MessagePort` relay. The Service Worker SHALL NOT distinguish between navigation and non-navigation requests for challenge-origin URLs.

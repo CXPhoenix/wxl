@@ -9,6 +9,7 @@ interface RouterDispatchers {
 
 interface RouterOptions {
   production?: boolean
+  registrationTimeout?: number
 }
 
 interface ChallengeEntry {
@@ -18,7 +19,9 @@ interface ChallengeEntry {
 const CHALLENGE_HOST_RE = /^challenge-[^.]+\.localhost$/
 
 export function createRouter(dispatchers: RouterDispatchers = {}, opts: RouterOptions = {}) {
+  const registrationTimeout = opts.registrationTimeout ?? 3000
   const registry = new Map<string, ChallengeEntry>()
+  const pendingRegistrations = new Map<string, Array<(entry: ChallengeEntry) => void>>()
 
   function shouldIntercept(url: URL): boolean {
     return CHALLENGE_HOST_RE.test(url.hostname)
@@ -29,9 +32,39 @@ export function createRouter(dispatchers: RouterDispatchers = {}, opts: RouterOp
     return hostname.replace(/^challenge-/, '').replace(/\.localhost$/, '')
   }
 
+  function waitForRegistration(slug: string): Promise<ChallengeEntry | undefined> {
+    return new Promise<ChallengeEntry | undefined>((resolve) => {
+      const resolvers = pendingRegistrations.get(slug) ?? []
+
+      function onRegistered(entry: ChallengeEntry) {
+        clearTimeout(timer)
+        resolve(entry)
+      }
+
+      const timer = setTimeout(() => {
+        const current = pendingRegistrations.get(slug)
+        if (current) {
+          const idx = current.indexOf(onRegistered)
+          if (idx !== -1) current.splice(idx, 1)
+          if (current.length === 0) pendingRegistrations.delete(slug)
+        }
+        resolve(undefined)
+      }, registrationTimeout)
+
+      resolvers.push(onRegistered)
+      pendingRegistrations.set(slug, resolvers)
+    })
+  }
+
   function handleMessage(msg: { type: string; slug: string; backend?: string; port?: MessagePort }) {
     if (msg.type === 'REGISTER_CHALLENGE') {
-      registry.set(msg.slug, { backend: msg.backend ?? 'flask' })
+      const entry: ChallengeEntry = { backend: msg.backend ?? 'flask' }
+      registry.set(msg.slug, entry)
+      const resolvers = pendingRegistrations.get(msg.slug)
+      if (resolvers) {
+        resolvers.forEach(r => r(entry))
+        pendingRegistrations.delete(msg.slug)
+      }
     } else if (msg.type === 'UNREGISTER_CHALLENGE') {
       registry.delete(msg.slug)
     }
@@ -40,7 +73,11 @@ export function createRouter(dispatchers: RouterDispatchers = {}, opts: RouterOp
   async function dispatch(request: Request): Promise<Response> {
     const url = new URL(request.url)
     const slug = slugFromHost(url.hostname)
-    const entry = registry.get(slug)
+    let entry = registry.get(slug)
+
+    if (!entry) {
+      entry = await waitForRegistration(slug)
+    }
 
     if (!entry) {
       return new Response(JSON.stringify({ error: 'challenge not registered' }), {

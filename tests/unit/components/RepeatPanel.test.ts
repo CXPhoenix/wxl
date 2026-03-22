@@ -27,6 +27,20 @@ describe('RepeatPanel', () => {
     expect(responseArea.text()).toContain('{"ok":true}')
   })
 
+  it('fills request editor when injectedRequest prop is set', async () => {
+    const mockDispatch = vi.fn()
+    const wrapper = mount(RepeatPanel, {
+      props: { slug: 'test', dispatch: mockDispatch },
+    })
+
+    await wrapper.setProps({ injectedRequest: 'POST /login HTTP/1.1\r\nHost: challenge-test.localhost\r\n\r\nusername=admin' })
+    await wrapper.vm.$nextTick()
+
+    const textarea = wrapper.find('[data-request-input]') as ReturnType<typeof wrapper.find>
+    expect((textarea.element as HTMLTextAreaElement).value).toContain('POST /login HTTP/1.1')
+    expect((textarea.element as HTMLTextAreaElement).value).toContain('username=admin')
+  })
+
   it('saves and restores request snapshot', async () => {
     vi.stubGlobal('prompt', vi.fn(() => 'My Snapshot'))
     const mockDispatch = vi.fn()

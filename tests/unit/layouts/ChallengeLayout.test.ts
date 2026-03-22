@@ -32,7 +32,10 @@ vi.mock('../../../.vitepress/theme/components/WxlshPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-wxlsh-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/RepeatPanel.vue', () => ({
-  default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-repeat-panel :data-disabled="disabled" />' }),
+  default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'injectedRequest'], template: '<div data-repeat-panel :data-disabled="disabled" :data-injected="injectedRequest" />' }),
+}))
+vi.mock('../../../.vitepress/theme/components/NetworkPanel.vue', () => ({
+  default: defineComponent({ props: ['trafficLog'], emits: ['clear', 'sendToRepeater'], template: '<div data-network-panel />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/CodeEditorPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-code-panel :data-disabled="disabled" />' }),
@@ -98,17 +101,51 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(panel.classes()).not.toContain('collapsed')
   })
 
-  it('renders four interaction tabs (Browser, Terminal, Repeater, Code)', () => {
+  it('renders active interaction tabs (Browser, Repeater, Network)', () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
     const tabs = wrapper.findAll('[data-tab]')
-    expect(tabs).toHaveLength(4)
+    expect(tabs).toHaveLength(3)
     const tabIds = tabs.map(t => t.attributes('data-tab'))
     expect(tabIds).toContain('browser')
-    expect(tabIds).toContain('terminal')
     expect(tabIds).toContain('repeater')
-    expect(tabIds).toContain('code')
+    expect(tabIds).toContain('network')
+  })
+
+  it('shows NetworkPanel when network tab is active', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    await wrapper.find('[data-tab="network"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-network-panel]').exists()).toBe(true)
+  })
+
+  it('switches to Repeater tab and injects request when NetworkPanel emits sendToRepeater', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    // Navigate to network tab so NetworkPanel is rendered
+    await wrapper.find('[data-tab="network"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const { default: NetworkPanelComponent } = await import('../../../.vitepress/theme/components/NetworkPanel.vue')
+    const networkPanelWrapper = wrapper.findComponent(NetworkPanelComponent)
+    expect(networkPanelWrapper.exists()).toBe(true)
+
+    const rawRequest = 'POST /login HTTP/1.1\r\nHost: challenge-test.localhost\r\n\r\n'
+    await networkPanelWrapper.vm.$emit('sendToRepeater', rawRequest)
+    await wrapper.vm.$nextTick()
+
+    // Active tab should now be repeater
+    const activeTabBtn = wrapper.find('[data-tab].ch-tab-btn-active')
+    expect(activeTabBtn.attributes('data-tab')).toBe('repeater')
+
+    // RepeatPanel should have the injected request
+    const repeatPanel = wrapper.find('[data-repeat-panel]')
+    expect(repeatPanel.attributes('data-injected')).toBe(rawRequest)
   })
 
   it('wraps Content in a vp-doc container for markdown typography', () => {
@@ -137,6 +174,26 @@ describe('ChallengeLayout (VitePress layout)', () => {
     // All panels should be disabled because SW controller is null (swReady=false)
     const browserPanel = wrapper.find('[data-browser-panel]')
     expect(browserPanel.attributes('data-disabled')).toBe('true')
+  })
+
+  it('dispatch returns 503 with runtime not ready when runtime has not initialized', async () => {
+    // Runtime stays null in test env: frontmatter has no encryptedFs/fsKeyParts
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    await wrapper.vm.$nextTick()
+
+    // Get dispatch from the BrowserPanel's props
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+    const bpWrapper = wrapper.findComponent(BrowserPanel)
+    expect(bpWrapper.exists()).toBe(true)
+
+    const dispatch = bpWrapper.props('dispatch') as (req: Request) => Promise<Response>
+    const res = await dispatch(new Request('https://challenge-sqli.localhost/'))
+
+    expect(res.status).toBe(503)
+    const body = await res.json()
+    expect(body.error).toBe('runtime not ready')
   })
 
   it('enables panels when swReady becomes true via controllerchange', async () => {

@@ -2,17 +2,27 @@
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render three panels accessible via tab navigation: Browser Panel, Terminal Panel, and Repeater Panel. All three panels SHALL share a single `useChallengeHttp` composable for issuing requests.
+The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, Repeater Panel, and Network Panel. All panels that issue HTTP requests SHALL share a single `trackedDispatch` wrapper for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
 
 #### Scenario: User switches between panels without losing state
 
-- **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history)
+- **WHEN** a user switches from the Browser Panel to the Network Panel and back
+- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries)
 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
 - **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
+
+#### Scenario: Network tab is available alongside Browser and Repeater
+
+- **WHEN** the challenge page loads
+- **THEN** the tab navigation SHALL display three tabs: Browser, Repeater, and Network
+
+#### Scenario: RepeatPanel receives injected request from Network panel
+
+- **WHEN** the Network panel emits a Send to Repeater event
+- **THEN** ChallengeLayout SHALL set the injected request content on RepeatPanel and switch the active tab to Repeater
 
 
 <!-- @trace
@@ -151,6 +161,22 @@ tests:
   - tests/unit/components/WxlshPanel.test.ts
   - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
+
+<!-- @trace
+source: add-network-traffic-panel
+updated: 2026-03-22
+code:
+  - .vitepress/theme/components/NetworkPanel.vue
+  - .vitepress/theme/composables/useTrafficLog.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/components/RepeatPanel.vue
+tests:
+  - tests/unit/components/NetworkPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useTrafficLog.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
 -->
 
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
@@ -738,22 +764,27 @@ tests:
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, wxlsh Terminal Panel, Repeater Panel, and Code Editor Panel. All four panels SHALL share a single `dispatch` function for issuing requests. The tab bar SHALL display labels: "Browser", "Terminal", "Repeater", "Code". The layout SHALL receive the challenge `slug` from the page's frontmatter via VitePress's `useData()` composable.
+The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, Repeater Panel, and Network Panel. All panels that issue HTTP requests SHALL share a single `trackedDispatch` wrapper for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
 
 #### Scenario: User switches between panels without losing state
 
-- **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, response history, editor content)
+- **WHEN** a user switches from the Browser Panel to the Network Panel and back
+- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries)
 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
-- **THEN** the request SHALL target `https://challenge-<slug>.localhost` and be intercepted by the Service Worker
+- **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
 
-#### Scenario: Layout is activated via frontmatter, not component embedding
+#### Scenario: Network tab is available alongside Browser and Repeater
 
-- **WHEN** a challenge `.md` file declares `layout: challenge` in its frontmatter
-- **THEN** VitePress SHALL render the `ChallengeLayout.vue` layout without any `<ChallengeLayout>` tag in the `.md` content body
+- **WHEN** the challenge page loads
+- **THEN** the tab navigation SHALL display three tabs: Browser, Repeater, and Network
+
+#### Scenario: RepeatPanel receives injected request from Network panel
+
+- **WHEN** the Network panel emits a Send to Repeater event
+- **THEN** ChallengeLayout SHALL set the injected request content on RepeatPanel and switch the active tab to Repeater
 
 ---
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
@@ -901,3 +932,45 @@ The challenge page SHALL include a persistent flag submission form below the int
 
 - **WHEN** a user submits an incorrect flag
 - **THEN** the UI SHALL display a failure indicator with no hint about the correct flag
+
+---
+### Requirement: BrowserPanel sends realistic browser-like HTTP requests
+
+Every request dispatched from `BrowserPanel.vue` SHALL include a complete set of simulated browser headers for display in the Network Traffic panel. `BrowserPanel` SHALL attach request-context metadata via `X-Wxlsh-Context` and `X-Wxlsh-Referer` headers; `useTrafficLog.wrap()` SHALL consume these metadata headers (stripping them before dispatch to the runtime), then synthesize the full simulated header set — including static browser identity headers and context-specific dynamic headers — for the recorded `TrafficEntry`. The synthesized headers SHALL follow HTTP/1.1 Title-Case convention and Chrome's conventional header ordering (Host first, Connection second, Accept-Encoding and Accept-Language last).
+
+#### Scenario: Address bar navigation includes full browser headers
+
+- **WHEN** a user navigates to a URL via the BrowserPanel address bar
+- **THEN** the dispatched request SHALL include `User-Agent`, `Accept`, `Accept-Language`, `Accept-Encoding`, `Connection`, `Host`, `Sec-Ch-Ua`, `Sec-Ch-Ua-Mobile`, `Sec-Ch-Ua-Platform`, `Upgrade-Insecure-Requests`, `Sec-Fetch-Dest: document`, `Sec-Fetch-Mode: navigate`, `Sec-Fetch-Site: none`, and `Sec-Fetch-User: ?1`
+
+#### Scenario: Link click includes Referer and same-origin Sec-Fetch headers
+
+- **WHEN** a user clicks a link inside the BrowserPanel iframe
+- **THEN** the dispatched request SHALL include all static browser headers plus `Referer` set to the current page URL, `Sec-Fetch-Dest: document`, `Sec-Fetch-Mode: navigate`, and `Sec-Fetch-Site: same-origin`
+
+#### Scenario: Form GET submission includes Referer and navigation headers
+
+- **WHEN** a user submits a GET form inside the BrowserPanel iframe
+- **THEN** the dispatched request SHALL include all static browser headers plus `Referer` set to the form page URL, `Sec-Fetch-Dest: document`, `Sec-Fetch-Mode: navigate`, `Sec-Fetch-Site: same-origin`, and `Sec-Fetch-User: ?1`
+
+#### Scenario: Form POST submission includes Origin, Referer, and Content-Length
+
+- **WHEN** a user submits a POST form with `application/x-www-form-urlencoded` encoding inside the BrowserPanel iframe
+- **THEN** the dispatched request SHALL include all static browser headers plus `Origin` set to the challenge origin, `Referer` set to the form page URL, `Content-Type: application/x-www-form-urlencoded`, `Content-Length` reflecting the byte length of the encoded body, `Sec-Fetch-Site: same-origin`, and `Sec-Fetch-User: ?1`
+
+#### Scenario: NetworkPanel records complete headers from BrowserPanel requests
+
+- **WHEN** BrowserPanel dispatches any request through `trackedDispatch`
+- **THEN** the NetworkPanel traffic log SHALL display a header list matching the full set of browser-simulated headers defined by `buildBrowserRequest()`
+
+<!-- @trace
+source: simulate-browser-request-headers
+updated: 2026-03-23
+code:
+  - .vitepress/theme/composables/useTrafficLog.ts
+  - .vitepress/theme/components/NetworkPanel.vue
+  - .vitepress/theme/components/BrowserPanel.vue
+tests:
+  - tests/unit/components/BrowserPanel.test.ts
+  - tests/unit/composables/useTrafficLog.test.ts
+-->
