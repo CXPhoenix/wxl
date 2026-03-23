@@ -11,6 +11,7 @@ import FlagSubmit from '../components/FlagSubmit.vue'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 import { useTrafficLog } from '../composables/useTrafficLog'
+import { useAttackSession } from '../composables/useAttackSession'
 import { extractCustomSection } from '../composables/useWasmLoader'
 
 const { frontmatter, page } = useData()
@@ -77,6 +78,24 @@ async function dispatch(request: Request): Promise<Response> {
 const { trafficLog, wrap: wrapDispatch, clear: clearTrafficLog } = useTrafficLog()
 const trackedDispatch = wrapDispatch(dispatch)
 
+// ─── Attack session ──────────────────────────────────────────────────────────
+const attackSession = useAttackSession(slug.value, fm.value.title ?? '')
+
+function makeSourceDispatch(source: 'browser' | 'repeater') {
+  return async (request: Request): Promise<Response> => {
+    const response = await trackedDispatch(request)
+    // After trackedDispatch, the last trafficLog entry is the one just recorded
+    const entry = trafficLog.value[trafficLog.value.length - 1]
+    if (entry) {
+      attackSession.addHttpEvent(entry, source)
+    }
+    return response
+  }
+}
+
+const browserDispatch = makeSourceDispatch('browser')
+const repeaterDispatch = makeSourceDispatch('repeater')
+
 // ─── Send to Repeater ─────────────────────────────────────────────────────────
 const repeaterInjectedRequest = ref<string | null>(null)
 function onSendToRepeater(rawRequest: string) {
@@ -91,7 +110,13 @@ let wasmVerifyFlag: ((flagBytes: Uint8Array) => boolean) | null = null
 async function verify(submitted: string): Promise<boolean> {
   if (!wasmVerifyFlag) return false
   const flagBytes = new TextEncoder().encode(submitted)
-  return wasmVerifyFlag(flagBytes)
+  const correct = wasmVerifyFlag(flagBytes)
+  attackSession.addFlagAttempt(submitted, correct)
+  return correct
+}
+
+function onExport() {
+  attackSession.exportSession()
 }
 
 /** Map backend type to its required base micropip packages */
@@ -270,6 +295,9 @@ onMounted(async () => {
   } catch (err) {
     runtimeError.value = err instanceof Error ? err.message : String(err)
   }
+
+  // Initialize attack session (non-blocking)
+  attackSession.init().catch(() => {})
 })
 
 onUnmounted(() => {
@@ -338,7 +366,7 @@ const categoryBadge: Record<string, string> = {
         </div>
 
         <div v-show="!descriptionCollapsed" class="flex-shrink-0 p-3 border-t border-[var(--ch-border)] bg-[var(--ch-bg)]">
-          <FlagSubmit :verify="verify" />
+          <FlagSubmit :verify="verify" :onExport="onExport" />
         </div>
       </aside>
 
@@ -357,13 +385,13 @@ const categoryBadge: Record<string, string> = {
         </nav>
 
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
-          <BrowserPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" />
+          <BrowserPanel :slug="slug" :dispatch="browserDispatch" :disabled="toolsDisabled" />
         </div>
         <!-- <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
           <WxlshPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
         </div> -->
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
-          <RepeatPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :injectedRequest="repeaterInjectedRequest" />
+          <RepeatPanel :slug="slug" :dispatch="repeaterDispatch" :disabled="toolsDisabled" :injectedRequest="repeaterInjectedRequest" />
         </div>
         <!-- <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
           <CodeEditorPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />

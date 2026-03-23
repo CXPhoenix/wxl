@@ -26,3 +26,4 @@
 - 修改元件：`RepeatPanel.vue`（inline modal）、`FlagSubmit.vue`（匯出按鈕）、`ChallengeLayout.vue`（注入 session composable）
 - 修改 composable：`useTrafficLog.ts`（dispatch source 標記）、`useChallengePersistence.ts`（新增 attack-sessions store）
 - 新增/更新文件：`README.md`、`CONTRIBUTE.md`、`Usage.md`（新增）
+- 更新 `Usage.md`：Cloudflare Pages 部署指令改為包含 Rust toolchain 安裝的完整建置指令

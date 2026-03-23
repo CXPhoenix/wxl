@@ -40,12 +40,27 @@ vi.mock('../../../.vitepress/theme/components/CodeEditorPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-code-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/FlagSubmit.vue', () => ({
-  default: defineComponent({ props: ['verify'], template: '<div data-flag-submit />' }),
+  default: defineComponent({ props: ['verify', 'onExport'], template: '<div data-flag-submit />' }),
 }))
 
 // Mock WASM loader (extractCustomSection)
 vi.mock('../../../.vitepress/theme/composables/useWasmLoader', () => ({
   extractCustomSection: vi.fn().mockReturnValue(null),
+}))
+
+// Mock useAttackSession
+const mockAddHttpEvent = vi.fn()
+const mockAddFlagAttempt = vi.fn()
+const mockExportSession = vi.fn()
+const mockInit = vi.fn().mockResolvedValue(undefined)
+vi.mock('../../../.vitepress/theme/composables/useAttackSession', () => ({
+  useAttackSession: vi.fn(() => ({
+    init: mockInit,
+    getSession: vi.fn(() => null),
+    addHttpEvent: mockAddHttpEvent,
+    addFlagAttempt: mockAddFlagAttempt,
+    exportSession: mockExportSession,
+  })),
 }))
 
 let ChallengeLayout: typeof import('../../../.vitepress/theme/layouts/ChallengeLayout.vue').default
@@ -230,5 +245,35 @@ describe('ChallengeLayout (VitePress layout)', () => {
     // So disabled should still be true (blocked by runtimeReady), but the swReady part is resolved
     // This test verifies controllerchange is listened to
     expect(controllerChangeHandler).not.toBeNull()
+  })
+
+  it('passes different dispatch functions to BrowserPanel and RepeatPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+    const { default: RepeatPanel } = await import('../../../.vitepress/theme/components/RepeatPanel.vue')
+
+    const bp = wrapper.findComponent(BrowserPanel)
+    const rp = wrapper.findComponent(RepeatPanel)
+
+    const browserFn = bp.props('dispatch')
+    const repeaterFn = rp.props('dispatch')
+
+    // Both dispatch functions should exist and be different (source-attributed wrappers)
+    expect(browserFn).toBeTypeOf('function')
+    expect(repeaterFn).toBeTypeOf('function')
+    expect(browserFn).not.toBe(repeaterFn)
+  })
+
+  it('passes onExport prop to FlagSubmit', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: FlagSubmitComponent } = await import('../../../.vitepress/theme/components/FlagSubmit.vue')
+    const fs = wrapper.findComponent(FlagSubmitComponent)
+    expect(fs.props('onExport')).toBeTypeOf('function')
   })
 })

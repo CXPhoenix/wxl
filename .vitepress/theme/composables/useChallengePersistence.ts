@@ -14,13 +14,35 @@ interface HistoryEntry {
   timestamp: number
 }
 
+// ─── Attack Session types ──────────────────────────────────────────────────────
+
+export type AttackEvent =
+  | { type: 'challenge_start'; timestamp: number }
+  | {
+      type: 'http_request'; timestamp: number; source: 'browser' | 'repeater'
+      id: number; method: string; url: string
+      requestHeaders: [string, string][]; requestBody: string | null
+      status: number; responseHeaders: [string, string][]; responseBody: string; duration: number
+    }
+  | { type: 'flag_attempt'; timestamp: number; submitted: string; correct: boolean }
+  | { type: 'challenge_solved'; timestamp: number }
+
+export interface AttackSession {
+  challengeSlug: string
+  challengeTitle: string
+  startedAt: number
+  solvedAt: number | null
+  events: AttackEvent[]
+}
+
 interface ChallengeToolsDB {
   'code-scripts': ScriptEntry
   'terminal-history': HistoryEntry
+  'attack-sessions': AttackSession
 }
 
 const DB_NAME = 'challenge-tools'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBPDatabase<ChallengeToolsDB>> | null = null
 
@@ -33,6 +55,9 @@ function getDb(): Promise<IDBPDatabase<ChallengeToolsDB>> {
         }
         if (!db.objectStoreNames.contains('terminal-history')) {
           db.createObjectStore('terminal-history', { keyPath: 'id', autoIncrement: true })
+        }
+        if (!db.objectStoreNames.contains('attack-sessions')) {
+          db.createObjectStore('attack-sessions', { keyPath: 'challengeSlug' })
         }
       },
     })
@@ -89,5 +114,18 @@ export function useChallengePersistence() {
     return recent.map(e => e.command)
   }
 
-  return { saveScript, listScripts, loadScript, deleteScript, appendHistory, loadHistory }
+  // ─── Attack Sessions ────────────────────────────────────────────────────────
+
+  async function saveAttackSession(session: AttackSession): Promise<void> {
+    const db = await getDb()
+    await db.put('attack-sessions', session)
+  }
+
+  async function loadAttackSession(slug: string): Promise<AttackSession | null> {
+    const db = await getDb()
+    const session = await db.get('attack-sessions', slug) as AttackSession | undefined
+    return session ?? null
+  }
+
+  return { saveScript, listScripts, loadScript, deleteScript, appendHistory, loadHistory, saveAttackSession, loadAttackSession }
 }

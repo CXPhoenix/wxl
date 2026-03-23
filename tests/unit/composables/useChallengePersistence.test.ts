@@ -4,15 +4,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // We use an in-memory store to simulate IndexedDB without a real browser IDB.
 let codeScripts: Record<string, any> = {}
 let terminalHistory: Array<{ id: number; command: string; timestamp: number }> = []
+let attackSessions: Record<string, any> = {}
 let historyCounter = 0
+let createdStores: string[] = []
 
 vi.mock('idb', () => ({
   openDB: vi.fn(async (_name: string, _version: number, { upgrade }: any) => {
-    // Call upgrade with mock db to simulate store creation
-    upgrade?.({
-      objectStoreNames: { contains: () => false },
-      createObjectStore: vi.fn(),
-    })
+    // Track which stores exist to simulate objectStoreNames.contains
+    const existingStores = new Set<string>()
+    const mockDb = {
+      objectStoreNames: { contains: (name: string) => existingStores.has(name) },
+      createObjectStore: vi.fn((name: string, _opts?: any) => {
+        existingStores.add(name)
+        createdStores.push(name)
+      }),
+    }
+    upgrade?.(mockDb)
     return {
       put(store: string, value: any) {
         if (store === 'code-scripts') codeScripts[value.id] = value
@@ -21,19 +28,26 @@ vi.mock('idb', () => ({
           terminalHistory.push({ ...value, id })
           return id
         }
+        if (store === 'attack-sessions') {
+          attackSessions[value.challengeSlug] = value
+          return value.challengeSlug
+        }
         return value.id
       },
       get(store: string, key: string) {
         if (store === 'code-scripts') return codeScripts[key] ?? null
+        if (store === 'attack-sessions') return attackSessions[key] ?? null
         return null
       },
       getAll(store: string) {
         if (store === 'code-scripts') return Object.values(codeScripts)
         if (store === 'terminal-history') return [...terminalHistory]
+        if (store === 'attack-sessions') return Object.values(attackSessions)
         return []
       },
       delete(store: string, key: string) {
         if (store === 'code-scripts') delete codeScripts[key]
+        if (store === 'attack-sessions') delete attackSessions[key]
       },
     }
   }),
@@ -42,7 +56,9 @@ vi.mock('idb', () => ({
 beforeEach(() => {
   codeScripts = {}
   terminalHistory = []
+  attackSessions = {}
   historyCounter = 0
+  createdStores = []
   vi.resetModules()
 })
 
@@ -52,7 +68,7 @@ describe('useChallengePersistence', () => {
     const { useChallengePersistence } = await import('../../../.vitepress/theme/composables/useChallengePersistence')
     const { listScripts } = useChallengePersistence()
     await listScripts()  // triggers lazy DB open
-    expect(openDB).toHaveBeenCalledWith('challenge-tools', 1, expect.any(Object))
+    expect(openDB).toHaveBeenCalledWith('challenge-tools', 2, expect.any(Object))
   })
 
   it('saveScript stores script and returns an id', async () => {
@@ -145,5 +161,100 @@ describe('useChallengePersistence', () => {
     expect(history).toHaveLength(3)
     // Should be the last 3
     expect(history).toEqual(['cmd7', 'cmd8', 'cmd9'])
+  })
+
+  // ─── v2: attack-sessions store ──────────────────────────────────────────────
+
+  it('creates attack-sessions store on v2 initialization', async () => {
+    const { useChallengePersistence } = await import('../../../.vitepress/theme/composables/useChallengePersistence')
+    const { listScripts } = useChallengePersistence()
+    await listScripts() // triggers DB open
+    expect(createdStores).toContain('attack-sessions')
+  })
+
+  it('creates all three stores on fresh install (v0 → v2)', async () => {
+    const { useChallengePersistence } = await import('../../../.vitepress/theme/composables/useChallengePersistence')
+    const { listScripts } = useChallengePersistence()
+    await listScripts()
+    expect(createdStores).toContain('code-scripts')
+    expect(createdStores).toContain('terminal-history')
+    expect(createdStores).toContain('attack-sessions')
+  })
+
+  it('saveAttackSession persists session and loadAttackSession retrieves it', async () => {
+    const { useChallengePersistence } = await import('../../../.vitepress/theme/composables/useChallengePersistence')
+    const { saveAttackSession, loadAttackSession } = useChallengePersistence()
+
+    const session = {
+      challengeSlug: 'sqli-demo',
+      challengeTitle: 'SQL Injection Demo',
+      startedAt: Date.now(),
+      solvedAt: null,
+      events: [{ type: 'challenge_start' as const, timestamp: Date.now() }],
+    }
+    await saveAttackSession(session)
+    const loaded = await loadAttackSession('sqli-demo')
+    expect(loaded).toEqual(session)
+  })
+
+  it('loadAttackSession returns null for unknown slug', async () => {
+    const { useChallengePersistence } = await import('../../../.vitepress/theme/composables/useChallengePersistence')
+    const { loadAttackSession } = useChallengePersistence()
+    const result = await loadAttackSession('nonexistent-slug')
+    expect(result).toBeNull()
+  })
+
+  it('saveAttackSession overwrites existing session for same slug (upsert)', async () => {
+    const { useChallengePersistence } = await import('../../../.vitepress/theme/composables/useChallengePersistence')
+    const { saveAttackSession, loadAttackSession } = useChallengePersistence()
+
+    const session1 = {
+      challengeSlug: 'xss-demo',
+      challengeTitle: 'XSS Demo',
+      startedAt: 1000,
+      solvedAt: null,
+      events: [{ type: 'challenge_start' as const, timestamp: 1000 }],
+    }
+    await saveAttackSession(session1)
+
+    const session2 = { ...session1, startedAt: 2000, solvedAt: 3000 }
+    await saveAttackSession(session2)
+
+    const loaded = await loadAttackSession('xss-demo')
+    expect(loaded?.startedAt).toBe(2000)
+    expect(loaded?.solvedAt).toBe(3000)
+  })
+
+  it('v1 → v2 migration preserves existing stores and adds attack-sessions', async () => {
+    // Simulate v1 DB that already has code-scripts and terminal-history
+    const { openDB } = await import('idb')
+    const mockOpenDB = openDB as ReturnType<typeof vi.fn>
+    mockOpenDB.mockImplementationOnce(async (_name: string, _version: number, { upgrade }: any) => {
+      const existingStores = new Set(['code-scripts', 'terminal-history'])
+      const mockDb = {
+        objectStoreNames: { contains: (name: string) => existingStores.has(name) },
+        createObjectStore: vi.fn((name: string) => {
+          existingStores.add(name)
+          createdStores.push(name)
+        }),
+      }
+      upgrade?.(mockDb)
+      return {
+        put: vi.fn(),
+        get: vi.fn(() => null),
+        getAll: vi.fn(() => []),
+        delete: vi.fn(),
+      }
+    })
+
+    vi.resetModules()
+    const mod = await import('../../../.vitepress/theme/composables/useChallengePersistence')
+    const { listScripts } = mod.useChallengePersistence()
+    await listScripts()
+
+    // Only attack-sessions should be newly created; existing stores should NOT be recreated
+    expect(createdStores).toContain('attack-sessions')
+    expect(createdStores).not.toContain('code-scripts')
+    expect(createdStores).not.toContain('terminal-history')
   })
 })

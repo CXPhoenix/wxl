@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 const props = defineProps<{
   verify: (flag: string) => Promise<boolean>
+  onExport?: () => void
 }>()
 
 const flag = ref('')
@@ -34,9 +35,15 @@ async function submit() {
     <div
       v-if="state === 'success'"
       data-success
-      class="px-3 py-2 rounded bg-[var(--ch-easy-bg)] color-[var(--ch-easy-fg)] text-[0.875em] font-medium"
+      class="flex items-center gap-2 px-3 py-2 rounded bg-[var(--ch-easy-bg)] color-[var(--ch-easy-fg)] text-[0.875em] font-medium"
     >
-      Correct! Challenge solved.
+      <span>Correct! Challenge solved.</span>
+      <button
+        v-if="props.onExport"
+        data-export
+        class="px-3 py-1 rounded text-[0.85em] border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] cursor-pointer hover:border-[var(--ch-accent)]"
+        @click="props.onExport?.()"
+      >下載攻擊紀錄</button>
     </div>
     <div
       v-if="state === 'failure'"
