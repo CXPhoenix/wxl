@@ -145,7 +145,6 @@ The `ChallengeLayout.vue` SHALL wrap the `dispatch` function with a `trackedDisp
 
 ## Requirements
 
-
 <!-- @trace
 source: add-network-traffic-panel
 updated: 2026-03-22
@@ -243,3 +242,42 @@ The `ChallengeLayout.vue` SHALL wrap the `dispatch` function with a `trackedDisp
 
 - **WHEN** a request takes 150ms to complete
 - **THEN** the recorded traffic entry's duration SHALL reflect approximately 150ms (within reasonable timer precision)
+
+---
+### Requirement: ChallengeLayout provides source-attributed dispatch wrappers
+
+The `ChallengeLayout.vue` SHALL create two source-attributed dispatch wrappers derived from `trackedDispatch`: `browserDispatch` (passed to `BrowserPanel`) and `repeaterDispatch` (passed to `RepeatPanel`). Each wrapper SHALL invoke `useAttackSession.addHttpEvent(entry, source)` after every completed request, passing the appropriate `source` string (`'browser'` or `'repeater'`).
+
+Both wrappers SHALL still route through `trackedDispatch`, so all requests continue to appear in the `trafficLog` displayed by `NetworkPanel`.
+
+#### Scenario: BrowserPanel request is attributed to browser source
+
+- **WHEN** BrowserPanel issues a request using `browserDispatch`
+- **THEN** the resulting `http_request` event in the attack session SHALL have `source: 'browser'`
+- **AND** the request SHALL still appear in the NetworkPanel traffic log
+
+#### Scenario: RepeatPanel request is attributed to repeater source
+
+- **WHEN** RepeatPanel sends a crafted request using `repeaterDispatch`
+- **THEN** the resulting `http_request` event in the attack session SHALL have `source: 'repeater'`
+- **AND** the request SHALL still appear in the NetworkPanel traffic log
+
+<!-- @trace
+source: challenge-ux-and-attack-session
+updated: 2026-03-23
+code:
+  - CONTRIBUTE.md
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/FlagSubmit.vue
+  - README.md
+  - Usage.md
+  - .vitepress/theme/composables/useAttackSession.ts
+  - .vitepress/theme/components/RepeatPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+tests:
+  - tests/unit/components/FlagSubmit.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+-->
