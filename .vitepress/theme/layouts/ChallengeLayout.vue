@@ -116,7 +116,13 @@ async function verify(submitted: string): Promise<boolean> {
 }
 
 function onExport() {
-  attackSession.exportSession()
+  attackSession.exportSession({
+    difficulty: fm.value.difficulty,
+    category: fm.value.category,
+    backend: fm.value.backend,
+    description: fm.value.description,
+    fullDescription: fm.value.markdownBody,
+  })
 }
 
 /** Map backend type to its required base micropip packages */

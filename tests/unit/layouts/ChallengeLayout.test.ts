@@ -12,6 +12,8 @@ vi.mock('vitepress', () => ({
         category: 'web',
         backend: 'flask',
         slug: 'sqli-demo',
+        description: 'A simple Flask app with a SQL injection vulnerability.',
+        markdownBody: '# SQL Injection Demo\n\nA login form backed by SQLite.',
       },
     },
     page: { value: { relativePath: 'challenges/sqli-demo.md' } },
@@ -275,5 +277,24 @@ describe('ChallengeLayout (VitePress layout)', () => {
     const { default: FlagSubmitComponent } = await import('../../../.vitepress/theme/components/FlagSubmit.vue')
     const fs = wrapper.findComponent(FlagSubmitComponent)
     expect(fs.props('onExport')).toBeTypeOf('function')
+  })
+
+  it('onExport calls exportSession with challenge info from frontmatter', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: FlagSubmitComponent } = await import('../../../.vitepress/theme/components/FlagSubmit.vue')
+    const fs = wrapper.findComponent(FlagSubmitComponent)
+    const onExport = fs.props('onExport') as () => void
+    onExport()
+
+    expect(mockExportSession).toHaveBeenCalledOnce()
+    const [challengeInfo] = mockExportSession.mock.calls[0]
+    expect(challengeInfo.difficulty).toBe('easy')
+    expect(challengeInfo.category).toBe('web')
+    expect(challengeInfo.backend).toBe('flask')
+    expect(challengeInfo.description).toBe('A simple Flask app with a SQL injection vulnerability.')
+    expect(challengeInfo.fullDescription).toBe('# SQL Injection Demo\n\nA login form backed by SQLite.')
   })
 })

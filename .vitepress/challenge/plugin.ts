@@ -1,5 +1,12 @@
 import { validateChallengeConfig, LEGACY_FIELDS, type ChallengeConfig } from './config'
 
+/**
+ * Strip YAML frontmatter from raw Markdown content and return the body.
+ */
+export function extractMarkdownBody(rawContent: string): string {
+  return rawContent.replace(/^---[\s\S]*?---\n?/, '')
+}
+
 export interface ProcessedChallenge {
   title: string
   backend: string

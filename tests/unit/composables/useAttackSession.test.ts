@@ -153,7 +153,7 @@ describe('useAttackSession', () => {
     const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
     const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
 
-    session.exportSession()
+    session.exportSession({})
 
     expect(createElementSpy).toHaveBeenCalledWith('a')
     expect(createObjectURLSpy).toHaveBeenCalled()
@@ -167,6 +167,82 @@ describe('useAttackSession', () => {
     createElementSpy.mockRestore()
     createObjectURLSpy.mockRestore()
     revokeObjectURLSpy.mockRestore()
+  })
+
+  it('exportSession produces layered JSON with meta/challenge/session structure', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('sqli-demo', 'SQL Injection Demo')
+    await session.init()
+
+    let capturedBlob: Blob | null = null
+    const clickSpy = vi.fn()
+    vi.spyOn(document, 'createElement').mockReturnValue({ href: '', download: '', click: clickSpy } as any)
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob) => {
+      capturedBlob = blob
+      return 'blob:test'
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    session.exportSession({
+      difficulty: 'easy',
+      category: 'web',
+      backend: 'flask',
+      description: 'A short description',
+      fullDescription: '# SQL Injection Demo\n\nFull body.',
+    })
+
+    expect(capturedBlob).not.toBeNull()
+    const text = await capturedBlob!.text()
+    const payload = JSON.parse(text)
+
+    // meta section
+    expect(payload.meta).toBeDefined()
+    expect(typeof payload.meta.systemPrompt).toBe('string')
+    expect(payload.meta.systemPrompt.length).toBeGreaterThan(0)
+    expect(typeof payload.meta.timezone).toBe('string')
+    expect(payload.meta.timezone.length).toBeGreaterThan(0)
+    expect(typeof payload.meta.exportedAt).toBe('string')
+    // ISO 8601 with timezone offset
+    expect(payload.meta.exportedAt).toMatch(/T\d{2}:\d{2}:\d{2}[+-]/)
+
+    // challenge section
+    expect(payload.challenge.slug).toBe('sqli-demo')
+    expect(payload.challenge.title).toBe('SQL Injection Demo')
+    expect(payload.challenge.difficulty).toBe('easy')
+    expect(payload.challenge.category).toBe('web')
+    expect(payload.challenge.backend).toBe('flask')
+    expect(payload.challenge.description).toBe('A short description')
+    expect(payload.challenge.fullDescription).toBe('# SQL Injection Demo\n\nFull body.')
+
+    // session section
+    expect(payload.session).toBeDefined()
+    expect(typeof payload.session.startedAt).toBe('number')
+    expect(Array.isArray(payload.session.events)).toBe(true)
+
+    // Old flat structure should NOT be at top-level
+    expect(payload.challengeSlug).toBeUndefined()
+    expect(payload.events).toBeUndefined()
+  })
+
+  it('exportSession omits undefined optional challenge fields', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test Challenge')
+    await session.init()
+
+    let capturedBlob: Blob | null = null
+    vi.spyOn(document, 'createElement').mockReturnValue({ href: '', download: '', click: vi.fn() } as any)
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob) => { capturedBlob = blob; return 'blob:test' })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    session.exportSession({})
+
+    const text = await capturedBlob!.text()
+    const payload = JSON.parse(text)
+    expect(payload.challenge.slug).toBe('test')
+    expect(payload.challenge.title).toBe('Test Challenge')
+    // Optional fields absent from challengeInfo should not appear
+    expect(payload.challenge.difficulty).toBeUndefined()
+    expect(payload.challenge.description).toBeUndefined()
   })
 
   it('creates a new session overwriting solved session on re-visit', async () => {
