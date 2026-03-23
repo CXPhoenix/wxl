@@ -293,6 +293,20 @@ onMounted(async () => {
       // SW now controls the page — unlock the readiness gate
       swReady.value = true
     })
+
+    // Fallback: if controllerchange fired between setup() and onMounted
+    // (race when SW installs/activates before the listener is attached),
+    // the event was missed. Check the controller directly.
+    if (navigator.serviceWorker.controller) {
+      swReady.value = true
+    } else {
+      // First visit: SW is registering. Wait for it to become ready and claim.
+      navigator.serviceWorker.ready.then(() => {
+        if (navigator.serviceWorker.controller) {
+          swReady.value = true
+        }
+      })
+    }
   }
 
   // Initialize runtime (lazy, idempotent)
