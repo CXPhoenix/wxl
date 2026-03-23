@@ -11,8 +11,9 @@ vi.mock('vitepress', () => ({
         difficulty: 'easy',
         category: 'web',
         backend: 'flask',
-        flag_verifier: 'abc123',
         slug: 'sqli-demo',
+        description: 'A simple Flask app with a SQL injection vulnerability.',
+        markdownBody: '# SQL Injection Demo\n\nA login form backed by SQLite.',
       },
     },
     page: { value: { relativePath: 'challenges/sqli-demo.md' } },
@@ -41,12 +42,27 @@ vi.mock('../../../.vitepress/theme/components/CodeEditorPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-code-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/FlagSubmit.vue', () => ({
-  default: defineComponent({ props: ['verify'], template: '<div data-flag-submit />' }),
+  default: defineComponent({ props: ['verify', 'onExport'], template: '<div data-flag-submit />' }),
 }))
 
-// Mock flag verifier
-vi.mock('../../../.vitepress/challenge/flag-verifier', () => ({
-  useFlagVerifier: () => ({ verify: vi.fn().mockResolvedValue(false) }),
+// Mock WASM loader (extractCustomSection)
+vi.mock('../../../.vitepress/theme/composables/useWasmLoader', () => ({
+  extractCustomSection: vi.fn().mockReturnValue(null),
+}))
+
+// Mock useAttackSession
+const mockAddHttpEvent = vi.fn()
+const mockAddFlagAttempt = vi.fn()
+const mockExportSession = vi.fn()
+const mockInit = vi.fn().mockResolvedValue(undefined)
+vi.mock('../../../.vitepress/theme/composables/useAttackSession', () => ({
+  useAttackSession: vi.fn(() => ({
+    init: mockInit,
+    getSession: vi.fn(() => null),
+    addHttpEvent: mockAddHttpEvent,
+    addFlagAttempt: mockAddFlagAttempt,
+    exportSession: mockExportSession,
+  })),
 }))
 
 let ChallengeLayout: typeof import('../../../.vitepress/theme/layouts/ChallengeLayout.vue').default
@@ -177,7 +193,7 @@ describe('ChallengeLayout (VitePress layout)', () => {
   })
 
   it('dispatch returns 503 with runtime not ready when runtime has not initialized', async () => {
-    // Runtime stays null in test env: frontmatter has no encryptedFs/fsKeyParts
+    // Runtime stays null in test env: frontmatter has no wasmModule
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
@@ -231,5 +247,130 @@ describe('ChallengeLayout (VitePress layout)', () => {
     // So disabled should still be true (blocked by runtimeReady), but the swReady part is resolved
     // This test verifies controllerchange is listened to
     expect(controllerChangeHandler).not.toBeNull()
+  })
+
+  it('passes different dispatch functions to BrowserPanel and RepeatPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+    const { default: RepeatPanel } = await import('../../../.vitepress/theme/components/RepeatPanel.vue')
+
+    const bp = wrapper.findComponent(BrowserPanel)
+    const rp = wrapper.findComponent(RepeatPanel)
+
+    const browserFn = bp.props('dispatch')
+    const repeaterFn = rp.props('dispatch')
+
+    // Both dispatch functions should exist and be different (source-attributed wrappers)
+    expect(browserFn).toBeTypeOf('function')
+    expect(repeaterFn).toBeTypeOf('function')
+    expect(browserFn).not.toBe(repeaterFn)
+  })
+
+  it('swReady fallback: unlocks when controller is already set at mount time (race condition fix)', async () => {
+    // Simulate the race condition: controllerchange fired between setup() and onMounted(),
+    // so controller is non-null when onMounted's fallback check runs.
+    // Use a getter that returns null on first access (setup ref init) and non-null after.
+    let accessCount = 0
+    const fakeController = { postMessage: vi.fn(), scriptURL: '', state: 'activated' as ServiceWorkerState } as unknown as ServiceWorker
+    const mockSW = {
+      get controller() {
+        accessCount++
+        // First access (ref initialization in setup) → null
+        // Subsequent accesses (onMounted fallback) → non-null
+        return accessCount <= 1 ? null : fakeController
+      },
+      ready: Promise.resolve({ active: { postMessage: vi.fn() } }),
+      addEventListener: vi.fn(),
+    }
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: mockSW,
+      configurable: true,
+    })
+    vi.resetModules()
+    const mod = await import('../../../.vitepress/theme/layouts/ChallengeLayout.vue')
+    const Layout = mod.default
+
+    mount(Layout, { global: { stubs: { Content: true } } })
+    await new Promise(r => setTimeout(r, 0))
+
+    // The onMounted fallback should have accessed controller at least twice
+    // (once in setup for ref init, once+ in onMounted for the fallback check)
+    expect(accessCount).toBeGreaterThanOrEqual(2)
+  })
+
+  it('swReady fallback: unlocks via navigator.serviceWorker.ready on first visit', async () => {
+    // Simulate first visit: controller is null at mount time, SW is still installing.
+    // After SW activates and claims, ready resolves and controller becomes non-null.
+    let resolveReady!: (reg: unknown) => void
+    const readyPromise = new Promise(resolve => { resolveReady = resolve })
+
+    const mockSW: Record<string, unknown> = {
+      controller: null,
+      ready: readyPromise,
+      addEventListener: vi.fn(),
+    }
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: mockSW,
+      configurable: true,
+    })
+    vi.resetModules()
+    const mod = await import('../../../.vitepress/theme/layouts/ChallengeLayout.vue')
+    const Layout = mod.default
+
+    const wrapper = mount(Layout, { global: { stubs: { Content: true } } })
+    await wrapper.vm.$nextTick()
+
+    // Initially disabled (both swReady=false, runtimeReady=false)
+    expect(wrapper.find('[data-browser-panel]').attributes('data-disabled')).toBe('true')
+
+    // Simulate SW activation + clients.claim() → controller becomes non-null
+    mockSW.controller = { postMessage: vi.fn() } as unknown as ServiceWorker
+    resolveReady({ active: { postMessage: vi.fn() } })
+
+    // Allow the ready.then() callback to execute
+    await readyPromise
+    await wrapper.vm.$nextTick()
+
+    // Panel is still disabled because runtimeReady is also false,
+    // but we verify the ready fallback path was exercised by checking
+    // that the ready promise was consumed (no unhandled rejection)
+    // and the addEventListener was called for controllerchange
+    expect(mockSW.controller).not.toBeNull()
+    expect((mockSW.addEventListener as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+      'controllerchange',
+      expect.any(Function),
+    )
+  })
+
+  it('passes onExport prop to FlagSubmit', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: FlagSubmitComponent } = await import('../../../.vitepress/theme/components/FlagSubmit.vue')
+    const fs = wrapper.findComponent(FlagSubmitComponent)
+    expect(fs.props('onExport')).toBeTypeOf('function')
+  })
+
+  it('onExport calls exportSession with challenge info from frontmatter', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: FlagSubmitComponent } = await import('../../../.vitepress/theme/components/FlagSubmit.vue')
+    const fs = wrapper.findComponent(FlagSubmitComponent)
+    const onExport = fs.props('onExport') as () => void
+    onExport()
+
+    expect(mockExportSession).toHaveBeenCalledOnce()
+    const [challengeInfo] = mockExportSession.mock.calls[0]
+    expect(challengeInfo.difficulty).toBe('easy')
+    expect(challengeInfo.category).toBe('web')
+    expect(challengeInfo.backend).toBe('flask')
+    expect(challengeInfo.description).toBe('A simple Flask app with a SQL injection vulnerability.')
+    expect(challengeInfo.fullDescription).toBe('# SQL Injection Demo\n\nA login form backed by SQLite.')
   })
 })

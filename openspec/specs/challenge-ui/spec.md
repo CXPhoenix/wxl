@@ -604,6 +604,27 @@ The challenge page SHALL include a persistent flag submission form below the int
 - **WHEN** a user submits an incorrect flag
 - **THEN** the UI SHALL display a failure indicator with no hint about the correct flag
 
+
+<!-- @trace
+source: challenge-ux-and-attack-session
+updated: 2026-03-23
+code:
+  - CONTRIBUTE.md
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/components/FlagSubmit.vue
+  - README.md
+  - Usage.md
+  - .vitepress/theme/composables/useAttackSession.ts
+  - .vitepress/theme/components/RepeatPanel.vue
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+tests:
+  - tests/unit/components/FlagSubmit.test.ts
+  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+-->
+
 ---
 
 ### Requirement: Challenge UI components use UnoCSS utility classes for styling
@@ -923,15 +944,25 @@ When `source_visible: true`, the challenge page SHALL display a read-only source
 
 The challenge page SHALL include a persistent flag submission form below the interaction panels. The form SHALL have a text input and a submit button. On submission, it SHALL call the flag verification function and display a success or failure indicator.
 
-#### Scenario: Correct flag shows success message
+When the flag is correct, the success state SHALL additionally display a "下載攻擊紀錄" (Download Attack Log) button. Clicking this button SHALL invoke an `onExport` callback prop provided by the parent layout, which triggers the JSON file download of the current attack session.
+
+#### Scenario: Correct flag shows success message and export button
 
 - **WHEN** a user submits the correct flag
-- **THEN** the UI SHALL display a success indicator and the challenge SHALL be marked as solved
+- **THEN** the UI SHALL display a success indicator
+- **AND** a "下載攻擊紀錄" button SHALL appear in the success state
+
+#### Scenario: Export button triggers attack session download
+
+- **WHEN** a user clicks "下載攻擊紀錄" after solving the challenge
+- **THEN** the `onExport` prop callback SHALL be invoked
+- **AND** the browser SHALL initiate a JSON file download of the attack session
 
 #### Scenario: Incorrect flag shows failure message without revealing answer
 
 - **WHEN** a user submits an incorrect flag
 - **THEN** the UI SHALL display a failure indicator with no hint about the correct flag
+- **AND** no export button SHALL be displayed
 
 ---
 ### Requirement: BrowserPanel sends realistic browser-like HTTP requests

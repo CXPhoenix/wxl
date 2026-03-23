@@ -27,6 +27,7 @@
 | Python 執行環境 | [Pyodide](https://pyodide.org) 0.29 |
 | PHP 執行環境 | [php-wasm](https://github.com/seanmorris/php-wasm) |
 | WASM 模組 | Rust 2021 + [wasm-pack](https://rustwasm.github.io/wasm-pack/) |
+| 攻擊記錄追蹤 | IndexedDB（`idb` 套件）attack session persistence |
 | 套件管理 | [pnpm](https://pnpm.io) 10.28 |
 
 ## 前置需求
@@ -64,13 +65,16 @@ pnpm dev
 | `pnpm test` | 執行 TypeScript / JavaScript 單元測試（Vitest） |
 | `pnpm wasm:build` | 建置所有 Rust WASM 模組 |
 | `pnpm wasm:test` | 執行 Rust 單元測試（cargo test） |
+| `pnpm challenge:keygen` | 為所有挑戰產生加密 WASM 模組 |
+| `pnpm create:challenge` | 互動式建立新挑戰（scaffold） |
 
 ## 架構
 
 ```
 瀏覽器
 ├── VitePress 站台（Vue 3 + UnoCSS）
-│   └── Challenge 頁面（Markdown + YAML frontmatter）
+│   ├── Challenge 頁面（Markdown + YAML frontmatter）
+│   └── IndexedDB（attack session 持久化 + 工具資料）
 ├── Service Worker（workers/）
 │   └── 攔截 HTTP 請求，路由至對應 WASM runtime
 └── WASM Runtimes
@@ -96,8 +100,7 @@ pnpm dev
 title: SQL Injection Demo
 backend: flask           # flask | fastapi | php
 app: ./app.py
-flag_verifier: <PBKDF2-HMAC-SHA256 hash>
-fs_key: <64-byte hex AES-GCM key>
+wasmModule: /challenge/sqli-demo/runtime.wasm  # 由 keygen 自動產生
 fs:
   /flag.txt: ./flag.txt
 difficulty: easy

@@ -49,11 +49,24 @@ function snapshotLoadFromLocalStorage() {
   snapshots.value = Array.from(JSON.parse(localStorageSnapshots.value))
 }
 
-function saveSnapshot() {
-  const name = window.prompt('Snapshot name:')?.trim()
+const showSaveModal = ref(false)
+const saveModalName = ref('')
+
+function openSaveModal() {
+  saveModalName.value = ''
+  showSaveModal.value = true
+}
+
+function confirmSave() {
+  const name = saveModalName.value.trim()
   if (!name) return
   snapshots.value.push({ name, content: requestText.value })
   snapshotSave2LocalStorage()
+  showSaveModal.value = false
+}
+
+function cancelSave() {
+  showSaveModal.value = false
 }
 
 function restoreSnapshot(content: string) {
@@ -115,7 +128,7 @@ onMounted(() => {
         <button
           data-save-snapshot
           class="px-2 py-1 rounded text-[0.8em] border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] cursor-pointer hover:border-[var(--ch-accent)]"
-          @click="saveSnapshot"
+          @click="openSaveModal"
         >
           + Save
         </button>
@@ -128,6 +141,32 @@ onMounted(() => {
         >
           Send
         </button>
+      </div>
+
+      <!-- Save snapshot modal -->
+      <div
+        v-if="showSaveModal"
+        data-save-modal
+        class="flex items-center gap-2 px-3 py-2 border-b border-[var(--ch-border)] bg-[var(--ch-bg-soft)]"
+      >
+        <span class="text-[0.75em] color-[var(--ch-text-2)] select-none">Snapshot name:</span>
+        <input
+          v-model="saveModalName"
+          type="text"
+          class="flex-1 px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg)] color-[var(--ch-text-1)] font-mono text-[0.82em] outline-none focus:border-[var(--ch-accent)]"
+          @keydown.enter="confirmSave"
+          @keydown.escape="cancelSave"
+        />
+        <button
+          data-save-confirm
+          class="px-2 py-1 rounded text-[0.8em] font-medium border-none bg-[var(--ch-accent)] color-white cursor-pointer hover:opacity-90"
+          @click="confirmSave"
+        >Save</button>
+        <button
+          data-save-cancel
+          class="px-2 py-1 rounded text-[0.8em] border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-2)] cursor-pointer hover:border-[var(--ch-accent)]"
+          @click="cancelSave"
+        >Cancel</button>
       </div>
 
       <!-- Request textarea -->

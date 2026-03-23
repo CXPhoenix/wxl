@@ -28,8 +28,6 @@ type Backend = (typeof VALID_BACKENDS)[number]
 /** Slug validation: kebab-case, lowercase alphanumeric and hyphens only. */
 const SLUG_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
 
-const PLACEHOLDER = 'PLACEHOLDER_RUN_pnpm_challenge_keygen'
-
 // ─── Exported types ────────────────────────────────────────────────────────
 
 export interface ScaffoldOptions {
@@ -215,8 +213,6 @@ export function generateMarkdown(opts: ScaffoldOptions): string {
     difficulty,
     category: 'web',
     backend,
-    flag_verifier: PLACEHOLDER,
-    fs_key: PLACEHOLDER,
     app: `./${slug}/${appFile}`,
     fs: { '/flag.txt': `./${slug}/flag.txt` },
     packages: [],

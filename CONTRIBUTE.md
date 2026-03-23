@@ -7,6 +7,7 @@
 - [分支模型](#分支模型)
 - [開發流程](#開發流程)
 - [PR 提交流程](#pr-提交流程)
+- [新增挑戰](#新增挑戰)
 - [Commit 規範](#commit-規範)
 - [Issue 回報](#issue-回報)
 
@@ -115,6 +116,30 @@ PR 描述必須包含以下三個部分：
 - [ ] Commit message 符合規範（見下方）
 - [ ] PR 目標分支正確（`staging`；hotfix 則為 `main` 及 `staging`）
 - [ ] PR description 包含 Summary / Motivation / Test Plan
+
+## 新增挑戰
+
+使用 `scripts/create-challenge.ts` scaffold 新挑戰：
+
+```bash
+pnpm create:challenge --name <slug> [--title <title>] \
+  [--backend flask|fastapi|php] [--difficulty easy|medium|hard] \
+  [--flag <flag>]
+```
+
+此腳本會自動：
+1. 在 `docs/challenge/` 下建立挑戰目錄與 Markdown 檔案
+2. 產生對應 backend 的 app 骨架（`app.py` 或 `index.php`）
+3. 建立 `flag.txt` 並寫入指定 flag
+4. 執行 `pnpm challenge:keygen` 產生加密 WASM 模組
+
+### 範例
+
+```bash
+# 建立一個 Flask SQLi 挑戰
+pnpm create:challenge --name sqli-login --title "SQL Injection Login Bypass" \
+  --backend flask --difficulty medium --flag "CTF{sqli_bypassed}"
+```
 
 ## Commit 規範
 

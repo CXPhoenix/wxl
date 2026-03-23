@@ -140,16 +140,11 @@ describe('generateMarkdown', () => {
     expect(() => validateChallengeConfig(fm)).not.toThrow()
   })
 
-  it('sets flag_verifier to PLACEHOLDER string', () => {
+  it('does not include legacy fields (flag_verifier, fs_key)', () => {
     const content = generateMarkdown(opts)
     const fm = extractFrontmatter(content)
-    expect(String(fm.flag_verifier)).toContain('PLACEHOLDER')
-  })
-
-  it('sets fs_key to PLACEHOLDER string', () => {
-    const content = generateMarkdown(opts)
-    const fm = extractFrontmatter(content)
-    expect(String(fm.fs_key)).toContain('PLACEHOLDER')
+    expect(fm).not.toHaveProperty('flag_verifier')
+    expect(fm).not.toHaveProperty('fs_key')
   })
 
   it('includes all required frontmatter fields', () => {

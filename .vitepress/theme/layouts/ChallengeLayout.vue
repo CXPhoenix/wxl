@@ -8,10 +8,11 @@ import RepeatPanel from '../components/RepeatPanel.vue'
 import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
-import { useFlagVerifier } from '../../challenge/flag-verifier'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 import { useTrafficLog } from '../composables/useTrafficLog'
+import { useAttackSession } from '../composables/useAttackSession'
+import { extractCustomSection } from '../composables/useWasmLoader'
 
 const { frontmatter, page } = useData()
 
@@ -77,6 +78,24 @@ async function dispatch(request: Request): Promise<Response> {
 const { trafficLog, wrap: wrapDispatch, clear: clearTrafficLog } = useTrafficLog()
 const trackedDispatch = wrapDispatch(dispatch)
 
+// ─── Attack session ──────────────────────────────────────────────────────────
+const attackSession = useAttackSession(slug.value, fm.value.title ?? '')
+
+function makeSourceDispatch(source: 'browser' | 'repeater') {
+  return async (request: Request): Promise<Response> => {
+    const response = await trackedDispatch(request)
+    // After trackedDispatch, the last trafficLog entry is the one just recorded
+    const entry = trafficLog.value[trafficLog.value.length - 1]
+    if (entry) {
+      attackSession.addHttpEvent(entry, source)
+    }
+    return response
+  }
+}
+
+const browserDispatch = makeSourceDispatch('browser')
+const repeaterDispatch = makeSourceDispatch('repeater')
+
 // ─── Send to Repeater ─────────────────────────────────────────────────────────
 const repeaterInjectedRequest = ref<string | null>(null)
 function onSendToRepeater(rawRequest: string) {
@@ -84,20 +103,26 @@ function onSendToRepeater(rawRequest: string) {
   activeTab.value = 'repeater'
 }
 
-// ─── Flag verification ────────────────────────────────────────────────────────
-const { verify: verifyFlag } = useFlagVerifier(slug.value)
+// ─── Flag verification (via WASM) ────────────────────────────────────────────
+// wasm_verify_flag is set after WASM init; holds a reference to the export
+let wasmVerifyFlag: ((flagBytes: Uint8Array) => boolean) | null = null
+
 async function verify(submitted: string): Promise<boolean> {
-  return verifyFlag(submitted, fm.value.flag_verifier ?? fm.value.flagVerifier ?? '')
+  if (!wasmVerifyFlag) return false
+  const flagBytes = new TextEncoder().encode(submitted)
+  const correct = wasmVerifyFlag(flagBytes)
+  attackSession.addFlagAttempt(submitted, correct)
+  return correct
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
-  }
-  return bytes
+function onExport() {
+  attackSession.exportSession({
+    difficulty: fm.value.difficulty,
+    category: fm.value.category,
+    backend: fm.value.backend,
+    description: fm.value.description,
+    fullDescription: fm.value.markdownBody,
+  })
 }
 
 /** Map backend type to its required base micropip packages */
@@ -110,44 +135,50 @@ const BASE_PACKAGES: Record<string, string[]> = {
 
 async function initRuntime(): Promise<void> {
   const backend: string = fm.value.backend ?? 'flask'
-  const encryptedFs: Record<string, string> | undefined = fm.value.encryptedFs
-  const fsKeyParts: string[] | undefined = fm.value.fsKeyParts
+  const wasmModule: string | undefined = fm.value.wasmModule
   const extraPackages: string[] = fm.value.packages ?? []
 
-  // Guard: skip if frontmatter doesn't have processed FS data (e.g., placeholder)
-  if (!encryptedFs || !fsKeyParts || Object.keys(encryptedFs).length === 0) {
-    runtimeError.value = 'Challenge FS data not available (run pnpm challenge:keygen first)'
+  // Guard: skip if frontmatter doesn't have wasmModule (not yet processed)
+  if (!wasmModule) {
+    runtimeError.value = 'Challenge WASM not available (run pnpm challenge:keygen first)'
     return
   }
 
-  // 1. Load virtual-fs WASM module
-  const { default: initWasm, wasm_fs_reset, wasm_fs_read } = await import(
+  // 1. Fetch per-challenge WASM binary and extract custom section payload
+  const wasmResponse = await fetch(wasmModule)
+  const wasmBytes = new Uint8Array(await wasmResponse.arrayBuffer())
+  const payloadBytes = extractCustomSection(wasmBytes, 'chall-data')
+
+  if (!payloadBytes) {
+    runtimeError.value = 'No chall-data section found in WASM binary'
+    return
+  }
+
+  // 2. Instantiate the per-challenge WASM module
+  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_verify_flag } = await import(
     '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
 
-  // 2. Reconstruct key from 3 obfuscated fragments
-  const hexKey = fsKeyParts.join('')
-  const keyBytes = hexToBytes(hexKey)
+  // 3. Initialize FS from the custom section payload (key derivation happens inside WASM)
+  wasm_fs_init(slug.value, payloadBytes)
 
-  // 3. Reset FS store and populate with this challenge's encrypted blobs.
-  //    wasm_fs_reset (unlike wasm_fs_init) always clears existing data first,
-  //    ensuring cross-challenge navigation doesn't leave stale blobs in the store.
-  const paths = Object.keys(encryptedFs)
-  const blobs = paths.map((p) => encryptedFs[p])
-  wasm_fs_reset(paths, blobs)
+  // 4. Store flag verifier reference for later use
+  wasmVerifyFlag = wasm_verify_flag
 
-  // 4. Decrypt all FS entries; separate __app__ from the rest
+  // 5. Decrypt all FS entries; separate __app__ from the rest
+  //    wasm_fs_read no longer needs an external key — it uses the internally-derived key
   const fsEntries: Record<string, Uint8Array> = {}
   let appCode = ''
 
-  for (const path of paths) {
-    const decrypted: Uint8Array = wasm_fs_read(keyBytes, path)
-    if (path === '__app__') {
-      appCode = new TextDecoder().decode(decrypted)
-    } else {
-      fsEntries[path] = decrypted
-    }
+  // Read __app__ entry
+  const appBytes: Uint8Array = wasm_fs_read('__app__')
+  appCode = new TextDecoder().decode(appBytes)
+
+  // Read other FS entries (from frontmatter fs map keys)
+  const fsPaths = Object.keys(fm.value.fs ?? {})
+  for (const path of fsPaths) {
+    fsEntries[path] = wasm_fs_read(path)
   }
 
   if (!appCode) {
@@ -262,6 +293,20 @@ onMounted(async () => {
       // SW now controls the page — unlock the readiness gate
       swReady.value = true
     })
+
+    // Fallback: if controllerchange fired between setup() and onMounted
+    // (race when SW installs/activates before the listener is attached),
+    // the event was missed. Check the controller directly.
+    if (navigator.serviceWorker.controller) {
+      swReady.value = true
+    } else {
+      // First visit: SW is registering. Wait for it to become ready and claim.
+      navigator.serviceWorker.ready.then(() => {
+        if (navigator.serviceWorker.controller) {
+          swReady.value = true
+        }
+      })
+    }
   }
 
   // Initialize runtime (lazy, idempotent)
@@ -270,6 +315,9 @@ onMounted(async () => {
   } catch (err) {
     runtimeError.value = err instanceof Error ? err.message : String(err)
   }
+
+  // Initialize attack session (non-blocking)
+  attackSession.init().catch(() => {})
 })
 
 onUnmounted(() => {
@@ -338,7 +386,7 @@ const categoryBadge: Record<string, string> = {
         </div>
 
         <div v-show="!descriptionCollapsed" class="flex-shrink-0 p-3 border-t border-[var(--ch-border)] bg-[var(--ch-bg)]">
-          <FlagSubmit :verify="verify" />
+          <FlagSubmit :verify="verify" :onExport="onExport" />
         </div>
       </aside>
 
@@ -357,13 +405,13 @@ const categoryBadge: Record<string, string> = {
         </nav>
 
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
-          <BrowserPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" />
+          <BrowserPanel :slug="slug" :dispatch="browserDispatch" :disabled="toolsDisabled" />
         </div>
         <!-- <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
           <WxlshPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
         </div> -->
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
-          <RepeatPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :injectedRequest="repeaterInjectedRequest" />
+          <RepeatPanel :slug="slug" :dispatch="repeaterDispatch" :disabled="toolsDisabled" :injectedRequest="repeaterInjectedRequest" />
         </div>
         <!-- <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
           <CodeEditorPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
