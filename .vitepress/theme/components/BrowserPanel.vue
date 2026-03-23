@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useTemplateRef } from 'vue'
+import { ref, useTemplateRef, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   slug: string
@@ -30,13 +30,44 @@ type ResponseState =
 
 const responseState = ref<ResponseState>({ type: 'idle' })
 
+/**
+ * Inject a postMessage-based interceptor script into an HTML string.
+ * The script captures link clicks and form submissions inside the iframe
+ * and relays them to the parent via postMessage, so that allow-same-origin
+ * is not needed in the sandbox (which would defeat the sandbox).
+ */
+function injectInterceptor(html: string): string {
+  const script = `<script>(function(){
+  document.addEventListener('click',function(e){
+    var a=e.target&&e.target.closest&&e.target.closest('a');
+    if(!a)return;
+    var href=a.getAttribute('href');
+    if(!href||href.charAt(0)==='#')return;
+    e.preventDefault();
+    parent.postMessage({type:'WXLSH_LINK_CLICK',href:href},'*');
+  });
+  document.addEventListener('submit',function(e){
+    e.preventDefault();
+    var form=e.target;
+    var fields=[];
+    var els=form.elements;
+    for(var i=0;i<els.length;i++){if(els[i].name)fields.push([els[i].name,els[i].value]);}
+    parent.postMessage({type:'WXLSH_FORM_SUBMIT',action:form.getAttribute('action')||'',method:(form.getAttribute('method')||'GET').toUpperCase(),enctype:form.getAttribute('enctype')||'application/x-www-form-urlencoded',fields:fields},'*');
+  });
+})();<` + `/script>`
+
+  const bodyClose = html.lastIndexOf('</body>')
+  if (bodyClose !== -1) return html.slice(0, bodyClose) + script + html.slice(bodyClose)
+  return html + script
+}
+
 /** Shared response handler — updates responseState and url bar. */
 async function handleResponse(res: Response, resolvedUrl: string) {
   url.value = resolvedUrl
   const ct = res.headers.get('content-type') ?? ''
   const text = await res.text()
   if (ct.includes('text/html')) {
-    responseState.value = { type: 'html', content: text }
+    responseState.value = { type: 'html', content: injectInterceptor(text) }
   } else {
     let formatted = text
     if (ct.includes('application/json')) {
@@ -53,72 +84,65 @@ async function navigate() {
   await handleResponse(res, url.value)
 }
 
-// Intercept <a> clicks and <form> submissions inside the iframe, routing them
-// through dispatch() instead of letting the browser perform native navigation.
-// Called on iframe load to (re-)attach listeners after srcdoc updates.
-function attachIframeLinkInterceptor() {
-  const iframe = iframeRef.value
-  if (!iframe) return
-  try {
-    const doc = iframe.contentDocument
-    if (!doc) return
-    // Guard: prevent duplicate listeners when `load` fires multiple times
-    // (e.g. happy-dom fires automatically on srcdoc set + test fires again)
-    if ((doc as Document & { __wxlshAttached?: true }).__wxlshAttached) return
-    ;(doc as Document & { __wxlshAttached?: true }).__wxlshAttached = true
-    const base = `https://challenge-${props.slug}.localhost/`
+// ─── postMessage handler: receives link/form events from sandboxed iframe ─────
+// The iframe runs with sandbox="allow-scripts allow-forms" (no allow-same-origin),
+// so its JS cannot access the parent DOM. Instead, an injected script inside
+// the srcdoc posts structured messages that are handled here.
 
-    // ── Link click interception ──────────────────────────────────────────
-    doc.addEventListener('click', (e) => {
-      const target = (e.target as HTMLElement).closest('a')
-      if (!target) return
-      const href = target.getAttribute('href')
-      if (!href || href.startsWith('#')) return
-      e.preventDefault()
-      const referer = url.value
-      const resolved = new URL(href, base).href
-      url.value = resolved
-      const req = new Request(resolved, withContext({ method: 'GET' }, 'link', referer))
-      props.dispatch(req).then(res => handleResponse(res, resolved))
-    })
+function handleIframeMessage(event: MessageEvent) {
+  if (event.source !== iframeRef.value?.contentWindow) return
+  const data = event.data
+  if (!data?.type) return
 
-    // ── Form submit interception ─────────────────────────────────────────
-    doc.addEventListener('submit', (e) => {
-      e.preventDefault()
-      const form = e.target as HTMLFormElement
-      const action = form.getAttribute('action') ?? ''
-      const method = (form.getAttribute('method') ?? 'GET').toUpperCase()
-      const enctype = form.getAttribute('enctype') ?? 'application/x-www-form-urlencoded'
-      // Resolve action against challenge base; fall back to current url.value
-      const resolvedUrl = action ? new URL(action, base).href : url.value
-      const referer = url.value
+  const base = `https://challenge-${props.slug}.localhost/`
+  const referer = url.value
 
-      if (method === 'GET') {
-        const params = new URLSearchParams(new FormData(form) as unknown as Record<string, string>)
-        const sep = resolvedUrl.includes('?') ? '&' : '?'
-        const target = params.toString() ? `${resolvedUrl}${sep}${params}` : resolvedUrl
-        const req = new Request(target, withContext({ method: 'GET' }, 'form-get', referer))
-        props.dispatch(req).then(res => handleResponse(res, target))
-      } else if (enctype === 'multipart/form-data') {
-        // Let fetch set Content-Type (with boundary) automatically
-        const body = new FormData(form)
-        const req = new Request(resolvedUrl, withContext({ method, body }, 'form-post', referer))
-        props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
-      } else {
-        // application/x-www-form-urlencoded (default)
-        const bodyStr = new URLSearchParams(new FormData(form) as unknown as Record<string, string>).toString()
-        const req = new Request(resolvedUrl, withContext({
-          method,
-          body: bodyStr,
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        }, 'form-post', referer))
-        props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
-      }
-    })
-  } catch {
-    // Cross-origin frames: silently ignore (shouldn't happen with srcdoc + allow-same-origin)
+  if (data.type === 'WXLSH_LINK_CLICK') {
+    const href = data.href as string
+    if (!href || href.startsWith('#')) return
+    const resolved = new URL(href, base).href
+    url.value = resolved
+    const req = new Request(resolved, withContext({ method: 'GET' }, 'link', referer))
+    props.dispatch(req).then(res => handleResponse(res, resolved))
+  } else if (data.type === 'WXLSH_FORM_SUBMIT') {
+    const { action, method, enctype, fields } = data as {
+      action: string
+      method: string
+      enctype: string
+      fields: [string, string][]
+    }
+    const resolvedUrl = action ? new URL(action, base).href : url.value
+
+    if (method === 'GET') {
+      const params = new URLSearchParams(fields)
+      const sep = resolvedUrl.includes('?') ? '&' : '?'
+      const target = params.toString() ? `${resolvedUrl}${sep}${params}` : resolvedUrl
+      const req = new Request(target, withContext({ method: 'GET' }, 'form-get', referer))
+      props.dispatch(req).then(res => handleResponse(res, target))
+    } else if (enctype === 'multipart/form-data') {
+      const body = new FormData()
+      for (const [k, v] of fields) body.append(k, v)
+      const req = new Request(resolvedUrl, withContext({ method, body }, 'form-post', referer))
+      props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
+    } else {
+      const bodyStr = new URLSearchParams(fields).toString()
+      const req = new Request(resolvedUrl, withContext({
+        method,
+        body: bodyStr,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }, 'form-post', referer))
+      props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
+    }
   }
 }
+
+onMounted(() => {
+  window.addEventListener('message', handleIframeMessage)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('message', handleIframeMessage)
+})
 </script>
 
 <template>
@@ -146,10 +170,9 @@ function attachIframeLinkInterceptor() {
     <iframe
       v-if="responseState.type === 'html'"
       ref="iframeEl"
-      sandbox="allow-scripts allow-forms allow-same-origin"
+      sandbox="allow-scripts allow-forms"
       :srcdoc="responseState.content"
       class="flex-1 w-full rounded border border-[var(--ch-border)] bg-white"
-      @load="attachIframeLinkInterceptor"
     />
     <pre
       v-else-if="responseState.type === 'text'"

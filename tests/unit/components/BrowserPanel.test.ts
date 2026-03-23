@@ -23,7 +23,9 @@ describe('BrowserPanel', () => {
     const iframe = wrapper.find('iframe')
     expect(iframe.exists()).toBe(true)
     expect(iframe.attributes('sandbox')).toContain('allow-scripts')
-    expect(iframe.attributes('sandbox')).toContain('allow-same-origin')
+    expect(iframe.attributes('sandbox')).toContain('allow-forms')
+    // allow-same-origin must NOT be present — it defeats the sandbox
+    expect(iframe.attributes('sandbox')).not.toContain('allow-same-origin')
   })
 
   it('does NOT render HTTP method selector', () => {
@@ -101,10 +103,12 @@ describe('BrowserPanel', () => {
   })
 })
 
-// ─── Form submit interception tests ───────────────────────────────────────────
+// ─── Form submit / link click via postMessage ─────────────────────────────────
+// The iframe sandbox no longer includes allow-same-origin, so the injected script
+// inside srcdoc relays events via parent.postMessage. Tests simulate this by
+// dispatching MessageEvent on window with source=iframeEl.contentWindow.
 
-/** Mount BrowserPanel, navigate to get the HTML iframe, trigger the load event to
- *  attach the form/link interceptors, and return helpers for the test. */
+/** Mount BrowserPanel, navigate to get the HTML iframe, and return helpers. */
 async function mountWithIframe(slug: string, dispatch: ReturnType<typeof vi.fn>) {
   const wrapper = mount(BrowserPanel, {
     props: { slug, dispatch },
@@ -115,32 +119,41 @@ async function mountWithIframe(slug: string, dispatch: ReturnType<typeof vi.fn>)
   await flushPromises()
 
   const iframeEl = wrapper.find('iframe').element as HTMLIFrameElement
-  // In jsdom, srcdoc does not fire the load event automatically — trigger manually
-  // to call attachIframeLinkInterceptor and attach the submit listener
-  iframeEl.dispatchEvent(new Event('load'))
-
-  const doc = iframeEl.contentDocument!
-  return { wrapper, iframeEl, doc }
+  return { wrapper, iframeEl }
 }
 
-/** Create a form element in the given document and append it to body. */
-function makeForm(
-  doc: Document,
-  opts: { method?: string; action?: string; enctype?: string; fields?: Record<string, string> } = {},
-): HTMLFormElement {
-  const form = doc.createElement('form')
-  if (opts.method) form.setAttribute('method', opts.method)
-  if (opts.action) form.setAttribute('action', opts.action)
-  if (opts.enctype) form.setAttribute('enctype', opts.enctype)
-  for (const [name, value] of Object.entries(opts.fields ?? {})) {
-    const input = doc.createElement('input')
-    input.setAttribute('type', 'text')
-    input.setAttribute('name', name)
-    input.setAttribute('value', value)
-    form.appendChild(input)
-  }
-  doc.body.appendChild(form)
-  return form
+/** Simulate the injected script posting a link click from inside the iframe. */
+function postLinkClick(iframeEl: HTMLIFrameElement, href: string) {
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      source: iframeEl.contentWindow,
+      data: { type: 'WXLSH_LINK_CLICK', href },
+    }),
+  )
+}
+
+/** Simulate the injected script posting a form submission from inside the iframe. */
+function postFormSubmit(
+  iframeEl: HTMLIFrameElement,
+  opts: {
+    action?: string
+    method?: string
+    enctype?: string
+    fields?: [string, string][]
+  } = {},
+) {
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      source: iframeEl.contentWindow,
+      data: {
+        type: 'WXLSH_FORM_SUBMIT',
+        action: opts.action ?? '',
+        method: (opts.method ?? 'GET').toUpperCase(),
+        enctype: opts.enctype ?? 'application/x-www-form-urlencoded',
+        fields: opts.fields ?? [],
+      },
+    }),
+  )
 }
 
 // ─── withContext: request context metadata headers ────────────────────────────
@@ -168,12 +181,9 @@ describe('BrowserPanel — request context metadata (withContext)', () => {
     const mockDispatch = vi.fn()
       .mockResolvedValueOnce(new Response('<a href="/page2">link</a>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('page2', { headers: { 'Content-Type': 'text/plain' } }))
-    const { doc } = await mountWithIframe('test', mockDispatch)
+    const { iframeEl } = await mountWithIframe('test', mockDispatch)
 
-    const link = doc.createElement('a')
-    link.setAttribute('href', '/page2')
-    doc.body.appendChild(link)
-    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    postLinkClick(iframeEl, '/page2')
     await flushPromises()
 
     const req: Request = mockDispatch.mock.calls[1][0]
@@ -185,14 +195,13 @@ describe('BrowserPanel — request context metadata (withContext)', () => {
     const mockDispatch = vi.fn()
       .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('ok', { headers: { 'Content-Type': 'text/plain' } }))
-    const { doc } = await mountWithIframe('sqli-demo', mockDispatch)
+    const { iframeEl } = await mountWithIframe('sqli-demo', mockDispatch)
 
-    const form = makeForm(doc, {
+    postFormSubmit(iframeEl, {
       method: 'POST',
       action: '/login',
-      fields: { username: 'admin', password: 'secret' },
+      fields: [['username', 'admin'], ['password', 'secret']],
     })
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
 
     const req: Request = mockDispatch.mock.calls[1][0]
@@ -204,14 +213,13 @@ describe('BrowserPanel — request context metadata (withContext)', () => {
     const mockDispatch = vi.fn()
       .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('results', { headers: { 'Content-Type': 'text/plain' } }))
-    const { doc } = await mountWithIframe('test', mockDispatch)
+    const { iframeEl } = await mountWithIframe('test', mockDispatch)
 
-    const form = makeForm(doc, {
+    postFormSubmit(iframeEl, {
       method: 'GET',
       action: '/search',
-      fields: { q: 'test' },
+      fields: [['q', 'test']],
     })
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
 
     const req: Request = mockDispatch.mock.calls[1][0]
@@ -228,15 +236,14 @@ describe('BrowserPanel — form submit interception', () => {
       .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
 
-    const { doc } = await mountWithIframe('sqli-demo', mockDispatch)
+    const { iframeEl } = await mountWithIframe('sqli-demo', mockDispatch)
 
-    const form = makeForm(doc, {
+    postFormSubmit(iframeEl, {
       method: 'POST',
       action: '/login',
-      fields: { username: 'admin', password: "' OR 1=1--" },
+      enctype: 'application/x-www-form-urlencoded',
+      fields: [['username', 'admin'], ['password', "' OR 1=1--"]],
     })
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
 
     expect(mockDispatch).toHaveBeenCalledTimes(2)
@@ -251,16 +258,14 @@ describe('BrowserPanel — form submit interception', () => {
       .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
 
-    const { doc } = await mountWithIframe('test', mockDispatch)
+    const { iframeEl } = await mountWithIframe('test', mockDispatch)
 
-    const form = makeForm(doc, {
+    postFormSubmit(iframeEl, {
       method: 'POST',
       action: '/upload',
       enctype: 'multipart/form-data',
-      fields: { file_name: 'test.txt' },
+      fields: [['file_name', 'test.txt']],
     })
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
 
     expect(mockDispatch).toHaveBeenCalledTimes(2)
@@ -278,24 +283,22 @@ describe('BrowserPanel — form submit interception', () => {
       .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('<p>results</p>', { headers: { 'Content-Type': 'text/html' } }))
 
-    const { doc } = await mountWithIframe('test', mockDispatch)
+    const { iframeEl } = await mountWithIframe('test', mockDispatch)
 
-    const form = makeForm(doc, {
+    postFormSubmit(iframeEl, {
       method: 'GET',
       action: '/search',
-      fields: { q: 'hello world' },
+      fields: [['q', 'hello world']],
     })
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await flushPromises()
 
     expect(mockDispatch).toHaveBeenCalledTimes(2)
     const req: Request = mockDispatch.mock.calls[1][0]
     expect(req.method).toBe('GET')
-    const url = new URL(req.url)
-    expect(url.hostname).toBe('challenge-test.localhost')
-    expect(url.pathname).toBe('/search')
-    expect(url.searchParams.get('q')).toBe('hello world')
+    const reqUrl = new URL(req.url)
+    expect(reqUrl.hostname).toBe('challenge-test.localhost')
+    expect(reqUrl.pathname).toBe('/search')
+    expect(reqUrl.searchParams.get('q')).toBe('hello world')
   })
 
   it('3.4 form action relative URL resolves to challenge origin, not localhost:5173', async () => {
@@ -303,11 +306,9 @@ describe('BrowserPanel — form submit interception', () => {
       .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
 
-    const { doc } = await mountWithIframe('sqli-demo', mockDispatch)
+    const { iframeEl } = await mountWithIframe('sqli-demo', mockDispatch)
 
-    const form = makeForm(doc, { method: 'POST', action: '/login' })
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    postFormSubmit(iframeEl, { method: 'POST', action: '/login' })
     await flushPromises()
 
     const req: Request = mockDispatch.mock.calls[1][0]
@@ -320,16 +321,13 @@ describe('BrowserPanel — form submit interception', () => {
       .mockResolvedValueOnce(new Response('<h1>page</h1>', { headers: { 'Content-Type': 'text/html' } }))
       .mockResolvedValueOnce(new Response('<p>ok</p>', { headers: { 'Content-Type': 'text/html' } }))
 
-    const { wrapper, doc } = await mountWithIframe('sqli-demo', mockDispatch)
+    const { wrapper, iframeEl } = await mountWithIframe('sqli-demo', mockDispatch)
 
     // Default url.value is https://challenge-sqli-demo.localhost/
-    const form = makeForm(doc, { method: 'POST' /* no action */ })
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    postFormSubmit(iframeEl, { method: 'POST' /* no action */ })
     await flushPromises()
 
     const req: Request = mockDispatch.mock.calls[1][0]
-    const currentUrl = (wrapper.vm as unknown as { $props: { slug: string } }).$props.slug
     expect(req.url).toContain('challenge-sqli-demo.localhost')
     wrapper.unmount()
   })
