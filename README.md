@@ -100,8 +100,7 @@ pnpm dev
 title: SQL Injection Demo
 backend: flask           # flask | fastapi | php
 app: ./app.py
-flag_verifier: <PBKDF2-HMAC-SHA256 hash>
-fs_key: <64-byte hex AES-GCM key>
+wasmModule: /challenge/sqli-demo/runtime.wasm  # 由 keygen 自動產生
 fs:
   /flag.txt: ./flag.txt
 difficulty: easy

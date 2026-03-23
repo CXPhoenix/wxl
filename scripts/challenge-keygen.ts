@@ -368,9 +368,11 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
   const doc = parseDocument(parsed.fmRaw)
   const fm = doc.toJSON() as Record<string, unknown>
 
-  // Check if already processed: wasmModule field present = already done
+  // Check if already processed: wasmModule field present AND output file exists
   const hasWasmModule = typeof fm.wasmModule === 'string' && fm.wasmModule !== ''
-  if (hasWasmModule && !force) {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+  const outputWasmPath = resolve(root, 'docs', 'public', 'challenge', slug, 'runtime.wasm')
+  if (hasWasmModule && existsSync(outputWasmPath) && !force) {
     console.log(`[skip] ${slug}: already processed (use --force to re-key)`)
     return
   }
@@ -447,7 +449,6 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
   const challWasm = injectCustomSection(templateWasm, 'chall-data', payloadBlob)
 
   // Write output WASM
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const outputDir = resolve(root, 'docs', 'public', 'challenge', slug)
   mkdirSync(outputDir, { recursive: true })
   const outputPath = resolve(outputDir, 'runtime.wasm')

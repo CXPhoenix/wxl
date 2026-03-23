@@ -107,6 +107,8 @@ pnpm challenge:keygen --force <slug>  # 強制重新產生
 4. 打包為 WASM custom section，注入模板 WASM 二進位
 5. 更新 frontmatter 中的 `wasmModule` 路徑
 
+> **跳過邏輯**：若 frontmatter 已包含 `wasmModule` 且對應的 `runtime.wasm` 檔案存在，腳本會跳過該挑戰。在 CI 環境中，由於 `.wasm` 檔案未納入版控，腳本會自動重新產生。使用 `--force` 可強制重新產生。
+
 ---
 
 ## 部署者指南
