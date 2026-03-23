@@ -17,4 +17,4 @@
 ## 4. 驗證
 
 - [x] 4.1 本地檢查 workflow YAML 語法正確性
-- [ ] 4.2 確認 workflow 涵蓋所有 spec requirements：tag-triggered release workflow、complete build pipeline execution、artifact packaging、GitHub Release creation with asset、Rust build caching
+- [x] 4.2 確認 workflow 涵蓋所有 spec requirements：tag-triggered release workflow、complete build pipeline execution、artifact packaging、GitHub Release creation with asset、Rust build caching
