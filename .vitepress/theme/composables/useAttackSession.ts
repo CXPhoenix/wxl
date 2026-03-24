@@ -35,12 +35,19 @@ interface SessionExportPayload {
 
 const WRITEUP_SYSTEM_PROMPT = `You are a CTF (Capture The Flag) writeup assistant. \
 You will receive a structured attack session JSON file containing the challenge description, \
-HTTP request/response history, flag attempts, and timing information. \
+HTTP request/response history, terminal commands, code executions, flag attempts, and timing information. \
+The event timeline may include six event types: \
+challenge_start (session begins), \
+http_request (with source: browser/repeater/terminal/code indicating where the request originated), \
+terminal_command (wxlsh shell commands with their output and error status), \
+code_execution (Python code run in the Code Editor with output, error status, and duration in ms), \
+flag_attempt (submitted flags with correctness), \
+and challenge_solved (successful completion). \
 Your task is to produce a clear, educational writeup in Traditional Chinese (繁體中文) with the following structure:
 
 1. **題目概述** (Challenge Overview): Summarize the challenge name, difficulty, category, and what the challenge is about based on the description.
-2. **解題思路** (Approach): Explain the vulnerability identified and the attack strategy.
-3. **攻擊步驟** (Attack Steps): Walk through the key HTTP requests step by step, explaining what was sent and what the response revealed.
+2. **解題思路** (Approach): Explain the vulnerability identified and the attack strategy. Consider terminal commands and code executions as part of the attacker's methodology.
+3. **攻擊步驟** (Attack Steps): Walk through the key events step by step — including HTTP requests, terminal commands (e.g., curl, decode, encode), and Python code executions — explaining what was done and what was discovered.
 4. **Flag 取得** (Flag Capture): Describe how the correct flag was finally obtained.
 5. **學習重點** (Key Takeaways): Summarize what security concepts this challenge demonstrates.
 
@@ -72,7 +79,7 @@ export function useAttackSession(challengeSlug: string, challengeTitle: string) 
     await saveAttackSession(session)
   }
 
-  async function addHttpEvent(entry: TrafficEntry, source: 'browser' | 'repeater'): Promise<void> {
+  async function addHttpEvent(entry: TrafficEntry, source: 'browser' | 'repeater' | 'terminal' | 'code'): Promise<void> {
     if (!session) return
     session.events.push({
       type: 'http_request',
@@ -88,6 +95,18 @@ export function useAttackSession(challengeSlug: string, challengeTitle: string) 
       responseBody: entry.responseBody,
       duration: entry.duration,
     })
+    await saveAttackSession(session)
+  }
+
+  async function addTerminalCommand(command: string, output: string, error: boolean): Promise<void> {
+    if (!session) return
+    session.events.push({ type: 'terminal_command', timestamp: Date.now(), command, output, error })
+    await saveAttackSession(session)
+  }
+
+  async function addCodeExecution(code: string, output: string, error: boolean, duration: number): Promise<void> {
+    if (!session) return
+    session.events.push({ type: 'code_execution', timestamp: Date.now(), code, output, error, duration })
     await saveAttackSession(session)
   }
 
@@ -159,5 +178,5 @@ export function useAttackSession(challengeSlug: string, challengeTitle: string) 
     return session
   }
 
-  return { init, getSession, addHttpEvent, addFlagAttempt, exportSession }
+  return { init, getSession, addHttpEvent, addTerminalCommand, addCodeExecution, addFlagAttempt, exportSession }
 }

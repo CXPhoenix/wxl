@@ -19,11 +19,13 @@ interface HistoryEntry {
 export type AttackEvent =
   | { type: 'challenge_start'; timestamp: number }
   | {
-      type: 'http_request'; timestamp: number; source: 'browser' | 'repeater'
+      type: 'http_request'; timestamp: number; source: 'browser' | 'repeater' | 'terminal' | 'code'
       id: number; method: string; url: string
       requestHeaders: [string, string][]; requestBody: string | null
       status: number; responseHeaders: [string, string][]; responseBody: string; duration: number
     }
+  | { type: 'terminal_command'; timestamp: number; command: string; output: string; error: boolean }
+  | { type: 'code_execution'; timestamp: number; code: string; output: string; error: boolean; duration: number }
   | { type: 'flag_attempt'; timestamp: number; submitted: string; correct: boolean }
   | { type: 'challenge_solved'; timestamp: number }
 

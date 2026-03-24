@@ -63,7 +63,7 @@ tests:
 ---
 ### Requirement: useAttackSession records HTTP request events with source attribution
 
-The composable SHALL expose an `addHttpEvent(entry, source)` method that accepts a `TrafficEntry`-compatible object and a `source: 'browser' | 'repeater'` string. It SHALL append an `http_request` event to the current session and persist the updated session to IndexedDB.
+The composable SHALL expose an `addHttpEvent(entry, source)` method that accepts a `TrafficEntry`-compatible object and a `source: 'browser' | 'repeater' | 'terminal' | 'code'` string. It SHALL append an `http_request` event to the current session and persist the updated session to IndexedDB.
 
 The `http_request` event SHALL embed the full request and response data (method, URL, headers, body, status, duration) directly — not a reference to an in-memory `TrafficEntry` — to ensure cross-page-reload persistence.
 
@@ -77,25 +77,31 @@ The `http_request` event SHALL embed the full request and response data (method,
 - **WHEN** a RepeatPanel request completes and `addHttpEvent` is called with `source: 'repeater'`
 - **THEN** an `http_request` event with `source: 'repeater'` SHALL be appended to the session
 
+#### Scenario: Terminal HTTP request is recorded with source=terminal
+
+- **WHEN** a wxlsh curl command triggers an HTTP request and `addHttpEvent` is called with `source: 'terminal'`
+- **THEN** an `http_request` event with `source: 'terminal'` SHALL be appended to the session
+
+#### Scenario: Code Editor HTTP request is recorded with source=code
+
+- **WHEN** Python code in the Code Editor makes an HTTP request via the `requests` stub and `addHttpEvent` is called with `source: 'code'`
+- **THEN** an `http_request` event with `source: 'code'` SHALL be appended to the session
+
 
 <!-- @trace
-source: challenge-ux-and-attack-session
-updated: 2026-03-23
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
 code:
-  - CONTRIBUTE.md
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
   - .vitepress/theme/composables/useChallengePersistence.ts
-  - .vitepress/theme/components/FlagSubmit.vue
-  - README.md
-  - Usage.md
-  - .vitepress/theme/composables/useAttackSession.ts
-  - .vitepress/theme/components/RepeatPanel.vue
   - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
 tests:
-  - tests/unit/components/FlagSubmit.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
   - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/composables/useChallengePersistence.test.ts
   - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
 -->
 
 ---
@@ -182,7 +188,7 @@ interface SessionExportPayload {
 }
 ```
 
-The `meta.systemPrompt` SHALL be a module-level constant string hardcoded in `useAttackSession.ts` that instructs an AI to generate a structured CTF writeup from the attack session data.
+The `meta.systemPrompt` SHALL be a module-level constant string hardcoded in `useAttackSession.ts` that instructs an AI to generate a structured CTF writeup from the attack session data. The system prompt SHALL reference all six event types (`challenge_start`, `http_request`, `terminal_command`, `code_execution`, `flag_attempt`, `challenge_solved`) so the AI can interpret the complete attack timeline.
 
 The `meta.timezone` SHALL be obtained via `Intl.DateTimeFormat().resolvedOptions().timeZone` at export time.
 
@@ -192,7 +198,7 @@ The `meta.exportedAt` SHALL be an ISO 8601 string including the timezone offset 
 
 - **WHEN** `exportSession(challengeInfo)` is called with challenge metadata
 - **THEN** the browser SHALL initiate a file download with a filename matching `attack-session-<slug>-*.json`
-- **AND** the downloaded JSON SHALL contain `meta.systemPrompt` as a non-empty string
+- **AND** the downloaded JSON SHALL contain `meta.systemPrompt` as a non-empty string that references `terminal_command` and `code_execution` event types
 - **AND** the downloaded JSON SHALL contain `meta.timezone` matching the browser's IANA timezone
 - **AND** the downloaded JSON SHALL contain `meta.exportedAt` as a valid ISO 8601 string
 - **AND** `challenge.slug` and `challenge.title` SHALL be populated from the session
@@ -205,16 +211,98 @@ The `meta.exportedAt` SHALL be an ISO 8601 string including the timezone offset 
 - **THEN** the exported JSON SHALL omit those fields from the `challenge` object
 - **AND** the export SHALL complete without error
 
+
 <!-- @trace
-source: enhance-session-export-for-ai-writeup
-updated: 2026-03-23
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
 code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
   - .vitepress/theme/layouts/ChallengeLayout.vue
-  - .vitepress/config.mts
   - .vitepress/theme/composables/useAttackSession.ts
-  - .vitepress/challenge/plugin.ts
 tests:
-  - tests/unit/challenge/markdown-injection.test.ts
-  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
   - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
 -->
+
+---
+### Requirement: useAttackSession records terminal command events
+
+The `useAttackSession` composable SHALL expose an `addTerminalCommand(command, output, error)` method. It SHALL append a `terminal_command` event to the current session and persist the updated session to IndexedDB.
+
+The `terminal_command` event SHALL have the following shape:
+```typescript
+{ type: 'terminal_command'; timestamp: number; command: string; output: string; error: boolean }
+```
+
+#### Scenario: Terminal command is recorded with output
+
+- **WHEN** a user executes a command in the wxlsh terminal (e.g., `curl /login`) and the command produces output
+- **THEN** `addTerminalCommand` SHALL append a `terminal_command` event with the command string, the output text, and `error: false`
+- **AND** the session SHALL be persisted to IndexedDB
+
+#### Scenario: Terminal command error is recorded
+
+- **WHEN** a user executes an unknown command (e.g., `foo`) and the terminal shows an error message
+- **THEN** `addTerminalCommand` SHALL append a `terminal_command` event with `error: true` and the error output text
+
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+-->
+
+---
+### Requirement: useAttackSession records code execution events
+
+The `useAttackSession` composable SHALL expose an `addCodeExecution(code, output, error, duration)` method. It SHALL append a `code_execution` event to the current session and persist the updated session to IndexedDB.
+
+The `code_execution` event SHALL have the following shape:
+```typescript
+{ type: 'code_execution'; timestamp: number; code: string; output: string; error: boolean; duration: number }
+```
+
+The `duration` field SHALL represent the wall-clock milliseconds elapsed from the start of code execution to completion (including any HTTP requests made via the `requests` stub).
+
+#### Scenario: Successful code execution is recorded
+
+- **WHEN** a user runs Python code in the Code Editor and the execution completes without error
+- **THEN** `addCodeExecution` SHALL append a `code_execution` event with `error: false`, the source code, the captured stdout output, and the execution duration in milliseconds
+
+#### Scenario: Failed code execution is recorded
+
+- **WHEN** a user runs Python code that raises an unhandled exception
+- **THEN** `addCodeExecution` SHALL append a `code_execution` event with `error: true`, the source code, the error message as output, and the execution duration
+
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+-->
+
+---

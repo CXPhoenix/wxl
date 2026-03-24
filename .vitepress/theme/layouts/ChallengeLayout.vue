@@ -59,8 +59,8 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
   { id: 'network', label: 'Network' },
   { id: 'repeater', label: 'Repeater' },
-  // { id: 'terminal', label: 'Terminal' },
-  // { id: 'code', label: 'Code' },
+  { id: 'terminal', label: 'Terminal' },
+  { id: 'code', label: 'Code' },
 ]
 
 // ─── Challenge dispatch: directly call runtime (bypasses SW round-trip) ──────
@@ -81,7 +81,7 @@ const trackedDispatch = wrapDispatch(dispatch)
 // ─── Attack session ──────────────────────────────────────────────────────────
 const attackSession = useAttackSession(slug.value, fm.value.title ?? '')
 
-function makeSourceDispatch(source: 'browser' | 'repeater') {
+function makeSourceDispatch(source: 'browser' | 'repeater' | 'terminal' | 'code') {
   return async (request: Request): Promise<Response> => {
     const response = await trackedDispatch(request)
     // After trackedDispatch, the last trafficLog entry is the one just recorded
@@ -95,6 +95,17 @@ function makeSourceDispatch(source: 'browser' | 'repeater') {
 
 const browserDispatch = makeSourceDispatch('browser')
 const repeaterDispatch = makeSourceDispatch('repeater')
+const terminalDispatch = makeSourceDispatch('terminal')
+const codeDispatch = makeSourceDispatch('code')
+
+// ─── Recording callbacks for Terminal and Code panels ────────────────────────
+function onCommandExecuted(event: { command: string; output: string; error: boolean }) {
+  attackSession.addTerminalCommand(event.command, event.output, event.error)
+}
+
+function onCodeExecuted(event: { code: string; output: string; error: boolean; duration: number }) {
+  attackSession.addCodeExecution(event.code, event.output, event.error, event.duration)
+}
 
 // ─── Send to Repeater ─────────────────────────────────────────────────────────
 const repeaterInjectedRequest = ref<string | null>(null)
@@ -407,15 +418,15 @@ const categoryBadge: Record<string, string> = {
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
           <BrowserPanel :slug="slug" :dispatch="browserDispatch" :disabled="toolsDisabled" />
         </div>
-        <!-- <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
-          <WxlshPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
-        </div> -->
+        <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
+          <WxlshPanel :slug="slug" :dispatch="terminalDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" :onCommandExecuted="onCommandExecuted" />
+        </div>
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
           <RepeatPanel :slug="slug" :dispatch="repeaterDispatch" :disabled="toolsDisabled" :injectedRequest="repeaterInjectedRequest" />
         </div>
-        <!-- <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
-          <CodeEditorPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
-        </div> -->
+        <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
+          <CodeEditorPanel :slug="slug" :dispatch="codeDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" :onCodeExecuted="onCodeExecuted" />
+        </div>
         <div v-show="activeTab === 'network'" data-panel="network" class="flex-1 overflow-hidden">
           <NetworkPanel :trafficLog="trafficLog" @clear="clearTrafficLog" @sendToRepeater="onSendToRepeater" />
         </div>

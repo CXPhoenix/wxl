@@ -179,6 +179,23 @@ tests:
   - tests/unit/components/RepeatPanel.test.ts
 -->
 
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+-->
+
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
 
 The Browser Panel SHALL provide: a URL input field pre-populated with `http://challenge-<slug>.localhost/`, an HTTP method selector (GET, POST, PUT, DELETE, PATCH), a request body editor (shown for non-GET methods), a "Send" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
@@ -785,22 +802,22 @@ tests:
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, Repeater Panel, and Network Panel. All panels that issue HTTP requests SHALL share a single `trackedDispatch` wrapper for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
+The `ChallengeLayout.vue` component SHALL render five panels accessible via tab navigation: Browser Panel, Network Panel, Repeater Panel, Terminal Panel (WxlshPanel), and Code Editor Panel (CodeEditorPanel). All panels that issue HTTP requests SHALL use source-attributed dispatch wrappers for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
 
 #### Scenario: User switches between panels without losing state
 
-- **WHEN** a user switches from the Browser Panel to the Network Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries)
+- **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
+- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries, terminal history, editor content)
 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
 - **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
 
-#### Scenario: Network tab is available alongside Browser and Repeater
+#### Scenario: All five tabs are visible in the tab navigation
 
 - **WHEN** the challenge page loads
-- **THEN** the tab navigation SHALL display three tabs: Browser, Repeater, and Network
+- **THEN** the tab navigation SHALL display five tabs: Browser, Network, Repeater, Terminal, and Code
 
 #### Scenario: RepeatPanel receives injected request from Network panel
 

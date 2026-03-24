@@ -63,42 +63,28 @@ tests:
 ---
 ### Requirement: Challenge layout renders a left-right split view
 
-The `ChallengeLayout.vue` SHALL render a two-column layout: a left column containing the markdown description panel and flag submit form, and a right column containing the Browser, wxlsh Terminal, Repeater, and Code Editor interaction panels (four tabs total).
+The `ChallengeLayout.vue` SHALL render a two-column layout: a left column containing the markdown description panel and flag submit form, and a right column containing the Browser, Network, Repeater, Terminal, and Code Editor interaction panels (five tabs total).
 
 #### Scenario: Left and right columns are both visible
 
 - **WHEN** a challenge page loads
-- **THEN** the left column (description + flag submit) and the right column (interaction panels with four tabs) SHALL both be visible simultaneously
+- **THEN** the left column (description + flag submit) and the right column (interaction panels with five tabs) SHALL both be visible simultaneously
 
 
 <!-- @trace
-source: challenge-tools-evolution
-updated: 2026-03-16
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
 code:
-  - Cargo.toml
   - .vitepress/theme/components/CodeEditorPanel.vue
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/composables/useWxlsh.ts
-  - docs/public/challenge-sw.js
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - chall-wasm/wxlsh-parser/src/lib.rs
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - package.json
-  - .vitepress/theme/components/RepeatPanel.vue
-  - chall-wasm/wxlsh-parser/Cargo.toml
-  - chall-wasm/wxlsh-parser/src/commands.rs
-  - chall-wasm/wxlsh-parser/src/parser.rs
-  - .vitepress/theme/composables/useChallengePersistence.ts
   - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
 tests:
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/composables/useChallengePersistence.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
-  - tests/unit/components/TerminalPanel.test.ts
-  - tests/unit/components/WxlshPanel.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
 -->
 
 ---
@@ -288,7 +274,7 @@ tests:
 ---
 ### Requirement: ChallengeLayout gates all tool panels on both runtimeReady and swReady
 
-`ChallengeLayout.vue` SHALL maintain two separate reactive booleans: `runtimeReady` (set to `true` when the Python/PHP/WASM runtime finishes initialization) and `swReady` (set to `true` when `navigator.serviceWorker.controller` is non-null). All tool panels (Browser, Terminal, Repeater, Code) SHALL receive a `disabled` prop computed as `!runtimeReady || !swReady`. The SW readiness MUST be established before `swReady` is set to `true`.
+`ChallengeLayout.vue` SHALL maintain two separate reactive booleans: `runtimeReady` (set to `true` when the Python/PHP/WASM runtime finishes initialization) and `swReady` (set to `true` when `navigator.serviceWorker.controller` is non-null). All tool panels (Browser, Terminal, Repeater, Code, Network) SHALL receive a `disabled` prop computed as `!runtimeReady || !swReady`. The SW readiness MUST be established before `swReady` is set to `true`.
 
 #### Scenario: Tools are disabled until both runtime and SW are ready
 
@@ -305,32 +291,88 @@ tests:
 - **WHEN** the page loads without an active SW controller (e.g., hard refresh) and the SW takes control via `controllerchange`
 - **THEN** `swReady` SHALL be set to `true` and the tools SHALL become enabled
 
+
 <!-- @trace
-source: challenge-tools-evolution
-updated: 2026-03-16
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
 code:
-  - Cargo.toml
   - .vitepress/theme/components/CodeEditorPanel.vue
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/composables/useWxlsh.ts
-  - docs/public/challenge-sw.js
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - chall-wasm/wxlsh-parser/src/lib.rs
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - package.json
-  - .vitepress/theme/components/RepeatPanel.vue
-  - chall-wasm/wxlsh-parser/Cargo.toml
-  - chall-wasm/wxlsh-parser/src/commands.rs
-  - chall-wasm/wxlsh-parser/src/parser.rs
-  - .vitepress/theme/composables/useChallengePersistence.ts
   - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
 tests:
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/composables/useChallengePersistence.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
-  - tests/unit/components/TerminalPanel.test.ts
-  - tests/unit/components/WxlshPanel.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+-->
+
+---
+### Requirement: ChallengeLayout provides source-attributed dispatch for Terminal and Code panels
+
+`ChallengeLayout.vue` SHALL create `terminalDispatch` and `codeDispatch` functions using the same `makeSourceDispatch` pattern as `browserDispatch` and `repeaterDispatch`. These dispatch wrappers SHALL:
+1. Call `trackedDispatch` to record the HTTP request in the traffic log
+2. Call `attackSession.addHttpEvent(entry, 'terminal')` or `attackSession.addHttpEvent(entry, 'code')` respectively
+
+The `WxlshPanel` SHALL receive `terminalDispatch` as its `dispatch` prop. The `CodeEditorPanel` SHALL receive `codeDispatch` as its `dispatch` prop.
+
+#### Scenario: Terminal HTTP request is attributed to terminal source
+
+- **WHEN** the wxlsh terminal executes a `curl` command that makes an HTTP request
+- **THEN** the resulting traffic log entry and attack session event SHALL have `source: 'terminal'`
+
+#### Scenario: Code Editor HTTP request is attributed to code source
+
+- **WHEN** Python code in the Code Editor calls `requests.get()` via the dispatch bridge
+- **THEN** the resulting traffic log entry and attack session event SHALL have `source: 'code'`
+
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+-->
+
+---
+### Requirement: ChallengeLayout wires recording callbacks for Terminal and Code panels
+
+`ChallengeLayout.vue` SHALL pass an `onCommandExecuted` callback prop to `WxlshPanel` that calls `attackSession.addTerminalCommand(command, output, error)`. It SHALL pass an `onCodeExecuted` callback prop to `CodeEditorPanel` that calls `attackSession.addCodeExecution(code, output, error, duration)`.
+
+#### Scenario: Terminal command execution is recorded via callback
+
+- **WHEN** a user executes a command in the wxlsh terminal
+- **THEN** `WxlshPanel` SHALL invoke the `onCommandExecuted` callback
+- **AND** `ChallengeLayout` SHALL forward the data to `attackSession.addTerminalCommand()`
+
+#### Scenario: Code execution is recorded via callback
+
+- **WHEN** a user runs Python code in the Code Editor
+- **THEN** `CodeEditorPanel` SHALL invoke the `onCodeExecuted` callback
+- **AND** `ChallengeLayout` SHALL forward the data to `attackSession.addCodeExecution()`
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
 -->

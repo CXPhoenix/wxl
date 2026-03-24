@@ -8,6 +8,8 @@ const props = defineProps<{
   disabled?: boolean
   /** Pyodide instance passed down from ChallengeLayout (already unwrapped by Vue). */
   pyodide?: PyodidePublicAPI | null
+  /** Called after each command execution with the command, output, and error flag. */
+  onCommandExecuted?: (event: { command: string; output: string; error: boolean }) => void
 }>()
 
 // ─── xterm.js lazy references ─────────────────────────────────────────────────
@@ -81,6 +83,8 @@ async function handleEnter() {
   }
 
   const result = await wxlsh.execute(line)
+
+  props.onCommandExecuted?.({ command: line, output: result.output, error: result.error ?? false })
 
   if (result.clear) {
     terminal.clear()

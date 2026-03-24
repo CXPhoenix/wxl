@@ -9,6 +9,8 @@ const props = defineProps<{
   disabled?: boolean
   /** Pyodide instance passed down from ChallengeLayout (already unwrapped by Vue). */
   pyodide?: PyodidePublicAPI | null
+  /** Called after each code execution with the code, output, error flag, and duration. */
+  onCodeExecuted?: (event: { code: string; output: string; error: boolean; duration: number }) => void
 }>()
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
@@ -218,6 +220,8 @@ async function runCode() {
   const code = editorView.value.state.doc.toString()
   isRunning.value = true
   outputText.value = ''
+  const startTime = Date.now()
+  let isError = false
 
   try {
     // Inject dispatch bridge — a direct async callable so Python can `await` it
@@ -250,8 +254,13 @@ sys.stdout = _wxlsh_stdout
     const captured = await py.runPythonAsync('_wxlsh_stdout.getvalue()') as string
     outputText.value = captured || '(no output)'
   } catch (err) {
+    isError = true
     outputText.value = `Error:\n${err instanceof Error ? err.message : String(err)}`
   } finally {
+    // Callback BEFORE stdout restoration to avoid being affected by restoration failures
+    const duration = Date.now() - startTime
+    props.onCodeExecuted?.({ code, output: outputText.value, error: isError, duration })
+
     // Restore stdout
     try {
       await props.pyodide?.runPythonAsync('import sys; sys.stdout = sys.__stdout__')

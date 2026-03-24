@@ -30,7 +30,7 @@ vi.mock('../../../.vitepress/theme/components/BrowserPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-browser-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/WxlshPanel.vue', () => ({
-  default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-wxlsh-panel :data-disabled="disabled" />' }),
+  default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'pyodide', 'onCommandExecuted'], template: '<div data-wxlsh-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/RepeatPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'injectedRequest'], template: '<div data-repeat-panel :data-disabled="disabled" :data-injected="injectedRequest" />' }),
@@ -39,7 +39,7 @@ vi.mock('../../../.vitepress/theme/components/NetworkPanel.vue', () => ({
   default: defineComponent({ props: ['trafficLog'], emits: ['clear', 'sendToRepeater'], template: '<div data-network-panel />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/CodeEditorPanel.vue', () => ({
-  default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-code-panel :data-disabled="disabled" />' }),
+  default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'pyodide', 'onCodeExecuted'], template: '<div data-code-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/FlagSubmit.vue', () => ({
   default: defineComponent({ props: ['verify', 'onExport'], template: '<div data-flag-submit />' }),
@@ -52,6 +52,8 @@ vi.mock('../../../.vitepress/theme/composables/useWasmLoader', () => ({
 
 // Mock useAttackSession
 const mockAddHttpEvent = vi.fn()
+const mockAddTerminalCommand = vi.fn()
+const mockAddCodeExecution = vi.fn()
 const mockAddFlagAttempt = vi.fn()
 const mockExportSession = vi.fn()
 const mockInit = vi.fn().mockResolvedValue(undefined)
@@ -60,6 +62,8 @@ vi.mock('../../../.vitepress/theme/composables/useAttackSession', () => ({
     init: mockInit,
     getSession: vi.fn(() => null),
     addHttpEvent: mockAddHttpEvent,
+    addTerminalCommand: mockAddTerminalCommand,
+    addCodeExecution: mockAddCodeExecution,
     addFlagAttempt: mockAddFlagAttempt,
     exportSession: mockExportSession,
   })),
@@ -117,16 +121,18 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(panel.classes()).not.toContain('collapsed')
   })
 
-  it('renders active interaction tabs (Browser, Repeater, Network)', () => {
+  it('renders all five interaction tabs (Browser, Network, Repeater, Terminal, Code)', () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
     const tabs = wrapper.findAll('[data-tab]')
-    expect(tabs).toHaveLength(3)
+    expect(tabs).toHaveLength(5)
     const tabIds = tabs.map(t => t.attributes('data-tab'))
     expect(tabIds).toContain('browser')
-    expect(tabIds).toContain('repeater')
     expect(tabIds).toContain('network')
+    expect(tabIds).toContain('repeater')
+    expect(tabIds).toContain('terminal')
+    expect(tabIds).toContain('code')
   })
 
   it('shows NetworkPanel when network tab is active', async () => {
@@ -343,6 +349,67 @@ describe('ChallengeLayout (VitePress layout)', () => {
       'controllerchange',
       expect.any(Function),
     )
+  })
+
+  it('renders WxlshPanel and CodeEditorPanel in the layout', () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    expect(wrapper.find('[data-wxlsh-panel]').exists()).toBe(true)
+    expect(wrapper.find('[data-code-panel]').exists()).toBe(true)
+  })
+
+  it('passes distinct dispatch functions to Terminal and Code panels', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: WxlshPanel } = await import('../../../.vitepress/theme/components/WxlshPanel.vue')
+    const { default: CodePanel } = await import('../../../.vitepress/theme/components/CodeEditorPanel.vue')
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+
+    const wp = wrapper.findComponent(WxlshPanel)
+    const cp = wrapper.findComponent(CodePanel)
+    const bp = wrapper.findComponent(BrowserPanel)
+
+    const terminalFn = wp.props('dispatch')
+    const codeFn = cp.props('dispatch')
+    const browserFn = bp.props('dispatch')
+
+    expect(terminalFn).toBeTypeOf('function')
+    expect(codeFn).toBeTypeOf('function')
+    // All should be distinct source-attributed dispatch wrappers
+    expect(terminalFn).not.toBe(browserFn)
+    expect(codeFn).not.toBe(browserFn)
+    expect(terminalFn).not.toBe(codeFn)
+  })
+
+  it('passes onCommandExecuted callback to WxlshPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: WxlshPanel } = await import('../../../.vitepress/theme/components/WxlshPanel.vue')
+    const wp = wrapper.findComponent(WxlshPanel)
+    const cb = wp.props('onCommandExecuted') as (e: { command: string; output: string; error: boolean }) => void
+    expect(cb).toBeTypeOf('function')
+
+    cb({ command: 'help', output: 'Available commands', error: false })
+    expect(mockAddTerminalCommand).toHaveBeenCalledWith('help', 'Available commands', false)
+  })
+
+  it('passes onCodeExecuted callback to CodeEditorPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: CodePanel } = await import('../../../.vitepress/theme/components/CodeEditorPanel.vue')
+    const cp = wrapper.findComponent(CodePanel)
+    const cb = cp.props('onCodeExecuted') as (e: { code: string; output: string; error: boolean; duration: number }) => void
+    expect(cb).toBeTypeOf('function')
+
+    cb({ code: 'print(1)', output: '1\n', error: false, duration: 100 })
+    expect(mockAddCodeExecution).toHaveBeenCalledWith('print(1)', '1\n', false, 100)
   })
 
   it('passes onExport prop to FlagSubmit', async () => {

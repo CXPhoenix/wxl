@@ -245,6 +245,86 @@ describe('useAttackSession', () => {
     expect(payload.challenge.description).toBeUndefined()
   })
 
+  it('addTerminalCommand appends terminal_command event', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addTerminalCommand('help', 'Available commands: ...', false)
+
+    const s = session.getSession()!
+    expect(s.events).toHaveLength(2) // challenge_start + terminal_command
+    const ev = s.events[1]
+    expect(ev.type).toBe('terminal_command')
+    expect((ev as any).command).toBe('help')
+    expect((ev as any).output).toBe('Available commands: ...')
+    expect((ev as any).error).toBe(false)
+    expect(mockSaveAttackSession).toHaveBeenCalledTimes(2) // init + addTerminalCommand
+  })
+
+  it('addTerminalCommand records error commands', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addTerminalCommand('foo', 'wxlsh: command not found: foo', true)
+
+    const ev = session.getSession()!.events[1]
+    expect(ev.type).toBe('terminal_command')
+    expect((ev as any).error).toBe(true)
+  })
+
+  it('addCodeExecution appends code_execution event', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addCodeExecution('print("hello")', 'hello\n', false, 150)
+
+    const s = session.getSession()!
+    expect(s.events).toHaveLength(2) // challenge_start + code_execution
+    const ev = s.events[1]
+    expect(ev.type).toBe('code_execution')
+    expect((ev as any).code).toBe('print("hello")')
+    expect((ev as any).output).toBe('hello\n')
+    expect((ev as any).error).toBe(false)
+    expect((ev as any).duration).toBe(150)
+    expect(mockSaveAttackSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('addCodeExecution records error with duration', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addCodeExecution('x', 'Error:\nNameError: name \'x\' is not defined', true, 50)
+
+    const ev = session.getSession()!.events[1]
+    expect(ev.type).toBe('code_execution')
+    expect((ev as any).error).toBe(true)
+    expect((ev as any).duration).toBe(50)
+  })
+
+  it('addHttpEvent accepts terminal and code sources', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    const entry = {
+      id: 1, timestamp: Date.now(), method: 'GET', url: 'https://challenge-test.localhost/',
+      requestHeaders: [] as [string, string][],
+      requestBody: null, status: 200,
+      responseHeaders: [] as [string, string][],
+      responseBody: 'ok', duration: 10,
+    }
+    await session.addHttpEvent(entry, 'terminal')
+    await session.addHttpEvent({ ...entry, id: 2 }, 'code')
+
+    const events = session.getSession()!.events
+    expect((events[1] as any).source).toBe('terminal')
+    expect((events[2] as any).source).toBe('code')
+  })
+
   it('creates a new session overwriting solved session on re-visit', async () => {
     const solvedSession = {
       challengeSlug: 'csrf-demo',
