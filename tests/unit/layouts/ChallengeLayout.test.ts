@@ -409,7 +409,7 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(cb).toBeTypeOf('function')
 
     cb({ code: 'print(1)', output: '1\n', error: false, duration: 100 })
-    expect(mockAddCodeExecution).toHaveBeenCalledWith('print(1)', '1\n', false, 100)
+    expect(mockAddCodeExecution).toHaveBeenCalledWith('print(1)', '1\n', false, 100, expect.any(String))
   })
 
   it('passes onExport prop to FlagSubmit', async () => {

@@ -23,11 +23,21 @@ export type AttackEvent =
       id: number; method: string; url: string
       requestHeaders: [string, string][]; requestBody: string | null
       status: number; responseHeaders: [string, string][]; responseBody: string; duration: number
+      executionId?: string
     }
   | { type: 'terminal_command'; timestamp: number; command: string; output: string; error: boolean }
-  | { type: 'code_execution'; timestamp: number; code: string; output: string; error: boolean; duration: number }
+  | { type: 'code_execution'; timestamp: number; executionId: string; code: string; output: string; error: boolean; duration: number }
   | { type: 'flag_attempt'; timestamp: number; submitted: string; correct: boolean }
   | { type: 'challenge_solved'; timestamp: number }
+  | { type: 'note'; timestamp: number; id: string; content: string; updatedAt: number | null }
+
+export interface NoteEntry {
+  id: string
+  challengeSlug: string
+  content: string
+  createdAt: number
+  updatedAt: number | null
+}
 
 export interface AttackSession {
   challengeSlug: string
@@ -41,10 +51,11 @@ interface ChallengeToolsDB {
   'code-scripts': ScriptEntry
   'terminal-history': HistoryEntry
   'attack-sessions': AttackSession
+  'pentest-notes': NoteEntry
 }
 
 const DB_NAME = 'challenge-tools'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise: Promise<IDBPDatabase<ChallengeToolsDB>> | null = null
 
@@ -60,6 +71,10 @@ function getDb(): Promise<IDBPDatabase<ChallengeToolsDB>> {
         }
         if (!db.objectStoreNames.contains('attack-sessions')) {
           db.createObjectStore('attack-sessions', { keyPath: 'challengeSlug' })
+        }
+        if (!db.objectStoreNames.contains('pentest-notes')) {
+          const noteStore = db.createObjectStore('pentest-notes', { keyPath: 'id' })
+          noteStore.createIndex('by-slug', 'challengeSlug', { unique: false })
         }
       },
     })
@@ -129,5 +144,23 @@ export function useChallengePersistence() {
     return session ?? null
   }
 
-  return { saveScript, listScripts, loadScript, deleteScript, appendHistory, loadHistory, saveAttackSession, loadAttackSession }
+  // ─── Pentest Notes ───────────────────────────────────────────────────────────
+
+  async function saveNote(note: NoteEntry): Promise<void> {
+    const db = await getDb()
+    await db.put('pentest-notes', note)
+  }
+
+  async function loadNotesBySlug(slug: string): Promise<NoteEntry[]> {
+    const db = await getDb()
+    const notes = await db.getAllFromIndex('pentest-notes', 'by-slug', slug) as NoteEntry[]
+    return notes.sort((a, b) => a.createdAt - b.createdAt)
+  }
+
+  async function deleteNote(id: string): Promise<void> {
+    const db = await getDb()
+    await db.delete('pentest-notes', id)
+  }
+
+  return { saveScript, listScripts, loadScript, deleteScript, appendHistory, loadHistory, saveAttackSession, loadAttackSession, saveNote, loadNotesBySlug, deleteNote }
 }

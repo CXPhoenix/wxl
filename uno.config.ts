@@ -44,5 +44,9 @@ export default defineConfig({
 
     // Category badges
     ['ch-badge-web',     'ch-badge bg-[var(--ch-web-bg)]  color-[var(--ch-web-fg)]'],
+
+    // Note cards
+    ['ch-note-card', 'block rounded-lg border border-[var(--ch-border)] bg-[var(--ch-bg-card)] p-3 cursor-pointer transition-[border-color] duration-150 hover:border-[var(--ch-border-hover)]'],
+    ['ch-note-card-selected', 'border-[var(--ch-accent)]'],
   ],
 })

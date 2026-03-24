@@ -33,26 +33,28 @@ interface SessionExportPayload {
   }
 }
 
-const WRITEUP_SYSTEM_PROMPT = `You are a CTF (Capture The Flag) writeup assistant. \
-You will receive a structured attack session JSON file containing the challenge description, \
-HTTP request/response history, terminal commands, code executions, flag attempts, and timing information. \
-The event timeline may include six event types: \
-challenge_start (session begins), \
-http_request (with source: browser/repeater/terminal/code indicating where the request originated), \
-terminal_command (wxlsh shell commands with their output and error status), \
-code_execution (Python code run in the Code Editor with output, error status, and duration in ms), \
-flag_attempt (submitted flags with correctness), \
-and challenge_solved (successful completion). \
-Your task is to produce a clear, educational writeup in Traditional Chinese (繁體中文) with the following structure:
-
-1. **題目概述** (Challenge Overview): Summarize the challenge name, difficulty, category, and what the challenge is about based on the description.
-2. **解題思路** (Approach): Explain the vulnerability identified and the attack strategy. Consider terminal commands and code executions as part of the attacker's methodology.
-3. **攻擊步驟** (Attack Steps): Walk through the key events step by step — including HTTP requests, terminal commands (e.g., curl, decode, encode), and Python code executions — explaining what was done and what was discovered.
-4. **Flag 取得** (Flag Capture): Describe how the correct flag was finally obtained.
-5. **學習重點** (Key Takeaways): Summarize what security concepts this challenge demonstrates.
-
-Use the timestamps and timezone provided to reference when events occurred if relevant. \
-Focus on clarity and educational value.`
+const WRITEUP_SYSTEM_PROMPT = [
+  'You are a CTF (Capture The Flag) writeup assistant.',
+  'You will receive a structured attack session JSON file containing the challenge description,',
+  'HTTP request/response history, terminal commands, code executions, pentest notes, flag attempts, and timing information.',
+  'The event timeline may include seven event types:',
+  'challenge_start (session begins),',
+  'http_request (with source: browser/repeater/terminal/code indicating where the request originated;',
+  'code-sourced requests also carry an executionId linking them to their originating code_execution event),',
+  'terminal_command (wxlsh shell commands with their output and error status),',
+  'code_execution (Python code run in the Code Editor with output, error status, duration in ms, and executionId),',
+  'note (learner-written pentest notes in markdown, with id, content, and optional updatedAt),',
+  'flag_attempt (submitted flags with correctness),',
+  'and challenge_solved (successful completion).',
+  'Your task is to produce a clear, educational writeup in Traditional Chinese (繁體中文) with the following structure:\n',
+  '1. **題目概述** (Challenge Overview): Summarize the challenge name, difficulty, category, and what the challenge is about based on the description.',
+  '2. **解題思路** (Approach): Explain the vulnerability identified and the attack strategy. Incorporate any learner notes (note events) as first-hand observations from the attacker\'s perspective. Consider terminal commands and code executions as part of the attacker\'s methodology.',
+  '3. **攻擊步驟** (Attack Steps): Walk through the key events step by step — including HTTP requests, terminal commands (e.g., curl, decode, encode), Python code executions, and relevant notes — explaining what was done and what was discovered.',
+  '4. **Flag 取得** (Flag Capture): Describe how the correct flag was finally obtained.',
+  '5. **學習重點** (Key Takeaways): Summarize what security concepts this challenge demonstrates.\n',
+  'Use the timestamps and timezone provided to reference when events occurred if relevant.',
+  'Focus on clarity and educational value.',
+].join(' ')
 
 export function useAttackSession(challengeSlug: string, challengeTitle: string) {
   const { saveAttackSession, loadAttackSession } = useChallengePersistence()
@@ -79,9 +81,9 @@ export function useAttackSession(challengeSlug: string, challengeTitle: string) 
     await saveAttackSession(session)
   }
 
-  async function addHttpEvent(entry: TrafficEntry, source: 'browser' | 'repeater' | 'terminal' | 'code'): Promise<void> {
+  async function addHttpEvent(entry: TrafficEntry, source: 'browser' | 'repeater' | 'terminal' | 'code', executionId?: string | null): Promise<void> {
     if (!session) return
-    session.events.push({
+    const event: Extract<AttackEvent, { type: 'http_request' }> = {
       type: 'http_request',
       timestamp: Date.now(),
       source,
@@ -94,7 +96,9 @@ export function useAttackSession(challengeSlug: string, challengeTitle: string) 
       responseHeaders: entry.responseHeaders,
       responseBody: entry.responseBody,
       duration: entry.duration,
-    })
+    }
+    if (executionId) event.executionId = executionId
+    session.events.push(event)
     await saveAttackSession(session)
   }
 
@@ -104,9 +108,24 @@ export function useAttackSession(challengeSlug: string, challengeTitle: string) 
     await saveAttackSession(session)
   }
 
-  async function addCodeExecution(code: string, output: string, error: boolean, duration: number): Promise<void> {
+  async function addCodeExecution(code: string, output: string, error: boolean, duration: number, executionId: string): Promise<void> {
     if (!session) return
-    session.events.push({ type: 'code_execution', timestamp: Date.now(), code, output, error, duration })
+    session.events.push({ type: 'code_execution', timestamp: Date.now(), executionId, code, output, error, duration })
+    await saveAttackSession(session)
+  }
+
+  async function addNoteEvent(id: string, content: string): Promise<void> {
+    if (!session) return
+    session.events.push({ type: 'note', timestamp: Date.now(), id, content, updatedAt: null })
+    await saveAttackSession(session)
+  }
+
+  async function updateNoteEvent(id: string, content: string): Promise<void> {
+    if (!session) return
+    const ev = session.events.find(e => e.type === 'note' && (e as any).id === id) as Extract<AttackEvent, { type: 'note' }> | undefined
+    if (!ev) return
+    ev.content = content
+    ev.updatedAt = Date.now()
     await saveAttackSession(session)
   }
 
@@ -178,5 +197,5 @@ export function useAttackSession(challengeSlug: string, challengeTitle: string) 
     return session
   }
 
-  return { init, getSession, addHttpEvent, addTerminalCommand, addCodeExecution, addFlagAttempt, exportSession }
+  return { init, getSession, addHttpEvent, addTerminalCommand, addCodeExecution, addNoteEvent, updateNoteEvent, addFlagAttempt, exportSession }
 }

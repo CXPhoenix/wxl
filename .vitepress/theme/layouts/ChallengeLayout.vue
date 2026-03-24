@@ -8,11 +8,17 @@ import RepeatPanel from '../components/RepeatPanel.vue'
 import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
+import NotesButton from '../components/NotesButton.vue'
+import NotesModal from '../components/NotesModal.vue'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 import { useTrafficLog } from '../composables/useTrafficLog'
 import { useAttackSession } from '../composables/useAttackSession'
+import { usePentestNotes } from '../composables/usePentestNotes'
 import { extractCustomSection } from '../composables/useWasmLoader'
+
+// Module-level executionId for linking code_execution ↔ http_request events
+let currentExecutionId: string | null = null
 
 const { frontmatter, page } = useData()
 
@@ -84,13 +90,17 @@ const trackedDispatch = wrapDispatch(dispatch)
 // ─── Attack session ──────────────────────────────────────────────────────────
 const attackSession = useAttackSession(slug.value, fm.value.title ?? '')
 
+// ─── Pentest notes ────────────────────────────────────────────────────────────
+const pentestNotes = usePentestNotes(attackSession, slug.value)
+const notesModalVisible = ref(false)
+
 function makeSourceDispatch(source: 'browser' | 'repeater' | 'terminal' | 'code') {
   return async (request: Request): Promise<Response> => {
     const response = await trackedDispatch(request)
     // After trackedDispatch, the last trafficLog entry is the one just recorded
     const entry = trafficLog.value[trafficLog.value.length - 1]
     if (entry) {
-      attackSession.addHttpEvent(entry, source)
+      attackSession.addHttpEvent(entry, source, source === 'code' ? currentExecutionId : null)
     }
     return response
   }
@@ -107,7 +117,10 @@ function onCommandExecuted(event: { command: string; output: string; error: bool
 }
 
 function onCodeExecuted(event: { code: string; output: string; error: boolean; duration: number }) {
-  attackSession.addCodeExecution(event.code, event.output, event.error, event.duration)
+  const execId = crypto.randomUUID()
+  currentExecutionId = execId
+  attackSession.addCodeExecution(event.code, event.output, event.error, event.duration, execId)
+  currentExecutionId = null
 }
 
 // ─── Send to Repeater ─────────────────────────────────────────────────────────
@@ -346,8 +359,10 @@ onMounted(async () => {
     runtimeError.value = err instanceof Error ? err.message : String(err)
   }
 
-  // Initialize attack session (non-blocking)
-  attackSession.init().catch(() => {})
+  // Initialize attack session (non-blocking), then pentest notes
+  attackSession.init()
+    .then(() => pentestNotes.init(slug.value))
+    .catch(() => {})
 })
 
 onUnmounted(() => {
@@ -391,7 +406,12 @@ const categoryBadge: Record<string, string> = {
         <span v-if="!runtimeReady && !runtimeError" class="ch-badge text-[0.75em] opacity-60">Loading...</span>
         <span v-if="runtimeError" class="ch-badge ch-badge-hard text-[0.75em]" :title="runtimeError">Runtime Error</span>
       </div>
-      <a href="/challenges/" class="absolute inset-y-2 text-[0.9em] color-[var(--ch-accent)] no-underline whitespace-nowrap hover:underline">← Challenges</a>
+      <a href="/challenges/" class="absolute inset-y-2 left-4 text-[0.9em] color-[var(--ch-accent)] no-underline whitespace-nowrap hover:underline">← Challenges</a>
+      <NotesButton
+        class="absolute inset-y-2 right-4"
+        :noteCount="pentestNotes.noteCount.value"
+        @click="notesModalVisible = true"
+      />
     </header>
 
     <!-- Main content: left + right columns -->
@@ -416,7 +436,11 @@ const categoryBadge: Record<string, string> = {
         </div>
 
         <div v-show="!descriptionCollapsed" class="flex-shrink-0 p-3 border-t border-[var(--ch-border)] bg-[var(--ch-bg)]">
-          <FlagSubmit :verify="verify" :onExport="onExport" />
+          <FlagSubmit
+            :verify="verify"
+            :onExport="onExport"
+            :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
+          />
         </div>
       </aside>
 
@@ -451,6 +475,14 @@ const categoryBadge: Record<string, string> = {
         </div>
       </main>
     </div>
+
+    <!-- Pentest Notes Modal -->
+    <NotesModal
+      v-if="notesModalVisible"
+      :pentestNotes="pentestNotes"
+      :challengeTitle="fm.title ?? ''"
+      @close="notesModalVisible = false"
+    />
   </div>
 </template>
 
