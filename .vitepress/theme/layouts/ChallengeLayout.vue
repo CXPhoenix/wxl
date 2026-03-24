@@ -240,6 +240,17 @@ async function initRuntime(): Promise<void> {
   if (runtime instanceof PythonRuntime) {
     pyodideInstance.value = runtime.getPyodide() as PyodidePublicAPI | null
   }
+
+  // For non-Python backends (e.g., PHP), load a standalone Pyodide as a tool layer
+  // so Code Editor and Terminal panels can still run Python attack scripts.
+  if (!pyodideInstance.value) {
+    await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js')
+    const loadPyodide = (globalThis as any).loadPyodide as LoadPyodideFn
+    if (typeof loadPyodide === 'function') {
+      const toolsPyodide = await loadPyodide()
+      pyodideInstance.value = toolsPyodide as unknown as PyodidePublicAPI
+    }
+  }
 }
 
 // ─── HANDLE_REQUEST listener ──────────────────────────────────────────────────

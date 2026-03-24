@@ -212,6 +212,21 @@ describe('CodeEditorPanel', () => {
     wrapper.unmount()
   })
 
+  it('requests stub does not use "from js import" for dispatch bridge', async () => {
+    const py = makePyodide()
+    py.runPythonAsync.mockResolvedValue('')
+    const wrapper = await mountPanel(py)
+    await wrapper.find('[data-run]').trigger('click')
+    await flushPromises()
+
+    // The requests stub is the second runPythonAsync call (after stdout capture)
+    const stubCall = py.runPythonAsync.mock.calls[1]?.[0] as string
+    expect(stubCall).toBeDefined()
+    expect(stubCall).not.toContain('from js import')
+    expect(stubCall).toContain('_wxlsh_code_dispatch')
+    wrapper.unmount()
+  })
+
   it('calls onCodeExecuted callback on successful execution', async () => {
     const py = makePyodide()
     // Final runPythonAsync call returns captured output

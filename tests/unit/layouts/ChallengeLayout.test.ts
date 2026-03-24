@@ -440,4 +440,36 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(challengeInfo.description).toBe('A simple Flask app with a SQL injection vulnerability.')
     expect(challengeInfo.fullDescription).toBe('# SQL Injection Demo\n\nA login form backed by SQLite.')
   })
+
+  it('passes pyodide prop to WxlshPanel and CodeEditorPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: WxlshPanel } = await import('../../../.vitepress/theme/components/WxlshPanel.vue')
+    const { default: CodePanel } = await import('../../../.vitepress/theme/components/CodeEditorPanel.vue')
+
+    const wp = wrapper.findComponent(WxlshPanel)
+    const cp = wrapper.findComponent(CodePanel)
+
+    // pyodide prop exists on both panels (may be null in test env since initRuntime exits early)
+    expect(wp.props()).toHaveProperty('pyodide')
+    expect(cp.props()).toHaveProperty('pyodide')
+  })
+
+  it('initRuntime code path includes standalone Pyodide loading for non-Python backends', async () => {
+    // Verify the source code contains the standalone Pyodide loading logic
+    // This is a structural test — the actual loading is integration-level
+    const { readFileSync } = await import('fs')
+    const { resolve } = await import('path')
+    const source = readFileSync(
+      resolve(__dirname, '../../../.vitepress/theme/layouts/ChallengeLayout.vue'),
+      'utf-8',
+    )
+    // Must have the standalone Pyodide fallback for non-Python backends
+    expect(source).toContain('if (!pyodideInstance.value)')
+    expect(source).toContain('loadPyodide')
+    // Must NOT hardcode to only Python backends
+    expect(source).toContain('toolsPyodide')
+  })
 })

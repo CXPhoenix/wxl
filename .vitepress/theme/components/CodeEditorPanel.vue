@@ -178,7 +178,6 @@ class _RequestsStub:
             return f'<Response [{self.status_code}]>'
 
     async def _dispatch(self, method, url, **kwargs):
-        from js import _wxlsh_code_dispatch
         from urllib.parse import urlencode as _urlencode
         headers = dict(kwargs.get('headers') or {})
         data = kwargs.get('data')
