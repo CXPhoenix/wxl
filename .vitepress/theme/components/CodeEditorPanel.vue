@@ -192,8 +192,8 @@ class _RequestsStub:
             body = data
         else:
             body = ''
-        # _wxlsh_code_dispatch is a JS async function — await its Promise
-        r = await _wxlsh_code_dispatch(method, url, list(headers.items()), body or '')
+        # _wxlsh_code_bridge.call() routes through the JS dispatch bridge
+        r = _wxlsh_code_bridge.call(method, url, list(headers.items()), body or '')
         r = r.to_py()  # convert JsProxy → native Python dict/list/str
         status = int(r['status'])
         text   = str(r['body'])
@@ -223,17 +223,20 @@ async function runCode() {
   let isError = false
 
   try {
-    // Inject dispatch bridge — a direct async callable so Python can `await` it
-    py.globals.set('_wxlsh_code_dispatch', async (method: string, url: string, headers: [string, string][], body: string) => {
-      const req = new Request(url, {
-        method,
-        headers: Object.fromEntries(headers),
-        body: body || undefined,
-      })
-      const res = await props.dispatch(req)
-      const resHeaders = [...res.headers.entries()]
-      const text = await res.text()
-      return { status: res.status, headers: resHeaders, body: text }
+    // Inject dispatch bridge as an object with .call() method
+    // (same pattern as useWxlsh.ts uses for _wxlsh_bridge)
+    py.globals.set('_wxlsh_code_bridge', {
+      call: async (method: string, url: string, headers: [string, string][], body: string) => {
+        const req = new Request(url, {
+          method,
+          headers: Object.fromEntries(headers),
+          body: body || undefined,
+        })
+        const res = await props.dispatch(req)
+        const resHeaders = [...res.headers.entries()]
+        const text = await res.text()
+        return { status: res.status, headers: resHeaders, body: text }
+      },
     })
 
     // Capture stdout

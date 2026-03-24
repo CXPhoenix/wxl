@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
 import { Content } from 'vitepress/client'
 import BrowserPanel from '../components/BrowserPanel.vue'
@@ -30,7 +30,10 @@ const runtimeError = ref<string | null>(null)
 
 // Pyodide instance — set after Python runtime init; passed to WxlshPanel + CodeEditorPanel
 type PyodidePublicAPI = { runPythonAsync(code: string): Promise<unknown>; globals: { get(k: string): unknown; set(k: string, v: unknown): void } }
-const pyodideInstance = ref<PyodidePublicAPI | null>(null)
+// shallowRef: Pyodide instance must NOT be wrapped in Vue's reactive proxy.
+// reactive() double-proxies the Pyodide PyProxy, breaking globals.set() with
+// "TypeError: unhashable type: 'pyodide.ffi.JsProxy'".
+const pyodideInstance = shallowRef<PyodidePublicAPI | null>(null)
 
 // ─── SW readiness gate ───────────────────────────────────────────────────────
 // swReady is true only when navigator.serviceWorker.controller is non-null.
@@ -148,6 +151,8 @@ async function initRuntime(): Promise<void> {
   const backend: string = fm.value.backend ?? 'flask'
   const wasmModule: string | undefined = fm.value.wasmModule
   const extraPackages: string[] = fm.value.packages ?? []
+
+
 
   // Guard: skip if frontmatter doesn't have wasmModule (not yet processed)
   if (!wasmModule) {
@@ -322,9 +327,12 @@ onMounted(async () => {
     if (navigator.serviceWorker.controller) {
       swReady.value = true
     } else {
-      // First visit: SW is registering. Wait for it to become ready and claim.
-      navigator.serviceWorker.ready.then(() => {
-        if (navigator.serviceWorker.controller) {
+      // First visit or hard refresh: SW may be active but not controlling.
+      // dispatch() bypasses the SW (calls runtime directly), and
+      // registerWithSW() uses reg.active.postMessage() — neither requires
+      // the SW to "control" the page. So active is sufficient.
+      navigator.serviceWorker.ready.then((reg) => {
+        if (navigator.serviceWorker.controller || reg.active) {
           swReady.value = true
         }
       })

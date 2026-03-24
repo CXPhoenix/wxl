@@ -223,7 +223,7 @@ describe('CodeEditorPanel', () => {
     const stubCall = py.runPythonAsync.mock.calls[1]?.[0] as string
     expect(stubCall).toBeDefined()
     expect(stubCall).not.toContain('from js import')
-    expect(stubCall).toContain('_wxlsh_code_dispatch')
+    expect(stubCall).toContain('_wxlsh_code_bridge')
     wrapper.unmount()
   })
 
