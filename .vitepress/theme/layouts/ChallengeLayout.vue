@@ -8,7 +8,8 @@ import RepeatPanel from '../components/RepeatPanel.vue'
 import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
-import NotesButton from '../components/NotesButton.vue'
+import MergedNav from '../components/MergedNav.vue'
+import DescriptionModal from '../components/DescriptionModal.vue'
 import NotesModal from '../components/NotesModal.vue'
 import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
@@ -57,6 +58,7 @@ let challengePort: MessagePort | null = null  // port1 — page listens here
 
 // ─── Collapsible description panel ───────────────────────────────────────────
 const descriptionCollapsed = ref(false)
+const descriptionModalVisible = ref(false)
 function toggleDescription() {
   descriptionCollapsed.value = !descriptionCollapsed.value
 }
@@ -376,43 +378,22 @@ onUnmounted(() => {
   }
 })
 
-// ─── Static badge class maps (full class names for UnoCSS extraction) ─────────
-const difficultyBadge: Record<string, string> = {
-  easy:    'ch-badge-easy',
-  medium:  'ch-badge-medium',
-  hard:    'ch-badge-hard',
-  mystery: 'ch-badge-mystery',
-}
-const categoryBadge: Record<string, string> = {
-  web: 'ch-badge-web',
-}
 </script>
 
 <template>
-  <div class="flex flex-col h-[calc(100vh-var(--vp-nav-height))] mt-[var(--vp-nav-height)] overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
-    <!-- Top navigation bar -->
-    <header class="relative px-4 py-2 border-b border-[var(--ch-border)] bg-[var(--ch-bg)]">
-      <div class="flex justify-center items-center gap-4">
-        <span class="font-semibold text-[1em] color-[var(--ch-text-1)]">{{ fm.title }}</span>
-        <span
-        v-if="fm.difficulty"
-        :class="difficultyBadge[fm.difficulty] ?? 'ch-badge'"
-        >{{ fm.difficulty }}</span>
-        <span
-        v-if="fm.category"
-        :class="categoryBadge[fm.category] ?? 'ch-badge'"
-        >{{ fm.category }}</span>
-        <!-- Runtime status indicator -->
-        <span v-if="!runtimeReady && !runtimeError" class="ch-badge text-[0.75em] opacity-60">Loading...</span>
-        <span v-if="runtimeError" class="ch-badge ch-badge-hard text-[0.75em]" :title="runtimeError">Runtime Error</span>
-      </div>
-      <a href="/challenges/" class="absolute inset-y-2 left-4 text-[0.9em] color-[var(--ch-accent)] no-underline whitespace-nowrap hover:underline">← Challenges</a>
-      <NotesButton
-        class="absolute inset-y-2 right-4"
-        :noteCount="pentestNotes.noteCount.value"
-        @click="notesModalVisible = true"
-      />
-    </header>
+  <div class="flex flex-col h-[calc(100vh-var(--vp-nav-height))] overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
+    <!-- Merged navigation bar (replaces VitePress nav + old challenge header) -->
+    <MergedNav
+      :title="fm.title ?? ''"
+      :difficulty="fm.difficulty ?? ''"
+      :category="fm.category ?? ''"
+      :runtimeReady="runtimeReady"
+      :runtimeError="runtimeError"
+      :noteCount="pentestNotes.noteCount.value"
+      :descriptionCollapsed="descriptionCollapsed"
+      @open-notes="notesModalVisible = true"
+      @toggle-description="toggleDescription"
+    />
 
     <!-- Main content: left + right columns -->
     <div class="flex flex-1 overflow-hidden">
@@ -446,7 +427,7 @@ const categoryBadge: Record<string, string> = {
 
       <!-- Right column: interaction panels -->
       <main class="vp-raw flex flex-col flex-1 overflow-hidden bg-[var(--ch-bg-panel)]">
-        <nav class="flex gap-1 px-3 py-2 border-b border-[var(--ch-border)] flex-shrink-0">
+        <nav class="flex gap-1 px-3 py-2 border-b border-[var(--ch-border)] flex-shrink-0 overflow-x-auto">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -476,6 +457,37 @@ const categoryBadge: Record<string, string> = {
       </main>
     </div>
 
+    <!-- Persistent flag submit bar (visible when description is collapsed) -->
+    <div
+      v-if="descriptionCollapsed"
+      data-flag-bar
+      class="shrink-0 px-3 py-2 border-t border-[var(--ch-border)] bg-[var(--ch-bg)]"
+    >
+      <FlagSubmit
+        :verify="verify"
+        :onExport="onExport"
+        :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
+      />
+    </div>
+
+    <!-- Description Modal (mobile fullscreen) -->
+    <DescriptionModal
+      v-if="descriptionModalVisible"
+      :title="fm.title ?? ''"
+      :difficulty="fm.difficulty ?? ''"
+      :category="fm.category ?? ''"
+      @close="descriptionModalVisible = false"
+    >
+      <Content />
+      <template #flag-submit>
+        <FlagSubmit
+          :verify="verify"
+          :onExport="onExport"
+          :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
+        />
+      </template>
+    </DescriptionModal>
+
     <!-- Pentest Notes Modal -->
     <NotesModal
       v-if="notesModalVisible"
@@ -489,12 +501,18 @@ const categoryBadge: Record<string, string> = {
 <style scoped>
 /* Minimal scoped block: only transition rules not expressible as UnoCSS utilities */
 .description-column {
-  width: 40%;
-  min-width: 40%;
-  transition: width 0.25s ease, min-width 0.25s ease;
+  width: 38%;
+  min-width: 280px;
+  max-width: 480px;
+  transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s ease;
 }
 .description-column.collapsed {
-  width: 36px;
-  min-width: 36px;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  border-right: none;
+  overflow: hidden;
+  pointer-events: none;
 }
 </style>

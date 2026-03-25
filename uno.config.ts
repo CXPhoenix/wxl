@@ -49,6 +49,11 @@ export default defineConfig({
     ['ch-note-card', 'block rounded-lg border border-[var(--ch-border)] bg-[var(--ch-bg-card)] p-3 cursor-pointer transition-[border-color] duration-150 hover:border-[var(--ch-border-hover)]'],
     ['ch-note-card-selected', 'border-[var(--ch-accent)]'],
 
+    // Merged nav
+    ['ch-nav-icon-btn', 'flex items-center justify-center w-[28px] h-[28px] rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-2)] cursor-pointer hover:border-[var(--ch-accent)] transition-colors'],
+    ['ch-nav-pill-btn', 'flex items-center gap-1 px-2 py-1 text-[0.8125em] rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] cursor-pointer hover:border-[var(--ch-accent)] transition-colors'],
+    ['ch-nav-sep', 'color-[var(--ch-text-3)] text-[0.75em] shrink-0'],
+
     // Challenge list redesign
     ['ch-input', 'px-3 py-1.5 rounded-lg border border-[var(--ch-border)] bg-[var(--ch-bg)] color-[var(--ch-text-1)] text-sm outline-none focus:border-[var(--ch-accent)] transition-colors'],
     ['ch-select', 'px-3 py-1.5 rounded-lg border border-[var(--ch-border)] bg-[var(--ch-bg)] color-[var(--ch-text-1)] text-sm outline-none focus:border-[var(--ch-accent)] transition-colors cursor-pointer appearance-none'],

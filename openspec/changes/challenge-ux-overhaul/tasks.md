@@ -26,30 +26,30 @@
 
 ## 5. Merged Nav Bar（A2 Compact Left-Heavy）
 
-- [ ] 5.1 修改 `Layout.vue`：challenge 頁面隱藏 `.VPNav`（VitePress nav hidden on challenge pages）
-- [ ] 5.2 建立 MergedNav 元件，實作 challenge page header structure（merged navigation bar replaces dual-bar layout、merged nav A2 compact left-heavy layout、MergedNav component）
-- [ ] 5.3 整合 MergedNav 到 `ChallengeLayout.vue`，移除舊 `<header>` 區塊（separate challenge header bar removed）
-- [ ] 5.4 更新 `style.css` 新增 `.VPNav` 隱藏規則和 merged nav design tokens（merged nav design tokens）
-- [ ] [P] 5.5 更新 `uno.config.ts` 新增 merged nav 相關 shortcuts
-- [ ] 5.6 確認非挑戰頁面不受影響（non-challenge pages retain VitePress nav）
+- [x] 5.1 修改 `Layout.vue`：challenge 頁面隱藏 `.VPNav`（VitePress nav hidden on challenge pages）
+- [x] 5.2 建立 MergedNav 元件，實作 challenge page header structure（merged navigation bar replaces dual-bar layout、merged nav A2 compact left-heavy layout、MergedNav component）
+- [x] 5.3 整合 MergedNav 到 `ChallengeLayout.vue`，移除舊 `<header>` 區塊（separate challenge header bar removed）
+- [x] 5.4 更新 `style.css` 新增 `.VPNav` 隱藏規則和 merged nav design tokens（merged nav design tokens）
+- [x] [P] 5.5 更新 `uno.config.ts` 新增 merged nav 相關 shortcuts
+- [x] 5.6 確認非挑戰頁面不受影響（non-challenge pages retain VitePress nav）
 
 ## 6. Description 收合與 Mobile Modal（Description panel collapse behavior）
 
-- [ ] 6.1 修改 `ChallengeLayout.vue` description panel collapse behavior：收合後 tools 佔 100% 寬度、「📖 題目」按鈕移入 nav bar（description panel collapsible on all breakpoints）
-- [ ] 6.2 建立 DescriptionModal 元件：全螢幕 modal overlay、含 flag 輸入（DescriptionModal component、mobile description opens as fullscreen modal、mobile description defaults to collapsed）
-- [ ] 6.3 確保 flag 輸入在所有狀態下可用（flag submission always accessible）
+- [x] 6.1 修改 `ChallengeLayout.vue` description panel collapse behavior：收合後 tools 佔 100% 寬度、「📖 題目」按鈕移入 nav bar（description panel collapsible on all breakpoints）
+- [x] 6.2 建立 DescriptionModal 元件：全螢幕 modal overlay、含 flag 輸入（DescriptionModal component、mobile description opens as fullscreen modal、mobile description defaults to collapsed）
+- [x] 6.3 確保 flag 輸入在所有狀態下可用（flag submission always accessible）
 
 ## 7. Browser URL Bar 差異化（Browser chrome）
 
-- [ ] 7.1 建立 BrowserChrome 元件：Desktop 膠囊型 URL bar（← → ↻ + 🔒 URL + Go）、Mobile 極簡型（URL + →）（BrowserChrome component、desktop browser chrome with capsule URL bar、mobile browser with minimal URL bar）
-- [ ] 7.2 整合 BrowserChrome 到 `BrowserPanel.vue`，取代現有 URL 輸入區
+- [x] 7.1 建立 BrowserChrome 元件：Desktop 膠囊型 URL bar（← → ↻ + 🔒 URL + Go）、Mobile 極簡型（URL + →）（BrowserChrome component、desktop browser chrome with capsule URL bar、mobile browser with minimal URL bar）
+- [x] 7.2 整合 BrowserChrome 到 `BrowserPanel.vue`，取代現有 URL 輸入區
 
 ## 8. RWD 三斷點（Three-breakpoint responsive layout）
 
-- [ ] 8.1 實作 ≥1024px Desktop 佈局（完整一行 bar + 雙欄）
-- [ ] 8.2 實作 768–1023px Tablet 佈局（精簡 bar + 窄 desc 雙欄）
-- [ ] 8.3 實作 <768px Mobile 佈局（兩行 bar + hamburger + 單欄 + tab 橫向捲動）
-- [ ] 8.4 整合 RWD 斷點到 MergedNav、Description、BrowserChrome 元件（three-breakpoint responsive layout）
+- [x] 8.1 實作 ≥1024px Desktop 佈局（完整一行 bar + 雙欄）
+- [x] 8.2 實作 768–1023px Tablet 佈局（精簡 bar + 窄 desc 雙欄）
+- [x] 8.3 實作 <768px Mobile 佈局（兩行 bar + hamburger + 單欄 + tab 橫向捲動）
+- [x] 8.4 整合 RWD 斷點到 MergedNav、Description、BrowserChrome 元件（three-breakpoint responsive layout）
 
 ## 9. requests Monkey-Patch 策略（requests 函式庫整合）
 

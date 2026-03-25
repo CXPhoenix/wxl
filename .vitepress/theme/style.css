@@ -149,10 +149,16 @@
   --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
 }
 
-/* Challenge pages: hide VitePress default content areas, keep only VPNav */
+/* Challenge pages: hide all VitePress chrome — merged nav replaces VPNav */
+body.challenge-page .VPNav,
 body.challenge-page .VPLocalNav,
 body.challenge-page .VPSidebar,
 body.challenge-page .VPContent,
 body.challenge-page .VPFooter {
   display: none !important;
+}
+
+/* Zero out nav height so ChallengeLayout fills the full viewport */
+body.challenge-page {
+  --vp-nav-height: 0px;
 }
