@@ -64,7 +64,6 @@ coverage/
 # Rust / WASM / wasm-pack
 # ===========================
 target/
-Cargo.lock
 # wasm-pack 標準輸出目錄
 pkg/
 chall-wasm/*/pkg/

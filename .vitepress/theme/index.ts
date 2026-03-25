@@ -28,7 +28,7 @@ export default {
 
     // Register Service Worker (challenge router)
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/challenge-sw.js').catch((err) => {
+      navigator.serviceWorker.register(`${import.meta.env.BASE_URL}challenge-sw.js`).catch((err) => {
         console.warn('[challenge-sw] registration failed:', err)
       })
     }

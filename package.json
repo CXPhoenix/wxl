@@ -1,7 +1,7 @@
 {
   "name": "web-exploitation-seclab",
   "version": "0.6.0",
-  "description": "",
+  "description": "Browser-based web exploitation challenge platform powered by WASM",
   "type": "module",
   "keywords": [],
   "repository": {

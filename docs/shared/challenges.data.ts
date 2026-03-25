@@ -4,21 +4,20 @@ export interface ChallengeData {
   id?: number | string
   title: string
   url: string
-  difficulty?: 'easy' | 'medium' | 'hard' | string
+  difficulty?: 'easy' | 'medium' | 'hard' | 'mystery'
   category?: string
   date?: string | null
   tags?: string[]
   description?: string
 }
 
-export default createContentLoader('challenge/*.md', {
+export default createContentLoader('challenge/*/index.md', {
   excerpt: true,
   transform(raw): ChallengeData[] {
     return raw
-      .filter((page) => !page.url.endsWith('/')) // exclude index
       .map((page, idx) => ({
         id: page.frontmatter.id ?? idx+1,
-        title: page.frontmatter.title ?? '密碼學挑戰',
+        title: page.frontmatter.title ?? '網站攻防挑戰',
         url: page.url,
         difficulty: page.frontmatter.difficulty ?? "mystery",
         category: page.frontmatter.category ?? "綜合",

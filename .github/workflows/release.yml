@@ -46,6 +46,12 @@ jobs:
       - name: Generate challenge keys
         run: pnpm challenge:keygen
 
+      - name: Run tests
+        run: pnpm test --run
+
+      - name: Validate challenge frontmatter
+        run: pnpm challenge:validate
+
       - name: Build VitePress site
         run: pnpm docs:build
 
