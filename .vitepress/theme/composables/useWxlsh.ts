@@ -143,22 +143,22 @@ const WXLSH_PYTHON_COMMANDS = `
 import json, base64 as _b64, urllib.parse, hashlib
 
 class _WxlshDispatch:
-    """Thin wrapper that routes HTTP via the JS dispatch bridge."""
+    """Thin wrapper that routes HTTP via the async JS dispatch bridge."""
     def __init__(self, bridge):
         self._bridge = bridge
 
-    def request(self, method, url, headers=None, body=None):
-        h = list((headers or {}).items())
-        result = self._bridge.call(method, url, h, body or '')
-        return _WxlshResponse(result)
+    async def request(self, method, url, headers=None, body=None):
+        headers_json = json.dumps(dict(headers or {}))
+        raw_json = await self._bridge(method, url, headers_json, body or '')
+        raw = json.loads(raw_json)
+        return _WxlshResponse(raw)
 
 class _WxlshResponse:
     def __init__(self, raw):
-        raw = raw.to_py()  # convert JsProxy → native Python dict/list/str
         self.status_code = int(raw['status'])
-        self._headers = dict(raw['headers'])
-        self.text = raw['body']
-        self.content = raw['body'].encode('utf-8', errors='replace')
+        self._headers = dict(raw.get('headers', {}))
+        self.text = raw.get('body', '')
+        self.content = self.text.encode('utf-8', errors='replace')
 
     @property
     def headers(self):
@@ -170,9 +170,9 @@ class _WxlshResponse:
     def __repr__(self):
         return f'<WxlshResponse [{self.status_code}]>'
 
-_wxlsh_http = _WxlshDispatch(_wxlsh_bridge)
+_wxlsh_http = _WxlshDispatch(_wxlsh_dispatch_bridge)
 
-def _cmd_curl(args, flags):
+async def _cmd_curl(args, flags):
     """curl — transfer data from or to a server.
 
     Flags:
@@ -221,7 +221,7 @@ def _cmd_curl(args, flags):
     output_file = flags.get('o', flags.get('output', ''))
     verbose = 'v' in flags
 
-    r = _wxlsh_http.request(method, url, raw_headers, body)
+    r = await _wxlsh_http.request(method, url, raw_headers, body)
 
     lines = []
 
@@ -263,7 +263,7 @@ def _cmd_curl(args, flags):
         lines.append(r.text)
     return '\\n'.join(lines)
 
-def _cmd_wget(args, flags):
+async def _cmd_wget(args, flags):
     """wget — non-interactive network downloader.
 
     Flags:
@@ -287,7 +287,7 @@ def _cmd_wget(args, flags):
     output_file = flags.get('O', '')
     quiet = 'q' in flags
 
-    r = _wxlsh_http.request('GET', url)
+    r = await _wxlsh_http.request('GET', url)
 
     if output_file:
         if not quiet:
@@ -590,6 +590,11 @@ const TIER1_COMMANDS = new Set([
   'export', 'history', 'file', 'date', 'which',
 ])
 const TIER5_COMMANDS = new Set(['dirb', 'dirsearch', 'sqlmap', 'jwt', 'hydra', 'nmap'])
+const PYTHON_COMMANDS = new Set([
+  'curl', 'wget', 'decode', 'encode', 'base64', 'xxd', 'md5sum', 'sha256sum',
+  'urlencode', 'urldecode', 'grep', 'sed', 'awk', 'sort', 'uniq', 'cut',
+  'tr', 'tee', 'xargs', 'diff',
+])
 
 // ─── Composable ───────────────────────────────────────────────────────────────
 
@@ -611,24 +616,43 @@ export function useWxlsh(options: WxlshOptions) {
     if (!TIER1_COMMANDS.has(command)) return null
     switch (command) {
       case 'help': {
-        const cmds = [...TIER1_COMMANDS].sort()
-        return { output: `Available commands:\n  ${cmds.join('  ')}` }
+        const t1 = 'Shell:     cat cd clear cp echo env export file head history id ls mkdir mv pwd rm tail touch wc which whoami'
+        const t2 = 'Text:      awk cut diff grep sed sort tee tr uniq xargs'
+        const t3 = 'Encoding:  base64 decode encode md5sum sha256sum urldecode urlencode xxd'
+        const t4 = 'Network:   curl wget'
+        return { output: `Available commands:\n  ${t1}\n  ${t2}\n  ${t3}\n  ${t4}` }
       }
       case 'clear': return { output: '', clear: true }
       case 'echo': return { output: args.join(' ') }
       case 'pwd': return { output: cwd }
       case 'cd': {
         const target = args[0] ?? envVars.HOME
-        if (target === '~') cwd = envVars.HOME
-        else if (target.startsWith('/')) cwd = target
-        else cwd = cwd === '/' ? `/${target}` : `${cwd}/${target}`
-        // Remove trailing slash
-        if (cwd.length > 1 && cwd.endsWith('/')) cwd = cwd.slice(0, -1)
+        let path: string
+        if (target === '~' || target === '') path = envVars.HOME
+        else if (target.startsWith('~/')) path = envVars.HOME + target.slice(1)
+        else if (target.startsWith('/')) path = target
+        else path = cwd === '/' ? `/${target}` : `${cwd}/${target}`
+        // Normalize: resolve . and ..
+        const parts = path.split('/').filter(Boolean)
+        const resolved: string[] = []
+        for (const p of parts) {
+          if (p === '.') continue
+          else if (p === '..') resolved.pop()
+          else resolved.push(p)
+        }
+        cwd = '/' + resolved.join('/')
         return { output: '' }
       }
       case 'whoami': return { output: envVars.USER }
       case 'id': return { output: `uid=1000(${envVars.USER}) gid=1000(${envVars.USER}) groups=1000(${envVars.USER})` }
-      case 'date': return { output: new Date().toString() }
+      case 'date': {
+        const d = new Date()
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const pad = (n: number) => n.toString().padStart(2, '0')
+        const tz = d.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() ?? ''
+        return { output: `${days[d.getDay()]} ${months[d.getMonth()]} ${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${tz} ${d.getFullYear()}` }
+      }
       case 'env': return { output: Object.entries(envVars).map(([k, v]) => `${k}=${v}`).join('\n') }
       case 'export': {
         for (const a of args) {
@@ -640,7 +664,7 @@ export function useWxlsh(options: WxlshOptions) {
       case 'which': {
         if (!args[0]) return { output: 'Usage: which <command>' }
         const cmd = args[0]
-        if (TIER1_COMMANDS.has(cmd) || TIER5_COMMANDS.has(cmd)) {
+        if (TIER1_COMMANDS.has(cmd) || PYTHON_COMMANDS.has(cmd) || TIER5_COMMANDS.has(cmd)) {
           return { output: `/usr/bin/${cmd}` }
         }
         return { output: `${cmd} not found`, error: true }
@@ -677,21 +701,7 @@ export function useWxlsh(options: WxlshOptions) {
     const py = pyodide.value
     if (!py || pythonCommandsLoaded) return !!py
     try {
-      // Inject bridge object so Python can call dispatch
-      const bridge = {
-        call: async (method: string, url: string, headers: [string, string][], body: string) => {
-          const req = new Request(url, {
-            method,
-            headers: Object.fromEntries(headers),
-            body: body || undefined,
-          })
-          const res = await dispatch(req)
-          const resHeaders = [...res.headers.entries()]
-          const text = await res.text()
-          return { status: res.status, headers: resHeaders, body: text }
-        },
-      }
-      py.globals.set('_wxlsh_bridge', bridge)
+      // _wxlsh_dispatch_bridge is already injected by ChallengeLayout
       py.globals.set('_wxlsh_slug', slug)
       await py.runPythonAsync(WXLSH_PYTHON_COMMANDS)
       pythonCommandsLoaded = true
@@ -737,7 +747,9 @@ export function useWxlsh(options: WxlshOptions) {
         const cmds = py.globals.get('_wxlsh_commands_py') as Record<string, unknown>
         if (cmds && command in cmds) {
           const result = await py.runPythonAsync(
-            `str(_wxlsh_commands_py[${JSON.stringify(command)}](${JSON.stringify(args)}, ${JSON.stringify(flags)}))`
+            `_r = _wxlsh_commands_py[${JSON.stringify(command)}](${JSON.stringify(args)}, ${JSON.stringify(flags)})\n` +
+            `import inspect as _ins\n` +
+            `str(await _r if _ins.isawaitable(_r) else _r)`
           )
           return { output: String(result) }
         }
@@ -844,5 +856,23 @@ export function useWxlsh(options: WxlshOptions) {
     return ''
   }
 
-  return { init, execute, historyPrev, historyNext, historyBuffer }
+  // ─── Prompt helpers ──────────────────────────────────────────────────────
+
+  /** Return the current working directory with `~` shorthand for HOME. */
+  function getCwd(): string {
+    const home = envVars.HOME
+    if (cwd === home) return '~'
+    if (cwd.startsWith(home + '/')) return '~' + cwd.slice(home.length)
+    return cwd
+  }
+
+  /** Return the ANSI-colored prompt string and its plain-text length. */
+  function getPrompt(): { text: string; length: number } {
+    const displayCwd = getCwd()
+    const text = `\x1b[1;32mhacker@wxlsh\x1b[0m:\x1b[1;34m${displayCwd}\x1b[0m$ `
+    const length = `hacker@wxlsh:${displayCwd}$ `.length
+    return { text, length }
+  }
+
+  return { init, execute, historyPrev, historyNext, historyBuffer, getCwd, getPrompt }
 }

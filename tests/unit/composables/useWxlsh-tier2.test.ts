@@ -319,15 +319,25 @@ function makeMockPyodide(): PyodidePublicAPI {
         return undefined
       }
 
-      // Match: str(_wxlsh_commands_py["cmd"]([...], {...}))
-      // Extract the command name first, then split the arg portion by ], {
+      // New pattern: _r = _wxlsh_commands_py["cmd"]([...], {...})\nimport inspect as _ins\nstr(await _r if _ins.isawaitable(_r) else _r)
+      const mNew = code.match(
+        /_r = _wxlsh_commands_py\["(\w+)"\]\((.+?), (\{.*?\})\)/s,
+      )
+      if (mNew) {
+        const [, cmd, argsJson, flagsJson] = mNew
+        const args = JSON.parse(argsJson) as string[]
+        const flags = JSON.parse(flagsJson) as Record<string, string>
+        const fn = tier2Impl[cmd]
+        if (fn) return fn(args, flags)
+        return `mock: unknown command ${cmd}`
+      }
+
+      // Legacy pattern: str(_wxlsh_commands_py["cmd"]([...], {...}))
       const m = code.match(
         /str\(_wxlsh_commands_py\["(\w+)"\]\((.+)\)\)$/s,
       )
       if (m) {
         const [, cmd, inner] = m
-        // inner is like: ["a:b:c"], {"d":":","f":"2"}
-        // Split at "], " to separate the array from the object
         const splitIdx = inner.indexOf('], ')
         const argsJson = inner.slice(0, splitIdx + 1)
         const flagsJson = inner.slice(splitIdx + 2).trim()

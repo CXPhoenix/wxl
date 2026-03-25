@@ -8,12 +8,23 @@ TBD - created by archiving change 'challenge-tools-evolution'. Update Purpose af
 
 ### Requirement: wxlsh terminal renders using xterm.js
 
-The `WxlshPanel.vue` component SHALL use xterm.js (`xterm` + `@xterm/addon-fit`) as its display layer. The terminal SHALL display the prompt brand name `wxlsh` (not `bash`). The xterm.js instance SHALL be initialized lazily inside `onMounted` and SHALL be destroyed in `onUnmounted`. On first render, the terminal SHALL display a startup banner: "wxlsh 1.0 — web exploit shell" followed by "type 'help' for available commands".
+The `WxlshPanel.vue` component SHALL use xterm.js (`xterm` + `@xterm/addon-fit`) as its display layer. The terminal SHALL display the prompt in Linux-style format `hacker@wxlsh:<cwd>$ ` where `<cwd>` is the current working directory with `~` shorthand for `/home/hacker`. The xterm.js instance SHALL be initialized lazily inside `onMounted` and SHALL be destroyed in `onUnmounted`. On first render, the terminal SHALL display a startup banner: "wxlsh 1.0 — web exploit shell" followed by "type 'help' for available commands".
 
-#### Scenario: Terminal displays wxlsh brand
+#### Scenario: Terminal displays Linux-style prompt
 
 - **WHEN** the wxlsh tab is first rendered
-- **THEN** the terminal SHALL show the brand banner containing "wxlsh" and the xterm.js canvas SHALL be visible
+- **THEN** the terminal SHALL show the brand banner containing "wxlsh"
+- **AND** the prompt SHALL display as `hacker@wxlsh:~$ ` (with green username@host and blue path)
+
+#### Scenario: Prompt reflects current directory
+
+- **WHEN** the user runs `cd /tmp`
+- **THEN** the next prompt SHALL display as `hacker@wxlsh:/tmp$ `
+
+#### Scenario: Prompt uses tilde for home directory
+
+- **WHEN** the current working directory is `/home/hacker/scripts`
+- **THEN** the prompt SHALL display as `hacker@wxlsh:~/scripts$ `
 
 #### Scenario: Terminal is lazy-loaded
 
@@ -27,33 +38,20 @@ The `WxlshPanel.vue` component SHALL use xterm.js (`xterm` + `@xterm/addon-fit`)
 
 
 <!-- @trace
-source: challenge-tools-evolution
-updated: 2026-03-16
+source: fix-terminal-and-http-dispatch
+updated: 2026-03-25
 code:
-  - Cargo.toml
   - .vitepress/theme/components/CodeEditorPanel.vue
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/composables/useWxlsh.ts
-  - docs/public/challenge-sw.js
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - chall-wasm/wxlsh-parser/src/lib.rs
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - package.json
-  - .vitepress/theme/components/RepeatPanel.vue
-  - chall-wasm/wxlsh-parser/Cargo.toml
-  - chall-wasm/wxlsh-parser/src/commands.rs
-  - chall-wasm/wxlsh-parser/src/parser.rs
-  - .vitepress/theme/composables/useChallengePersistence.ts
   - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useWxlsh.ts
 tests:
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/composables/useChallengePersistence.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
-  - tests/unit/components/TerminalPanel.test.ts
-  - tests/unit/components/WxlshPanel.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
 -->
 
 ---

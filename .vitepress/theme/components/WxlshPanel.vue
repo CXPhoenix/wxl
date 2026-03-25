@@ -33,7 +33,7 @@ const wxlsh = useWxlsh({
 
 // ─── Terminal state ───────────────────────────────────────────────────────────
 
-const PROMPT = 'wxlsh$ '
+let promptLen = 0
 let inputBuffer = ''
 let cursorPos = 0   // position within inputBuffer
 
@@ -46,13 +46,14 @@ const BANNER = [
 ].join('\r\n')
 
 function writePrompt() {
-  terminal?.write('\r\n' + PROMPT)
+  const p = wxlsh.getPrompt()
+  promptLen = p.length
+  terminal?.write('\r\n' + p.text)
 }
 
 function clearLine() {
   // Move cursor to start of input, erase to end of line
   if (!terminal) return
-  const promptLen = PROMPT.length
   terminal.write(`\r\x1b[${promptLen}C\x1b[0K`)
   inputBuffer = ''
   cursorPos = 0
@@ -61,7 +62,7 @@ function clearLine() {
 function redrawInput(newBuf: string, newPos: number) {
   if (!terminal) return
   // Move to start of input area and rewrite
-  terminal.write(`\r\x1b[${PROMPT.length}C\x1b[0K` + newBuf)
+  terminal.write(`\r\x1b[${promptLen}C\x1b[0K` + newBuf)
   // Reposition cursor
   if (newPos < newBuf.length) {
     terminal.write(`\x1b[${newBuf.length - newPos}D`)
@@ -150,7 +151,7 @@ function handleKeyData(data: string) {
   } else if (data === '\x0c') {
     // Ctrl+L — clear screen
     terminal.clear()
-    terminal.write(PROMPT + inputBuffer)
+    terminal.write(wxlsh.getPrompt().text + inputBuffer)
   } else if (data === '\x03') {
     // Ctrl+C — cancel current input
     terminal.write('^C')

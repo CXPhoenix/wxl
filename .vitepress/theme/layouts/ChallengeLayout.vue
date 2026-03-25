@@ -96,6 +96,20 @@ async function dispatch(request: Request): Promise<Response> {
 const { trafficLog, wrap: wrapDispatch, clear: clearTrafficLog } = useTrafficLog()
 const trackedDispatch = wrapDispatch(dispatch)
 
+// Create dispatch bridge for Python → JS HTTP routing
+const dispatchBridge = async (method: string, url: string, headersJson: string, body: string): Promise<string> => {
+  const headers: Record<string, string> = headersJson ? JSON.parse(headersJson) : {}
+  const req = new Request(url, {
+    method,
+    headers,
+    body: (method !== 'GET' && method !== 'HEAD' && body) ? body : undefined,
+  })
+  const res = await trackedDispatch(req)
+  const resHeaders = Object.fromEntries([...res.headers.entries()])
+  const text = await res.text()
+  return JSON.stringify({ status: res.status, headers: resHeaders, body: text })
+}
+
 // ─── Attack session ──────────────────────────────────────────────────────────
 const attackSession = useAttackSession(slug.value, fm.value.title ?? '')
 
@@ -269,6 +283,9 @@ async function initRuntime(): Promise<void> {
   // Expose Pyodide instance for wxlsh and code editor panels
   if (runtime instanceof PythonRuntime) {
     pyodideInstance.value = runtime.getPyodide() as PyodidePublicAPI | null
+    if (pyodideInstance.value) {
+      pyodideInstance.value.globals.set('_wxlsh_dispatch_bridge', dispatchBridge)
+    }
   }
 
   // For non-Python backends (e.g., PHP), load a standalone Pyodide as a tool layer
@@ -279,8 +296,9 @@ async function initRuntime(): Promise<void> {
     if (typeof loadPyodide === 'function') {
       const toolsPyodide = await loadPyodide()
       // Install and patch requests on the tool-layer Pyodide too
-      await installRequestsPatch(toolsPyodide as any)
+      await installRequestsPatch(toolsPyodide as any, dispatchBridge)
       pyodideInstance.value = toolsPyodide as unknown as PyodidePublicAPI
+      pyodideInstance.value.globals.set('_wxlsh_dispatch_bridge', dispatchBridge)
     }
   }
 }

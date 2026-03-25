@@ -29,7 +29,7 @@ describe('useWxlsh - five-tier dispatch', () => {
       const wxlsh = makeWxlsh()
       await wxlsh.init()
       const result = await wxlsh.execute('help')
-      expect(result.output).toContain('help')
+      expect(result.output).toContain('Available commands')
       expect(result.output).toContain('ls')
       expect(result.output).toContain('cat')
     })

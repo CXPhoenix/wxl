@@ -44,7 +44,21 @@ function makeMockPyodide(slug = 'test') {
       return undefined
     }
 
-    // 2) Command dispatch — str(_wxlsh_commands_py["cmd"]([...], {...}))
+    // 2a) New dispatch pattern — _r = _wxlsh_commands_py["cmd"]([...], {...})\nimport inspect ...
+    const newDispatchMatch = code.match(
+      /_r = _wxlsh_commands_py\["(\w+)"\]\((\[.*?\]),\s*(\{.*?\})\)/s,
+    )
+    if (newDispatchMatch) {
+      const [, cmd, argsJson, flagsJson] = newDispatchMatch
+      const args: string[] = JSON.parse(argsJson)
+      const flags: Record<string, string> = JSON.parse(flagsJson)
+
+      if (cmd === 'curl') return simulateCurl(args, flags, slug)
+      if (cmd === 'wget') return simulateWget(args, flags, slug)
+      return `mock: unknown command ${cmd}`
+    }
+
+    // 2b) Legacy dispatch — str(_wxlsh_commands_py["cmd"]([...], {...}))
     const dispatchMatch = code.match(
       /str\(_wxlsh_commands_py\["(\w+)"\]\((\[.*?\]),\s*(\{.*?\})\)\)/s,
     )

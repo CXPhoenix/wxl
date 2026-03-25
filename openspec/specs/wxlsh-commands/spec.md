@@ -28,7 +28,7 @@ The wxlsh terminal SHALL implement a five-tier command system where Tier 1–4 c
 #### Scenario: Tier 4 network commands available
 
 - **WHEN** user types curl or wget
-- **THEN** the command executes, routing HTTP requests through the dispatch bridge
+- **THEN** the command executes, routing HTTP requests through the async JS dispatch bridge via `await`
 
 #### Scenario: Tier 5 commands controlled by challenge author
 
@@ -42,69 +42,20 @@ The wxlsh terminal SHALL implement a five-tier command system where Tier 1–4 c
 
 
 <!-- @trace
-source: challenge-ux-overhaul
+source: fix-terminal-and-http-dispatch
 updated: 2026-03-25
 code:
-  - .vitepress/theme/style.css
-  - docs/challenge/php-demo/index.md
-  - .vitepress/challenge/plugin.ts
-  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
   - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/sqli-demo/src/app.py
-  - docs/challenge/sqli-demo/index.md
-  - scripts/challenge-analyze.ts
-  - docs/challenge/fastapi-demo.md
-  - docs/challenge/fastapi-demo/src/app.py
-  - scripts/challenge-utils.ts
-  - docs/challenge/php-demo/index.php
-  - docs/challenge/fastapi-demo/index.md
-  - docs/challenge/php-demo/src/flag.txt
   - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - .vitepress/challenge/config.ts
-  - scripts/fsignore.ts
-  - scripts/challenge-validate.ts
-  - scripts/challenge-keygen.ts
-  - docs/challenge/php-demo/src/index.php
   - .vitepress/theme/composables/useWxlsh.ts
-  - uno.config.ts
-  - docs/challenge/php-demo/flag.txt
-  - .vitepress/theme/components/BrowserChrome.vue
-  - docs/challenge/sqli-demo/app.py
-  - .vitepress/theme/components/MergedNav.vue
-  - docs/challenge/fastapi-demo/app.py
-  - .vitepress/theme/composables/useUserVfs.ts
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/fastapi-demo/flag.txt
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo/src/flag.txt
-  - docs/challenge/sqli-demo/src/flag.txt
-  - scripts/create-challenge.ts
-  - docs/challenge/sqli-demo.md
 tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
-  - tests/challenge-analyze.test.ts
-  - tests/unit/theme/challenge-design-tokens.test.ts
-  - tests/unit/challenge/config.test.ts
-  - tests/unit/components/MergedNav.test.ts
-  - tests/unit/composables/useWxlsh-tier3.test.ts
-  - tests/unit/composables/useWxlsh-tier2.test.ts
-  - tests/unit/composables/usePythonRuntime.test.ts
-  - tests/unit/components/DescriptionModal.test.ts
-  - tests/unit/composables/useUserVfs.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/components/BrowserChrome.test.ts
-  - tests/unit/composables/usePythonRuntime-fs.test.ts
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/challenge-validate.test.ts
-  - tests/unit/composables/usePythonRuntime-requests.test.ts
-  - tests/fsignore.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/theme/challenge-rwd.test.ts
-  - tests/challenge-utils.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
   - tests/unit/composables/useWxlsh-tier4.test.ts
-  - tests/unit/composables/usePythonRuntime-request.test.ts
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
 -->
 
 ---
@@ -120,73 +71,53 @@ All implemented commands SHALL use flag syntax, argument parsing, and output for
 #### Scenario: curl with standard flags
 
 - **WHEN** user types `curl -X POST -d '{"user":"admin"}' -H "Content-Type: application/json" <url>`
-- **THEN** the command sends a POST request with the specified body and headers
+- **THEN** the command sends a POST request with the specified body and headers via the async dispatch bridge
+- **AND** the response body is displayed in the terminal
+
+#### Scenario: date uses Linux format
+
+- **WHEN** user types `date`
+- **THEN** the output SHALL match Linux date format: `Tue Mar 25 22:40:36 CST 2026` (locale-appropriate abbreviated day, month, time, timezone, year)
+
+#### Scenario: cd supports parent directory navigation
+
+- **WHEN** user types `cd ..`
+- **THEN** the current working directory SHALL navigate to the parent directory
+- **AND** `pwd` SHALL reflect the updated path
+
+#### Scenario: cd supports home shorthand
+
+- **WHEN** user types `cd` or `cd ~`
+- **THEN** the current working directory SHALL change to `/home/hacker`
+
+#### Scenario: help lists all available commands by tier
+
+- **WHEN** user types `help`
+- **THEN** the output SHALL list all Tier 1–4 commands organized by category
+- **AND** SHALL include Python-backed commands (curl, wget, decode, encode, base64, xxd, md5sum, sha256sum, urlencode, urldecode, grep, sed, awk, sort, uniq, cut, tr, tee, xargs, diff)
+
+#### Scenario: which recognizes Python-backed commands
+
+- **WHEN** user types `which curl`
+- **THEN** the output SHALL be `/usr/bin/curl`
+- **AND** SHALL NOT display "not found"
 
 
 <!-- @trace
-source: challenge-ux-overhaul
+source: fix-terminal-and-http-dispatch
 updated: 2026-03-25
 code:
-  - .vitepress/theme/style.css
-  - docs/challenge/php-demo/index.md
-  - .vitepress/challenge/plugin.ts
-  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
   - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/sqli-demo/src/app.py
-  - docs/challenge/sqli-demo/index.md
-  - scripts/challenge-analyze.ts
-  - docs/challenge/fastapi-demo.md
-  - docs/challenge/fastapi-demo/src/app.py
-  - scripts/challenge-utils.ts
-  - docs/challenge/php-demo/index.php
-  - docs/challenge/fastapi-demo/index.md
-  - docs/challenge/php-demo/src/flag.txt
   - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - .vitepress/challenge/config.ts
-  - scripts/fsignore.ts
-  - scripts/challenge-validate.ts
-  - scripts/challenge-keygen.ts
-  - docs/challenge/php-demo/src/index.php
   - .vitepress/theme/composables/useWxlsh.ts
-  - uno.config.ts
-  - docs/challenge/php-demo/flag.txt
-  - .vitepress/theme/components/BrowserChrome.vue
-  - docs/challenge/sqli-demo/app.py
-  - .vitepress/theme/components/MergedNav.vue
-  - docs/challenge/fastapi-demo/app.py
-  - .vitepress/theme/composables/useUserVfs.ts
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/fastapi-demo/flag.txt
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo/src/flag.txt
-  - docs/challenge/sqli-demo/src/flag.txt
-  - scripts/create-challenge.ts
-  - docs/challenge/sqli-demo.md
 tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
-  - tests/challenge-analyze.test.ts
-  - tests/unit/theme/challenge-design-tokens.test.ts
-  - tests/unit/challenge/config.test.ts
-  - tests/unit/components/MergedNav.test.ts
-  - tests/unit/composables/useWxlsh-tier3.test.ts
-  - tests/unit/composables/useWxlsh-tier2.test.ts
-  - tests/unit/composables/usePythonRuntime.test.ts
-  - tests/unit/components/DescriptionModal.test.ts
-  - tests/unit/composables/useUserVfs.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/components/BrowserChrome.test.ts
-  - tests/unit/composables/usePythonRuntime-fs.test.ts
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/challenge-validate.test.ts
-  - tests/unit/composables/usePythonRuntime-requests.test.ts
-  - tests/fsignore.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/theme/challenge-rwd.test.ts
-  - tests/challenge-utils.test.ts
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
   - tests/unit/composables/useWxlsh-tier4.test.ts
-  - tests/unit/composables/usePythonRuntime-request.test.ts
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
 -->
 
 ---
