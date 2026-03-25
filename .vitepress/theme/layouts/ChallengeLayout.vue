@@ -193,7 +193,7 @@ async function initRuntime(): Promise<void> {
   }
 
   // 2. Instantiate the per-challenge WASM module
-  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_verify_flag } = await import(
+  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_fs_list, wasm_verify_flag } = await import(
     '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
@@ -213,8 +213,11 @@ async function initRuntime(): Promise<void> {
   const appBytes: Uint8Array = wasm_fs_read('__app__')
   appCode = new TextDecoder().decode(appBytes)
 
-  // Read other FS entries (from frontmatter fs map keys)
-  const fsPaths = Object.keys(fm.value.fs ?? {})
+  // Read other FS entries: use wasm_fs_list() to auto-discover all encrypted paths,
+  // falling back to frontmatter fs field for legacy WASM binaries without wasm_fs_list.
+  const fsPaths: string[] = typeof wasm_fs_list === 'function'
+    ? (JSON.parse(wasm_fs_list()) as string[]).filter((p: string) => p !== '__app__')
+    : Object.keys(fm.value.fs ?? {})
   for (const path of fsPaths) {
     fsEntries[path] = wasm_fs_read(path)
   }

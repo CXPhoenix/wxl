@@ -6,6 +6,9 @@ export function wasm_fs_read(_path: string): Uint8Array {
   return new Uint8Array()
 }
 export function wasm_fs_write(_path: string, _plaintext: Uint8Array): void {}
+export function wasm_fs_list(): string {
+  return '[]'
+}
 export function wasm_verify_flag(_flag_bytes: Uint8Array): boolean {
   return false
 }
