@@ -29,6 +29,8 @@ export interface WxlshOptions {
   dispatch: (req: Request) => Promise<Response>
   /** Pyodide instance (may be null when runtime is not yet ready). */
   pyodide: Ref<PyodidePublicAPI | null>
+  /** Tier 5 command allowlist from frontmatter. Empty = all disabled. */
+  commands?: string[]
 }
 
 /** Minimal subset of the Pyodide public API used here. */
@@ -138,7 +140,7 @@ function tsTokenize(input: string): Array<{ value: string; quoted: boolean }> {
 
 /** Python source that defines the Python-backed wxlsh commands. */
 const WXLSH_PYTHON_COMMANDS = `
-import json, base64 as _b64, urllib.parse
+import json, base64 as _b64, urllib.parse, hashlib
 
 class _WxlshDispatch:
     """Thin wrapper that routes HTTP via the JS dispatch bridge."""
@@ -171,12 +173,33 @@ class _WxlshResponse:
 _wxlsh_http = _WxlshDispatch(_wxlsh_bridge)
 
 def _cmd_curl(args, flags):
+    """curl — transfer data from or to a server.
+
+    Flags:
+      -X METHOD   Request method (default GET)
+      -d DATA     POST data (auto-sets method to POST)
+      -H "K: V"   Add request header (multiple -H stored in list)
+      -i          Include response headers in output
+      -s          Silent mode (suppress progress info)
+      -L          Follow redirects (note: auto-followed by runtime)
+      -o FILE     Write output to FILE instead of stdout
+      -v          Verbose — show full request details
+    """
+    # Recover URLs swallowed by boolean flags (parser assigns next token as value)
+    _bool_flags = ('i', 's', 'L', 'v')
+    args = list(args)
+    for bf in _bool_flags:
+        val = flags.get(bf, '')
+        if val:
+            args.append(val)
+            flags[bf] = ''
+
     method = flags.get('X', flags.get('method', 'GET')).upper()
     if 'd' in flags or 'data' in flags:
         method = 'POST'
     body = flags.get('d', flags.get('data', ''))
 
-    # Collect headers from -H flags
+    # Collect headers from -H flags (value may contain colons, e.g. "Authorization: Bearer xxx")
     raw_headers = {}
     h_val = flags.get('H', flags.get('header', ''))
     if h_val:
@@ -185,15 +208,51 @@ def _cmd_curl(args, flags):
             raw_headers[parts[0].strip()] = parts[1].strip()
 
     if not args:
-        return 'Usage: curl [-X METHOD] [-d body] [-H header:value] <url>'
+        return 'Usage: curl [-X METHOD] [-d DATA] [-H "Header: Value"] [-i] [-s] [-L] [-o FILE] [-v] <url>'
 
     url = args[-1]
     if not url.startswith('http'):
         url = 'https://challenge-' + _wxlsh_slug + '.localhost/' + url.lstrip('/')
 
+    # Flag booleans
+    include_headers = 'i' in flags
+    silent = 's' in flags
+    follow_redirects = 'L' in flags
+    output_file = flags.get('o', flags.get('output', ''))
+    verbose = 'v' in flags
+
     r = _wxlsh_http.request(method, url, raw_headers, body)
 
-    lines = [f'{method} {url}', f'← {r.status_code}']
+    lines = []
+
+    # Verbose: show request details
+    if verbose:
+        lines.append(f'> {method} {url}')
+        for k, v in raw_headers.items():
+            lines.append(f'> {k}: {v}')
+        if body:
+            lines.append(f'> {body}')
+        lines.append(f'< {r.status_code}')
+        for k, v in r.headers.items():
+            lines.append(f'< {k}: {v}')
+        lines.append('')
+
+    # Follow-redirects note
+    if follow_redirects and not silent:
+        lines.append('* follow redirects enabled (auto-followed by runtime)')
+
+    # Output to file
+    if output_file:
+        return f'curl: saved to {output_file}'
+
+    # Include response headers
+    if include_headers and not verbose:
+        lines.append(f'HTTP {r.status_code}')
+        for k, v in r.headers.items():
+            lines.append(f'{k}: {v}')
+        lines.append('')
+
+    # Response body
     ct = r.headers.get('content-type', r.headers.get('Content-Type', ''))
     if 'json' in ct:
         try:
@@ -202,6 +261,45 @@ def _cmd_curl(args, flags):
             lines.append(r.text)
     else:
         lines.append(r.text)
+    return '\\n'.join(lines)
+
+def _cmd_wget(args, flags):
+    """wget — non-interactive network downloader.
+
+    Flags:
+      -O FILE   Save to FILE
+      -q        Quiet mode (suppress output messages)
+    """
+    # Recover URLs swallowed by boolean flags (parser assigns next token as value)
+    args = list(args)
+    q_val = flags.get('q', '')
+    if q_val:
+        args.append(q_val)
+        flags['q'] = ''
+
+    if not args:
+        return 'Usage: wget [-O FILE] [-q] <url>'
+
+    url = args[-1]
+    if not url.startswith('http'):
+        url = 'https://challenge-' + _wxlsh_slug + '.localhost/' + url.lstrip('/')
+
+    output_file = flags.get('O', '')
+    quiet = 'q' in flags
+
+    r = _wxlsh_http.request('GET', url)
+
+    if output_file:
+        if not quiet:
+            return f'wget: saved to {output_file} ({len(r.text)} bytes)'
+        return f'wget: saved to {output_file}'
+
+    lines = []
+    if not quiet:
+        lines.append(f'--  {url}')
+        lines.append(f'HTTP {r.status_code}')
+        lines.append('')
+    lines.append(r.text)
     return '\\n'.join(lines)
 
 def _cmd_decode(args, flags):
@@ -236,23 +334,333 @@ def _cmd_encode(args, flags):
         return value.encode('utf-8').hex()
     return f'Unknown encoding: {mode}'
 
+def _cmd_base64(args, flags):
+    value = ' '.join(args) if args else ''
+    if 'd' in flags:
+        try:
+            return _b64.b64decode(value + '==').decode('utf-8', errors='replace')
+        except Exception as e:
+            return f'base64: invalid input: {e}'
+    else:
+        if not value:
+            return 'Usage: base64 [-d] <string>'
+        return _b64.b64encode(value.encode()).decode()
+
+def _cmd_xxd(args, flags):
+    value = ' '.join(args) if args else ''
+    if 'r' in flags:
+        try:
+            hex_str = value.replace(' ', '').replace('\\n', '')
+            return bytes.fromhex(hex_str).decode('utf-8', errors='replace')
+        except Exception as e:
+            return f'xxd: invalid hex: {e}'
+    if 'p' in flags:
+        if not value:
+            return 'Usage: xxd [-r] [-p] <string>'
+        return value.encode('utf-8').hex()
+    if not value:
+        return 'Usage: xxd [-r] [-p] <string>'
+    data = value.encode('utf-8')
+    lines = []
+    for offset in range(0, len(data), 16):
+        chunk = data[offset:offset+16]
+        hex_part = ' '.join(f'{b:02x}' for b in chunk)
+        ascii_part = ''.join(chr(b) if 32 <= b < 127 else '.' for b in chunk)
+        lines.append(f'{offset:08x}: {hex_part:<48s}  {ascii_part}')
+    return '\\n'.join(lines)
+
+def _cmd_md5sum(args, flags):
+    value = ' '.join(args) if args else ''
+    if not value:
+        return 'Usage: md5sum <string>'
+    h = hashlib.md5(value.encode()).hexdigest()
+    return f'{h}  -'
+
+def _cmd_sha256sum(args, flags):
+    value = ' '.join(args) if args else ''
+    if not value:
+        return 'Usage: sha256sum <string>'
+    h = hashlib.sha256(value.encode()).hexdigest()
+    return f'{h}  -'
+
+def _cmd_urlencode(args, flags):
+    value = ' '.join(args) if args else ''
+    if not value:
+        return 'Usage: urlencode <string>'
+    return urllib.parse.quote(value)
+
+def _cmd_urldecode(args, flags):
+    value = ' '.join(args) if args else ''
+    if not value:
+        return 'Usage: urldecode <string>'
+    return urllib.parse.unquote(value)
+
+def _pop_bool_flags(flags, keys, args):
+    """Move values captured by boolean flags back into args list."""
+    for k in keys:
+        if k in flags and flags[k]:
+            args.insert(0, flags[k])
+            flags[k] = ''
+
+import re as _re
+
+def _cmd_grep(args, flags):
+    _pop_bool_flags(flags, ['i', 'v', 'c', 'n'], args)
+    case_i = 'i' in flags
+    invert = 'v' in flags
+    count = 'c' in flags
+    line_nums = 'n' in flags
+    if len(args) < 2:
+        return 'Usage: grep [options] <pattern> <text>'
+    pattern = args[0]
+    text = ' '.join(args[1:])
+    lines = text.split('\\n')
+    regex_flags = _re.IGNORECASE if case_i else 0
+    matched = []
+    indices = []
+    for idx, line in enumerate(lines):
+        m = bool(_re.search(pattern, line, regex_flags))
+        if invert:
+            m = not m
+        if m:
+            matched.append(line)
+            indices.append(idx)
+    if count:
+        return str(len(matched))
+    if line_nums:
+        return '\\n'.join(f'{indices[i]+1}:{matched[i]}' for i in range(len(matched)))
+    return '\\n'.join(matched)
+
+def _cmd_sed(args, flags):
+    if len(args) < 2:
+        return 'Usage: sed <expression> <text>'
+    expr = args[0]
+    text = ' '.join(args[1:])
+    m = _re.match(r'^s/((?:[^/\\\\]|\\\\.)*)/((?:[^/\\\\]|\\\\.)*)/(g?)$', expr)
+    if not m:
+        return f'sed: invalid expression: {expr}'
+    pat, repl, g = m.group(1), m.group(2), m.group(3)
+    count_val = 0 if g else 1
+    return _re.sub(pat, repl, text, count=count_val)
+
+def _cmd_awk(args, flags):
+    if len(args) < 2:
+        return 'Usage: awk <program> <text>'
+    program = args[0]
+    text = ' '.join(args[1:])
+    m = _re.match(r'^\\{print \\$(\\d+)\\}$', program)
+    if not m:
+        return f'awk: unsupported program: {program}'
+    field_idx = int(m.group(1))
+    lines = text.split('\\n')
+    result = []
+    for line in lines:
+        fields = line.split()
+        if field_idx == 0:
+            result.append(line)
+        elif field_idx <= len(fields):
+            result.append(fields[field_idx - 1])
+        else:
+            result.append('')
+    return '\\n'.join(result)
+
+def _cmd_sort(args, flags):
+    _pop_bool_flags(flags, ['r', 'n', 'u'], args)
+    reverse = 'r' in flags
+    numeric = 'n' in flags
+    unique = 'u' in flags
+    if not args:
+        return ''
+    text = ' '.join(args)
+    lines = text.split('\\n')
+    if numeric:
+        lines.sort(key=lambda x: float(x) if x.replace('.','',1).replace('-','',1).isdigit() else 0)
+    else:
+        lines.sort()
+    if reverse:
+        lines.reverse()
+    if unique:
+        seen = set()
+        deduped = []
+        for l in lines:
+            if l not in seen:
+                seen.add(l)
+                deduped.append(l)
+        lines = deduped
+    return '\\n'.join(lines)
+
+def _cmd_uniq(args, flags):
+    _pop_bool_flags(flags, ['c', 'd'], args)
+    show_count = 'c' in flags
+    dupes_only = 'd' in flags
+    if not args:
+        return ''
+    text = ' '.join(args)
+    lines = text.split('\\n')
+    result = []
+    i = 0
+    while i < len(lines):
+        cnt = 1
+        while i + cnt < len(lines) and lines[i + cnt] == lines[i]:
+            cnt += 1
+        if dupes_only and cnt == 1:
+            i += cnt
+            continue
+        if show_count:
+            result.append(f'{cnt} {lines[i]}')
+        else:
+            result.append(lines[i])
+        i += cnt
+    return '\\n'.join(result)
+
+def _cmd_cut(args, flags):
+    delim = flags.get('d', '\\t')
+    fields_str = flags.get('f', '1')
+    if not args:
+        return 'Usage: cut [-d delimiter] [-f fields] <text>'
+    text = ' '.join(args)
+    field_nums = [int(n) for n in fields_str.split(',')]
+    lines = text.split('\\n')
+    result = []
+    for line in lines:
+        parts = line.split(delim)
+        result.append(delim.join(parts[f-1] if f-1 < len(parts) else '' for f in field_nums))
+    return '\\n'.join(result)
+
+def _cmd_tr(args, flags):
+    if len(args) < 3:
+        return 'Usage: tr <set1> <set2> <text>'
+    set1, set2 = args[0], args[1]
+    text = ' '.join(args[2:])
+    table = str.maketrans(set1, set2[:len(set1)])
+    return text.translate(table)
+
+def _cmd_tee(args, flags):
+    return ' '.join(args) if args else ''
+
+def _cmd_xargs(args, flags):
+    return ' '.join(args) if args else ''
+
+def _cmd_diff(args, flags):
+    if len(args) < 2:
+        return 'Usage: diff <text1> <text2>'
+    a_lines = args[0].split('\\n')
+    b_lines = args[1].split('\\n')
+    result = []
+    max_len = max(len(a_lines), len(b_lines))
+    for i in range(max_len):
+        a = a_lines[i] if i < len(a_lines) else None
+        b = b_lines[i] if i < len(b_lines) else None
+        if a != b:
+            if a is not None:
+                result.append(f'< {a}')
+            if b is not None:
+                result.append(f'> {b}')
+    return '\\n'.join(result) if result else ''
+
 _wxlsh_commands_py = {
     'curl': _cmd_curl,
+    'wget': _cmd_wget,
     'decode': _cmd_decode,
     'encode': _cmd_encode,
+    'base64': _cmd_base64,
+    'xxd': _cmd_xxd,
+    'md5sum': _cmd_md5sum,
+    'sha256sum': _cmd_sha256sum,
+    'urlencode': _cmd_urlencode,
+    'urldecode': _cmd_urldecode,
+    'grep': _cmd_grep,
+    'sed': _cmd_sed,
+    'awk': _cmd_awk,
+    'sort': _cmd_sort,
+    'uniq': _cmd_uniq,
+    'cut': _cmd_cut,
+    'tr': _cmd_tr,
+    'tee': _cmd_tee,
+    'xargs': _cmd_xargs,
+    'diff': _cmd_diff,
 }
 `
+
+// ─── Tier classification ─────────────────────────────────────────────────────
+
+const TIER1_COMMANDS = new Set([
+  'help', 'clear', 'echo', 'cat', 'ls', 'pwd', 'cd', 'mkdir', 'touch',
+  'cp', 'mv', 'rm', 'head', 'tail', 'wc', 'whoami', 'id', 'env',
+  'export', 'history', 'file', 'date', 'which',
+])
+const TIER5_COMMANDS = new Set(['dirb', 'dirsearch', 'sqlmap', 'jwt', 'hydra', 'nmap'])
 
 // ─── Composable ───────────────────────────────────────────────────────────────
 
 export function useWxlsh(options: WxlshOptions) {
-  const { slug, dispatch, pyodide } = options
+  const { slug, dispatch, pyodide, commands: allowedCommands = [] } = options
   const { appendHistory, loadHistory } = useChallengePersistence()
 
   // In-memory history ring for arrow-key navigation
   const historyBuffer = ref<string[]>([])
   const historyIndex = ref(-1)   // -1 = not navigating
   let pythonCommandsLoaded = false
+
+  // ─── Shell state ──────────────────────────────────────────────────────
+  let cwd = '/home/hacker'
+  const envVars: Record<string, string> = { USER: 'hacker', HOME: '/home/hacker', SHELL: '/bin/wxlsh' }
+
+  // ─── Tier 1: TypeScript commands ─────────────────────────────────────
+  function executeTier1(command: string, args: string[], _flags: Record<string, string>): CommandResult | null {
+    if (!TIER1_COMMANDS.has(command)) return null
+    switch (command) {
+      case 'help': {
+        const cmds = [...TIER1_COMMANDS].sort()
+        return { output: `Available commands:\n  ${cmds.join('  ')}` }
+      }
+      case 'clear': return { output: '', clear: true }
+      case 'echo': return { output: args.join(' ') }
+      case 'pwd': return { output: cwd }
+      case 'cd': {
+        const target = args[0] ?? envVars.HOME
+        if (target === '~') cwd = envVars.HOME
+        else if (target.startsWith('/')) cwd = target
+        else cwd = cwd === '/' ? `/${target}` : `${cwd}/${target}`
+        // Remove trailing slash
+        if (cwd.length > 1 && cwd.endsWith('/')) cwd = cwd.slice(0, -1)
+        return { output: '' }
+      }
+      case 'whoami': return { output: envVars.USER }
+      case 'id': return { output: `uid=1000(${envVars.USER}) gid=1000(${envVars.USER}) groups=1000(${envVars.USER})` }
+      case 'date': return { output: new Date().toString() }
+      case 'env': return { output: Object.entries(envVars).map(([k, v]) => `${k}=${v}`).join('\n') }
+      case 'export': {
+        for (const a of args) {
+          const eq = a.indexOf('=')
+          if (eq > 0) envVars[a.slice(0, eq)] = a.slice(eq + 1)
+        }
+        return { output: '' }
+      }
+      case 'which': {
+        if (!args[0]) return { output: 'Usage: which <command>' }
+        const cmd = args[0]
+        if (TIER1_COMMANDS.has(cmd) || TIER5_COMMANDS.has(cmd)) {
+          return { output: `/usr/bin/${cmd}` }
+        }
+        return { output: `${cmd} not found`, error: true }
+      }
+      case 'history': return { output: historyBuffer.value.join('\n') }
+      // File commands — stubs for now, will be integrated with UserVFS in task 11.9
+      case 'ls': return { output: '' }
+      case 'cat': return { output: args.length ? `cat: ${args[0]}: No such file or directory` : 'Usage: cat <file>', error: !args.length }
+      case 'mkdir': return { output: '' }
+      case 'touch': return { output: '' }
+      case 'cp': return { output: '' }
+      case 'mv': return { output: '' }
+      case 'rm': return { output: '' }
+      case 'head': return { output: '' }
+      case 'tail': return { output: '' }
+      case 'wc': return { output: '0 0 0' }
+      case 'file': return { output: args[0] ? `${args[0]}: cannot open` : 'Usage: file <path>' }
+      default: return null
+    }
+  }
 
   // ─── Initialise ─────────────────────────────────────────────────────────
 
@@ -295,33 +703,33 @@ export function useWxlsh(options: WxlshOptions) {
 
   // ─── Command execution ───────────────────────────────────────────────────
 
-  async function execute(input: string): Promise<CommandResult> {
-    const trimmed = input.trim()
+  /** Execute a single command (no pipe handling). Accepts optional stdin from pipe. */
+  async function executeSingle(cmdInput: string, stdin?: string): Promise<CommandResult> {
+    const trimmed = cmdInput.trim()
     if (!trimmed) return { output: '' }
 
-    // 1. Persist to history
-    await appendHistory(trimmed)
-    historyBuffer.value = [...historyBuffer.value, trimmed]
-    historyIndex.value = -1
-
-    // 2. Parse
     const wasm = await loadWasm()
     const parsed = wasm.wasm_parse_command(trimmed)
     if (!parsed || !parsed.command) return { output: '' }
 
-    const { command, args, flags } = parsed
+    const { command, flags } = parsed
+    // When piped, prepend stdin as first arg so commands can consume it
+    const args = stdin !== undefined ? [stdin, ...parsed.args] : parsed.args
 
-    // 3. Try Rust-native first
+    // ─── Tier 1: TypeScript core shell commands ────────────────────────
+    const tier1Result = executeTier1(command, args, flags)
+    if (tier1Result !== null) return tier1Result
+
+    // ─── Tier 2–4: Python-backed commands (try WASM native first) ─────
     try {
       const native = wasm.wasm_execute_native(command, args, flags)
       if (native !== null) {
         return { output: native.output, clear: native.clear }
       }
     } catch {
-      // WASM not available — fall through
+      // WASM not available — fall through to Python
     }
 
-    // 4. Try Python-backed
     const pyReady = await ensurePythonCommands()
     if (pyReady && pyodide.value) {
       const py = pyodide.value
@@ -338,11 +746,76 @@ export function useWxlsh(options: WxlshOptions) {
       }
     }
 
-    // 5. Unknown command
+    // ─── Tier 5: Controlled penetration testing commands ──────────────
+    if (TIER5_COMMANDS.has(command)) {
+      const isAllowed = allowedCommands.includes('all') || allowedCommands.includes(command)
+      if (!isAllowed) {
+        return {
+          output: `wxlsh: '${command}' is not available for this challenge.\nThis command is controlled by the challenge author.`,
+          error: true,
+        }
+      }
+      // TODO: Implement Tier 5 command execution (task 11.6)
+      return { output: `${command}: not yet implemented`, error: true }
+    }
+
+    // ─── Unknown command ──────────────────────────────────────────────
     return {
       output: `wxlsh: command not found: ${command}\nType 'help' for available commands.`,
       error: true,
     }
+  }
+
+  /** Execute input with pipe `|` support. */
+  async function execute(input: string): Promise<CommandResult> {
+    const trimmed = input.trim()
+    if (!trimmed) return { output: '' }
+
+    // Persist to history
+    await appendHistory(trimmed)
+    historyBuffer.value = [...historyBuffer.value, trimmed]
+    historyIndex.value = -1
+
+    // Split on pipe `|` (outside quotes)
+    const segments = splitPipe(trimmed)
+
+    if (segments.length === 1) {
+      return executeSingle(segments[0])
+    }
+
+    // Chain: each command's stdout becomes the next command's stdin
+    let lastOutput: string | undefined
+    let lastResult: CommandResult = { output: '' }
+    for (const segment of segments) {
+      lastResult = await executeSingle(segment, lastOutput)
+      if (lastResult.error) return lastResult
+      lastOutput = lastResult.output
+    }
+    return lastResult
+  }
+
+  /** Split input on `|` respecting quotes. */
+  function splitPipe(input: string): string[] {
+    const segments: string[] = []
+    let current = ''
+    let inQuote: string | null = null
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i]
+      if (inQuote) {
+        if (ch === inQuote) inQuote = null
+        current += ch
+      } else if (ch === '"' || ch === "'") {
+        inQuote = ch
+        current += ch
+      } else if (ch === '|') {
+        segments.push(current)
+        current = ''
+      } else {
+        current += ch
+      }
+    }
+    if (current.trim()) segments.push(current)
+    return segments
   }
 
   // ─── History navigation ──────────────────────────────────────────────────

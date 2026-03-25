@@ -11,7 +11,7 @@ import FlagSubmit from '../components/FlagSubmit.vue'
 import MergedNav from '../components/MergedNav.vue'
 import DescriptionModal from '../components/DescriptionModal.vue'
 import NotesModal from '../components/NotesModal.vue'
-import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
+import { PythonRuntime, installRequestsPatch, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 import { useTrafficLog } from '../composables/useTrafficLog'
 import { useAttackSession } from '../composables/useAttackSession'
@@ -65,14 +65,19 @@ function toggleDescription() {
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 type Tab = 'browser' | 'terminal' | 'repeater' | 'code' | 'network'
-const activeTab = ref<Tab>('browser')
-const tabs: { id: Tab; label: string }[] = [
+const ALL_TABS: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
   { id: 'network', label: 'Network' },
   { id: 'repeater', label: 'Repeater' },
   { id: 'terminal', label: 'Terminal' },
   { id: 'code', label: 'Code' },
 ]
+const tabs = computed(() => {
+  const allowedTools: string[] | undefined = fm.value.tools
+  if (!allowedTools || allowedTools.length === 0) return ALL_TABS
+  return ALL_TABS.filter(t => allowedTools.includes(t.id))
+})
+const activeTab = ref<Tab>('browser')
 
 // ─── Challenge dispatch: directly call runtime (bypasses SW round-trip) ──────
 async function dispatch(request: Request): Promise<Response> {
@@ -268,6 +273,8 @@ async function initRuntime(): Promise<void> {
     const loadPyodide = (globalThis as any).loadPyodide as LoadPyodideFn
     if (typeof loadPyodide === 'function') {
       const toolsPyodide = await loadPyodide()
+      // Install and patch requests on the tool-layer Pyodide too
+      await installRequestsPatch(toolsPyodide as any)
       pyodideInstance.value = toolsPyodide as unknown as PyodidePublicAPI
     }
   }

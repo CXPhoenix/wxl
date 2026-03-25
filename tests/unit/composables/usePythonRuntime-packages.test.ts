@@ -14,7 +14,7 @@ function makeMockPyodide(micropipInstall?: ReturnType<typeof vi.fn>) {
     runPythonAsync,
     loadPackage: vi.fn().mockResolvedValue(undefined),
     FS: { writeFile: vi.fn() },
-    globals: { get: vi.fn().mockReturnValue(vi.fn()) },
+    globals: { get: vi.fn().mockReturnValue(vi.fn()), set: vi.fn() },
   }
   const loadPyodide = vi.fn().mockResolvedValue(pyodide)
   return { loadPyodide, pyodide, runPythonAsync, install }
@@ -37,26 +37,32 @@ describe('PythonRuntime - micropip packages', () => {
     expect(calls[micropipCallIdx]).toContain('requests')
   })
 
-  it('[RED] skips micropip when packages is empty', async () => {
+  it('[RED] skips user-package micropip when packages is empty (but still installs requests)', async () => {
     const { loadPyodide, runPythonAsync } = makeMockPyodide()
     const runtime = new PythonRuntime(loadPyodide)
 
     await runtime.initialize(APP_CODE, {}, [])
 
     const calls = runPythonAsync.mock.calls.map((c: string[]) => c[0] as string)
-    const hasMicropip = calls.some((c) => c.includes('micropip'))
-    expect(hasMicropip).toBe(false)
+    // No user-specified micropip install call (the one before app code)
+    const userMicropipIdx = calls.findIndex(c => c.includes('micropip.install') && !c.includes('requests'))
+    expect(userMicropipIdx).toBe(-1)
+    // But requests is always installed (after app code)
+    const requestsInstall = calls.some(c => c.includes("micropip.install('requests')"))
+    expect(requestsInstall).toBe(true)
   })
 
-  it('[RED] skips micropip when packages is not provided', async () => {
+  it('[RED] skips user-package micropip when packages is not provided (but still installs requests)', async () => {
     const { loadPyodide, runPythonAsync } = makeMockPyodide()
     const runtime = new PythonRuntime(loadPyodide)
 
     await runtime.initialize(APP_CODE)
 
     const calls = runPythonAsync.mock.calls.map((c: string[]) => c[0] as string)
-    const hasMicropip = calls.some((c) => c.includes('micropip'))
-    expect(hasMicropip).toBe(false)
+    const userMicropipIdx = calls.findIndex(c => c.includes('micropip.install') && !c.includes('requests'))
+    expect(userMicropipIdx).toBe(-1)
+    const requestsInstall = calls.some(c => c.includes("micropip.install('requests')"))
+    expect(requestsInstall).toBe(true)
   })
 
   it('[RED] routes native packages (sqlite3) to loadPackage, not micropip.install', async () => {
@@ -83,16 +89,19 @@ describe('PythonRuntime - micropip packages', () => {
     expect(micropipInstallCode).not.toContain('sqlite3')
   })
 
-  it('[RED] skips micropip entirely when all packages are native', async () => {
+  it('[RED] skips user-package micropip when all packages are native (but still installs requests)', async () => {
     const { loadPyodide, runPythonAsync } = makeMockPyodide()
     const runtime = new PythonRuntime(loadPyodide)
 
     await runtime.initialize(APP_CODE, {}, ['sqlite3'])
 
-    const hasMicropipInstall = runPythonAsync.mock.calls
-      .map((c: string[]) => c[0] as string)
-      .some((c) => c.includes('micropip.install'))
-    expect(hasMicropipInstall).toBe(false)
+    const calls = runPythonAsync.mock.calls.map((c: string[]) => c[0] as string)
+    // No user-specified micropip install call with sqlite3
+    const userMicropipWithSqlite = calls.some(c => c.includes('micropip.install') && c.includes('sqlite3'))
+    expect(userMicropipWithSqlite).toBe(false)
+    // requests is always installed
+    const requestsInstall = calls.some(c => c.includes("micropip.install('requests')"))
+    expect(requestsInstall).toBe(true)
   })
 
   it('[RED] rejects initialize() when micropip install fails', async () => {

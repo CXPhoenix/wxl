@@ -53,31 +53,31 @@
 
 ## 9. requests Monkey-Patch 策略（requests 函式庫整合）
 
-- [ ] 9.1 在 `usePythonRuntime.ts` 實作 runtime initialization installs requests：`micropip.install('requests')`（install real requests library in Pyodide）
-- [ ] 9.2 撰寫 `HTTPAdapter.send()` monkey-patch Python code，走 JS dispatch bridge（monkey-patch HTTPAdapter.send for dispatch bridge、full requests API compatibility）
-- [ ] 9.3 在 tool-layer Pyodide（PHP backend）也安裝並 patch requests（tool-layer Pyodide also patches requests、requests available for non-Python backends）
-- [ ] 9.4 確認 Code Editor 中 `import requests` 可正常使用（code editor supports import requests）
+- [x] 9.1 在 `usePythonRuntime.ts` 實作 runtime initialization installs requests：`micropip.install('requests')`（install real requests library in Pyodide）
+- [x] 9.2 撰寫 `HTTPAdapter.send()` monkey-patch Python code，走 JS dispatch bridge（monkey-patch HTTPAdapter.send for dispatch bridge、full requests API compatibility）
+- [x] 9.3 在 tool-layer Pyodide（PHP backend）也安裝並 patch requests（tool-layer Pyodide also patches requests、requests available for non-Python backends）
+- [x] 9.4 確認 Code Editor 中 `import requests` 可正常使用（code editor supports import requests）
 
 ## 10. User Virtual FS
 
-- [ ] 10.1 建立 `useUserVfs.ts` composable：IndexedDB CRUD、per-slug 隔離（user writable virtual filesystem、per-challenge isolated storage）
-- [ ] 10.2 實作預設使用者名稱 `hacker` 與 `export USER` 自訂邏輯（default username hacker with customization）
-- [ ] 10.3 確保挑戰檔案不暴露在 user FS 中（challenge files not exposed in user FS）
-- [ ] 10.4 設定預設工作目錄為 `/home/hacker/`（default working directory）
+- [x] 10.1 建立 `useUserVfs.ts` composable：IndexedDB CRUD、per-slug 隔離（user writable virtual filesystem、per-challenge isolated storage）
+- [x] 10.2 實作預設使用者名稱 `hacker` 與 `export USER` 自訂邏輯（default username hacker with customization）
+- [x] 10.3 確保挑戰檔案不暴露在 user FS 中（challenge files not exposed in user FS）
+- [x] 10.4 設定預設工作目錄為 `/home/hacker/`（default working directory）
 
 ## 11. Terminal 五層指令分級系統（wxlsh-commands）
 
-- [ ] 11.1 重構 `useWxlsh.ts` 為五層分派架構（five-tier command system、command dispatch routing）
-- [ ] [P] 11.2 實作 Tier 1 核心 shell 指令（TypeScript）：help, clear, echo, cat, ls, pwd, cd, mkdir, touch, cp, mv, rm, head, tail, wc, whoami, id, env, export, history, file, date, which（tier 1 core shell commands、help command lists available commands）
-- [ ] [P] 11.3 實作 Tier 2 文字處理指令（Python）：grep, sed, awk, sort, uniq, cut, tr, tee, xargs, diff（tier 2 text processing commands）
-- [ ] [P] 11.4 實作 Tier 3 編解碼/雜湊指令：base64, xxd, md5sum, sha256sum, urlencode, urldecode（tier 3 encoding and hashing commands）
-- [ ] [P] 11.5 重構 Tier 4 網路指令 curl/wget，對齊真實 Linux 工具 flag 語法（tier 4 network commands、command behavior aligned to real Linux tools）
-- [ ] 11.6 實作 Tier 5 滲透工具精簡版：dirb, dirsearch, sqlmap, jwt, hydra, nmap（tier 5 commands controlled by challenge author）
-- [ ] 11.7 實作未支援參數回報機制 + 官方文件連結（unsupported real parameters reported explicitly）
-- [ ] 11.8 實作 pipe `|` 支援（pipe support）
-- [ ] 11.9 整合 User VFS 到所有檔案操作指令（user VFS integration）
-- [ ] 11.10 整合 `commands` frontmatter 過濾 Tier 5 指令（UI tab allowlist via tools field、tier 5 command allowlist via commands field）
+- [x] 11.1 重構 `useWxlsh.ts` 為五層分派架構（five-tier command system、command dispatch routing）
+- [x] [P] 11.2 實作 Tier 1 核心 shell 指令（TypeScript）：help, clear, echo, cat, ls, pwd, cd, mkdir, touch, cp, mv, rm, head, tail, wc, whoami, id, env, export, history, file, date, which（tier 1 core shell commands、help command lists available commands）
+- [x] [P] 11.3 實作 Tier 2 文字處理指令（Python）：grep, sed, awk, sort, uniq, cut, tr, tee, xargs, diff（tier 2 text processing commands）
+- [x] [P] 11.4 實作 Tier 3 編解碼/雜湊指令：base64, xxd, md5sum, sha256sum, urlencode, urldecode（tier 3 encoding and hashing commands）
+- [x] [P] 11.5 重構 Tier 4 網路指令 curl/wget，對齊真實 Linux 工具 flag 語法（tier 4 network commands、command behavior aligned to real Linux tools）
+- [x] 11.6 實作 Tier 5 滲透工具精簡版：dirb, dirsearch, sqlmap, jwt, hydra, nmap（tier 5 commands controlled by challenge author）
+- [x] 11.7 實作未支援參數回報機制 + 官方文件連結（unsupported real parameters reported explicitly）
+- [x] 11.8 實作 pipe `|` 支援（pipe support）
+- [x] 11.9 整合 User VFS 到所有檔案操作指令（user VFS integration）
+- [x] 11.10 整合 `commands` frontmatter 過濾 Tier 5 指令（UI tab allowlist via tools field、tier 5 command allowlist via commands field）
 
 ## 12. 出題者功能管控 — UI Tab 過濾（Tools control）
 
-- [ ] 12.1 修改 `ChallengeLayout.vue`：根據 frontmatter `tools` 欄位過濾 tab 列表（UI tab allowlist via tools field）
+- [x] 12.1 修改 `ChallengeLayout.vue`：根據 frontmatter `tools` 欄位過濾 tab 列表（UI tab allowlist via tools field）

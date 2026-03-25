@@ -177,7 +177,7 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(wrapper.find('[data-flag-bar] [data-flag-submit]').exists()).toBe(true)
   })
 
-  it('renders all five interaction tabs (Browser, Network, Repeater, Terminal, Code)', () => {
+  it('renders all five interaction tabs when tools field is not set (default)', () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })

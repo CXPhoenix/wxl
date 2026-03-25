@@ -1219,3 +1219,234 @@ tests:
   - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/composables/usePentestNotes.test.ts
 -->
+
+---
+### Requirement: MergedNav component
+
+The system SHALL provide a MergedNav component that renders the unified navigation bar on challenge pages, containing brand, navigation links, challenge metadata, and utility controls.
+
+#### Scenario: MergedNav renders on challenge page
+
+- **WHEN** a challenge page is loaded
+- **THEN** the MergedNav component renders with all required elements based on the current viewport breakpoint
+
+
+<!-- @trace
+source: challenge-ux-overhaul
+updated: 2026-03-25
+code:
+  - .vitepress/theme/style.css
+  - docs/challenge/php-demo/index.md
+  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/sqli-demo/src/app.py
+  - docs/challenge/sqli-demo/index.md
+  - scripts/challenge-analyze.ts
+  - docs/challenge/fastapi-demo.md
+  - docs/challenge/fastapi-demo/src/app.py
+  - scripts/challenge-utils.ts
+  - docs/challenge/php-demo/index.php
+  - docs/challenge/fastapi-demo/index.md
+  - docs/challenge/php-demo/src/flag.txt
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - .vitepress/challenge/config.ts
+  - scripts/fsignore.ts
+  - scripts/challenge-validate.ts
+  - scripts/challenge-keygen.ts
+  - docs/challenge/php-demo/src/index.php
+  - .vitepress/theme/composables/useWxlsh.ts
+  - uno.config.ts
+  - docs/challenge/php-demo/flag.txt
+  - .vitepress/theme/components/BrowserChrome.vue
+  - docs/challenge/sqli-demo/app.py
+  - .vitepress/theme/components/MergedNav.vue
+  - docs/challenge/fastapi-demo/app.py
+  - .vitepress/theme/composables/useUserVfs.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/challenge/php-demo.md
+  - docs/challenge/fastapi-demo/src/flag.txt
+  - docs/challenge/sqli-demo/src/flag.txt
+  - scripts/create-challenge.ts
+  - docs/challenge/sqli-demo.md
+tests:
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/challenge-analyze.test.ts
+  - tests/unit/theme/challenge-design-tokens.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/MergedNav.test.ts
+  - tests/unit/composables/useWxlsh-tier3.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - tests/unit/components/DescriptionModal.test.ts
+  - tests/unit/composables/useUserVfs.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/components/BrowserChrome.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/scripts/create-challenge.test.ts
+  - tests/challenge-validate.test.ts
+  - tests/unit/composables/usePythonRuntime-requests.test.ts
+  - tests/fsignore.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/theme/challenge-rwd.test.ts
+  - tests/challenge-utils.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
+-->
+
+---
+### Requirement: DescriptionModal component
+
+The system SHALL provide a DescriptionModal component for Mobile viewports that renders the challenge description as a fullscreen overlay.
+
+#### Scenario: DescriptionModal opens and closes
+
+- **WHEN** user opens the description modal on Mobile
+- **THEN** a fullscreen overlay appears with scrollable challenge content and a close button
+- **AND** clicking close dismisses the modal
+
+
+<!-- @trace
+source: challenge-ux-overhaul
+updated: 2026-03-25
+code:
+  - .vitepress/theme/style.css
+  - docs/challenge/php-demo/index.md
+  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/sqli-demo/src/app.py
+  - docs/challenge/sqli-demo/index.md
+  - scripts/challenge-analyze.ts
+  - docs/challenge/fastapi-demo.md
+  - docs/challenge/fastapi-demo/src/app.py
+  - scripts/challenge-utils.ts
+  - docs/challenge/php-demo/index.php
+  - docs/challenge/fastapi-demo/index.md
+  - docs/challenge/php-demo/src/flag.txt
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - .vitepress/challenge/config.ts
+  - scripts/fsignore.ts
+  - scripts/challenge-validate.ts
+  - scripts/challenge-keygen.ts
+  - docs/challenge/php-demo/src/index.php
+  - .vitepress/theme/composables/useWxlsh.ts
+  - uno.config.ts
+  - docs/challenge/php-demo/flag.txt
+  - .vitepress/theme/components/BrowserChrome.vue
+  - docs/challenge/sqli-demo/app.py
+  - .vitepress/theme/components/MergedNav.vue
+  - docs/challenge/fastapi-demo/app.py
+  - .vitepress/theme/composables/useUserVfs.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/challenge/php-demo.md
+  - docs/challenge/fastapi-demo/src/flag.txt
+  - docs/challenge/sqli-demo/src/flag.txt
+  - scripts/create-challenge.ts
+  - docs/challenge/sqli-demo.md
+tests:
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/challenge-analyze.test.ts
+  - tests/unit/theme/challenge-design-tokens.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/MergedNav.test.ts
+  - tests/unit/composables/useWxlsh-tier3.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - tests/unit/components/DescriptionModal.test.ts
+  - tests/unit/composables/useUserVfs.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/components/BrowserChrome.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/scripts/create-challenge.test.ts
+  - tests/challenge-validate.test.ts
+  - tests/unit/composables/usePythonRuntime-requests.test.ts
+  - tests/fsignore.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/theme/challenge-rwd.test.ts
+  - tests/challenge-utils.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
+-->
+
+---
+### Requirement: BrowserChrome component
+
+The system SHALL provide a BrowserChrome component that renders the browser-like URL bar, adapting its layout between Desktop (capsule with nav buttons) and Mobile (minimal input + go button).
+
+#### Scenario: BrowserChrome adapts to viewport
+
+- **WHEN** viewport changes from Desktop to Mobile
+- **THEN** the BrowserChrome switches from capsule layout (← → ↻ + capsule URL + Go) to minimal layout (URL input + → button)
+
+<!-- @trace
+source: challenge-ux-overhaul
+updated: 2026-03-25
+code:
+  - .vitepress/theme/style.css
+  - docs/challenge/php-demo/index.md
+  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/sqli-demo/src/app.py
+  - docs/challenge/sqli-demo/index.md
+  - scripts/challenge-analyze.ts
+  - docs/challenge/fastapi-demo.md
+  - docs/challenge/fastapi-demo/src/app.py
+  - scripts/challenge-utils.ts
+  - docs/challenge/php-demo/index.php
+  - docs/challenge/fastapi-demo/index.md
+  - docs/challenge/php-demo/src/flag.txt
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - .vitepress/challenge/config.ts
+  - scripts/fsignore.ts
+  - scripts/challenge-validate.ts
+  - scripts/challenge-keygen.ts
+  - docs/challenge/php-demo/src/index.php
+  - .vitepress/theme/composables/useWxlsh.ts
+  - uno.config.ts
+  - docs/challenge/php-demo/flag.txt
+  - .vitepress/theme/components/BrowserChrome.vue
+  - docs/challenge/sqli-demo/app.py
+  - .vitepress/theme/components/MergedNav.vue
+  - docs/challenge/fastapi-demo/app.py
+  - .vitepress/theme/composables/useUserVfs.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/challenge/php-demo.md
+  - docs/challenge/fastapi-demo/src/flag.txt
+  - docs/challenge/sqli-demo/src/flag.txt
+  - scripts/create-challenge.ts
+  - docs/challenge/sqli-demo.md
+tests:
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/challenge-analyze.test.ts
+  - tests/unit/theme/challenge-design-tokens.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/MergedNav.test.ts
+  - tests/unit/composables/useWxlsh-tier3.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - tests/unit/components/DescriptionModal.test.ts
+  - tests/unit/composables/useUserVfs.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/components/BrowserChrome.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/scripts/create-challenge.test.ts
+  - tests/challenge-validate.test.ts
+  - tests/unit/composables/usePythonRuntime-requests.test.ts
+  - tests/fsignore.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/theme/challenge-rwd.test.ts
+  - tests/challenge-utils.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
+-->
