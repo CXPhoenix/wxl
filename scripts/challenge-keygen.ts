@@ -23,6 +23,8 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { parseDocument } from 'yaml'
+import { scanSrcDirectory } from './challenge-utils'
+import { parseFsIgnore } from './fsignore'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -360,7 +362,12 @@ const LEGACY_FIELDS = ['fs_key', 'fsKeyParts', 'encryptedFs', 'flag_verifier'] a
 // ─── Main build pipeline ────────────────────────────────────────────────────
 
 async function processChallenge(mdPath: string, templateWasmPath: string, force: boolean): Promise<void> {
-  const slug = basename(mdPath, '.md')
+  // New pattern: /path/challenge/<slug>/index.md → slug from parent dir
+  // Legacy pattern: /path/challenge/<slug>.md → slug from filename
+  const filename = basename(mdPath)
+  const slug = filename === 'index.md'
+    ? basename(dirname(mdPath))
+    : basename(mdPath, '.md')
   const raw = readFileSync(mdPath, 'utf-8')
   const parsed = parseMd(raw)
   if (!parsed) { console.warn(`[skip] ${slug}: no frontmatter`); return }
@@ -379,35 +386,83 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
 
   // Resolve source directory relative to the .md file
   const baseDir = dirname(mdPath)
+  const isPerFolder = filename === 'index.md'
+  const srcDir = isPerFolder ? resolve(baseDir, 'src') : null
 
-  // Read app file
-  const appRef = String(fm.app ?? '')
-  const appPath = resolve(baseDir, appRef)
-  if (!existsSync(appPath)) {
-    console.warn(`[skip] ${slug}: app file not found: ${appPath}`)
-    return
-  }
-  const appContent = readFileSync(appPath, 'utf-8')
+  // ─── Resolve app source and FS entries ─────────────────────────────────────
+  let appContent: string
+  let fsFiles: Array<{ virtualPath: string; content: string }>
+  let flagContent: string
 
-  // Read fs entries
-  const fsMap = (fm.fs ?? {}) as Record<string, string>
-  const fileContents: Record<string, string> = {}
-  for (const [, ref] of Object.entries(fsMap)) {
-    const p = resolve(baseDir, ref)
-    if (!existsSync(p)) {
-      console.warn(`[skip] ${slug}: fs file not found: ${p}`)
+  if (isPerFolder && srcDir && existsSync(srcDir)) {
+    // ── New per-folder structure: auto-scan src/ ──
+    const appRef = String(fm.app ?? 'app.py')
+    const appPath = resolve(srcDir, appRef)
+    if (!existsSync(appPath)) {
+      console.warn(`[skip] ${slug}: app file not found: ${appPath}`)
       return
     }
-    fileContents[ref] = readFileSync(p, 'utf-8')
+    appContent = readFileSync(appPath, 'utf-8')
+
+    // Load .fsignore if present
+    const fsIgnorePath = resolve(srcDir, '.fsignore')
+    let isExcluded: ((rel: string, isDir: boolean) => boolean) | undefined
+    if (existsSync(fsIgnorePath)) {
+      const fsIgnoreContent = readFileSync(fsIgnorePath, 'utf-8')
+      isExcluded = parseFsIgnore(fsIgnoreContent)
+    }
+
+    // Auto-scan src/ for FS entries
+    const scanned = scanSrcDirectory(srcDir, isExcluded)
+    fsFiles = scanned
+      .filter((f) => resolve(srcDir, f.virtualPath.slice(1)) !== appPath) // exclude app entry (stored as __app__)
+      .map((f) => ({
+        virtualPath: f.virtualPath,
+        content: readFileSync(f.absolutePath, 'utf-8'),
+      }))
+
+    // Resolve flag file
+    const flagRef = String(fm.flag ?? 'flag.txt')
+    const flagPath = resolve(srcDir, flagRef)
+    if (!existsSync(flagPath)) {
+      console.warn(`[skip] ${slug}: flag file not found: ${flagPath}`)
+      return
+    }
+    flagContent = readFileSync(flagPath, 'utf-8')
+  } else {
+    // ── Legacy flat structure: explicit fs map ──
+    const appRef = String(fm.app ?? '')
+    const appPath = resolve(baseDir, appRef)
+    if (!existsSync(appPath)) {
+      console.warn(`[skip] ${slug}: app file not found: ${appPath}`)
+      return
+    }
+    appContent = readFileSync(appPath, 'utf-8')
+
+    const fsMap = (fm.fs ?? {}) as Record<string, string>
+    const fileContents: Record<string, string> = {}
+    for (const [, ref] of Object.entries(fsMap)) {
+      const p = resolve(baseDir, ref)
+      if (!existsSync(p)) {
+        console.warn(`[skip] ${slug}: fs file not found: ${p}`)
+        return
+      }
+      fileContents[ref] = readFileSync(p, 'utf-8')
+    }
+    fsFiles = Object.entries(fsMap).map(([vpath, ref]) => ({
+      virtualPath: vpath,
+      content: fileContents[ref] ?? '',
+    }))
+
+    // Flag from explicit fs map
+    const flagEntry = Object.entries(fsMap).find(([vpath]) => vpath === '/flag.txt')
+    if (!flagEntry) {
+      console.warn(`[skip] ${slug}: no /flag.txt entry in fs map`)
+      return
+    }
+    flagContent = fileContents[flagEntry[1]]
   }
 
-  // Derive flag_verifier from /flag.txt content
-  const flagEntry = Object.entries(fsMap).find(([vpath]) => vpath === '/flag.txt')
-  if (!flagEntry) {
-    console.warn(`[skip] ${slug}: no /flag.txt entry in fs map`)
-    return
-  }
-  const flagContent = fileContents[flagEntry[1]]
   const verifier = await deriveFlagVerifier(flagContent, slug)
 
   // Generate per-challenge AES-256 key
@@ -415,10 +470,9 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
 
   // Encrypt all FS entries → raw bytes (iv || ciphertext || tag)
   const entries: FsEntry[] = []
-  for (const [vpath, ref] of Object.entries(fsMap)) {
-    const content = fileContents[ref] ?? ''
+  for (const { virtualPath, content } of fsFiles) {
     const encrypted = await aesGcmEncryptRaw(realKey, new TextEncoder().encode(content))
-    entries.push({ path: vpath, data: encrypted })
+    entries.push({ path: virtualPath, data: encrypted })
   }
 
   // Encrypt app code under reserved '__app__' key
@@ -493,10 +547,25 @@ async function main(): Promise<void> {
   const preparedTemplatePath = resolve(root, '.vitepress', 'wasm', 'virtual-fs', 'template.wasm')
   prepareTemplateWasm(templateWasmPath, preparedTemplatePath)
 
-  const files = readdirSync(challenges)
-    .filter((f) => f.endsWith('.md'))
+  // New pattern: docs/challenge/<slug>/index.md
+  const newPatternFiles = readdirSync(challenges, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .filter((d) => existsSync(join(challenges, d.name, 'index.md')))
+    .filter((d) => !target || d.name === target)
+    .map((d) => join(challenges, d.name, 'index.md'))
+
+  // Legacy pattern: docs/challenge/<slug>.md (fallback)
+  const legacyFiles = readdirSync(challenges)
+    .filter((f) => f.endsWith('.md') && f !== 'index.md')
+    .filter((f) => {
+      const slug = f.replace(/\.md$/, '')
+      // Skip if already handled by new pattern
+      return !newPatternFiles.some((nf) => nf.includes(`/${slug}/index.md`))
+    })
     .filter((f) => !target || f === `${target}.md`)
     .map((f) => join(challenges, f))
+
+  const files = [...newPatternFiles, ...legacyFiles]
 
   if (files.length === 0) {
     console.error(target ? `Challenge not found: ${target}` : 'No challenge files found')
@@ -510,10 +579,15 @@ async function main(): Promise<void> {
     if (!parsed) continue
     const doc = parseDocument(parsed.fmRaw)
     const fm = doc.toJSON() as Record<string, unknown>
+    const fnBase = basename(f)
+    const slug = fnBase === 'index.md' ? basename(dirname(f)) : basename(f, '.md')
     for (const field of LEGACY_FIELDS) {
       if (field in fm) {
-        console.warn(`[warn] ${basename(f, '.md')}: deprecated field '${field}' found — will be removed`)
+        console.warn(`[warn] ${slug}: deprecated field '${field}' found — will be removed`)
       }
+    }
+    if (!f.endsWith('/index.md')) {
+      console.warn(`[warn] ${slug}: using legacy flat file structure — consider migrating to ${slug}/index.md + src/`)
     }
   }
 

@@ -17,6 +17,8 @@ export interface ProcessedChallenge {
   category?: string
   description?: string
   sourceVisible: boolean
+  tools?: string[]              // UI tab allowlist
+  commands?: string[] | 'all'   // Tier 5 command allowlist
 }
 
 /**
@@ -41,6 +43,8 @@ export function processChallengeFrontmatter(
     difficulty: config.difficulty,
     category: config.category,
     description: config.description,
+    tools: config.tools,
+    commands: config.commands,
   }
 
   // Only expose app source in white-box mode

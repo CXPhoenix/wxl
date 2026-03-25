@@ -26,7 +26,9 @@
     "dev": "pnpm wasm:build && pnpm challenge:keygen && pnpm docs:dev",
     "build": "pnpm wasm:build && pnpm challenge:keygen && pnpm docs:build",
     "challenge:keygen": "node --experimental-strip-types scripts/challenge-keygen.ts",
-    "create:challenge": "node --experimental-strip-types scripts/create-challenge.ts"
+    "create:challenge": "node --experimental-strip-types scripts/create-challenge.ts",
+    "challenge:validate": "node --experimental-strip-types scripts/challenge-validate.ts",
+    "challenge:analyze": "node --experimental-strip-types scripts/challenge-analyze.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

@@ -102,14 +102,16 @@ export function checkCollision(
   challengesDir: string,
   existsFn: (p: string) => boolean = existsSync,
 ): void {
-  const mdPath  = resolve(challengesDir, `${slug}.md`)
-  const dirPath = resolve(challengesDir, slug)
+  // New per-folder structure
+  const indexMdPath = resolve(challengesDir, slug, 'index.md')
+  // Legacy flat structure
+  const legacyMdPath = resolve(challengesDir, `${slug}.md`)
 
-  if (existsFn(mdPath)) {
-    throw new Error(`Challenge "${slug}" already exists: ${mdPath}`)
+  if (existsFn(indexMdPath)) {
+    throw new Error(`Challenge "${slug}" already exists: ${indexMdPath}`)
   }
-  if (existsFn(dirPath)) {
-    throw new Error(`Challenge directory "${slug}" already exists: ${dirPath}`)
+  if (existsFn(legacyMdPath)) {
+    throw new Error(`Challenge "${slug}" already exists (legacy): ${legacyMdPath}`)
   }
 }
 
@@ -202,9 +204,9 @@ $flag = @file_get_contents('/flag.txt') ?: '(flag not found)';
 
 // ─── Frontmatter generator (exported for testing) ──────────────────────────
 
-/** Generate the full <slug>.md file content with PLACEHOLDER frontmatter. */
+/** Generate the index.md file content with per-folder frontmatter. */
 export function generateMarkdown(opts: ScaffoldOptions): string {
-  const { slug, title, backend, difficulty } = opts
+  const { title, backend, difficulty } = opts
   const appFile = backend === 'php' ? 'index.php' : 'app.py'
 
   const fm: Record<string, unknown> = {
@@ -213,8 +215,7 @@ export function generateMarkdown(opts: ScaffoldOptions): string {
     difficulty,
     category: 'web',
     backend,
-    app: `./${slug}/${appFile}`,
-    fs: { '/flag.txt': `./${slug}/flag.txt` },
+    app: appFile,
     packages: [],
     date: new Date().toISOString(),
     tags: [],
@@ -261,9 +262,10 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  // ── 3. Create directory and write files ──────────────────────────────────
+  // ── 3. Create directory and write files (per-folder structure) ──────────
   const slugDir = resolve(CHALLENGES, slug)
-  mkdirSync(slugDir, { recursive: true })
+  const srcDir = resolve(slugDir, 'src')
+  mkdirSync(srcDir, { recursive: true })
 
   const appFile  = backend === 'php' ? 'index.php' : 'app.py'
   const skeleton =
@@ -271,14 +273,14 @@ async function main(): Promise<void> {
     : backend === 'fastapi' ? fastApiSkeleton(slug)
     : phpSkeleton(slug)
 
-  writeFileSync(resolve(slugDir, appFile),      skeleton,                'utf-8')
-  writeFileSync(resolve(slugDir, 'flag.txt'),   flag,                    'utf-8')
-  writeFileSync(resolve(CHALLENGES, `${slug}.md`), generateMarkdown(opts), 'utf-8')
+  writeFileSync(resolve(srcDir, appFile),    skeleton,                'utf-8')
+  writeFileSync(resolve(srcDir, 'flag.txt'), flag,                    'utf-8')
+  writeFileSync(resolve(slugDir, 'index.md'), generateMarkdown(opts), 'utf-8')
 
   console.log(`✓ Scaffold created:`)
-  console.log(`  docs/challenge/${slug}/${appFile}`)
-  console.log(`  docs/challenge/${slug}/flag.txt`)
-  console.log(`  docs/challenge/${slug}.md`)
+  console.log(`  docs/challenge/${slug}/index.md`)
+  console.log(`  docs/challenge/${slug}/src/${appFile}`)
+  console.log(`  docs/challenge/${slug}/src/flag.txt`)
 
   // ── 5. Auto-run keygen ───────────────────────────────────────────────────
   console.log(`\nRunning challenge:keygen ${slug} …`)

@@ -5,9 +5,7 @@ difficulty: easy
 category: web
 backend: fastapi
 source_visible: false
-app: ./fastapi-demo/app.py
-fs:
-  /flag.txt: ./fastapi-demo/flag.txt
+app: app.py
 description: >
   A FastAPI notes app with an IDOR vulnerability. Can you access a note that doesn't belong to you?
 date: "2025-04-01T00:00:00.000Z"

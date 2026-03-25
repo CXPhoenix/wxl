@@ -5,9 +5,7 @@ difficulty: easy
 category: web
 backend: flask
 source_visible: false
-app: ./sqli-demo/app.py
-fs:
-  /flag.txt: ./sqli-demo/flag.txt
+app: app.py
 description: >
   A simple Flask app with a SQL injection vulnerability. Can you retrieve all users from the database?
 date: "2025-03-01T00:00:00.000Z"

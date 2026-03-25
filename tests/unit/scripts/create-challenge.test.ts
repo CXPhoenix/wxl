@@ -67,8 +67,8 @@ describe('checkCollision', () => {
     expect(() => checkCollision('my-challenge', '/docs/challenge', existsFn)).toThrow()
   })
 
-  it('throws when <slug>/ directory already exists', () => {
-    const existsFn = (p: string) => !p.endsWith('.md') && p.endsWith('my-challenge')
+  it('throws when <slug>/index.md already exists', () => {
+    const existsFn = (p: string) => p.endsWith('my-challenge/index.md')
     expect(() => checkCollision('my-challenge', '/docs/challenge', existsFn)).toThrow()
   })
 
@@ -157,7 +157,8 @@ describe('generateMarkdown', () => {
     expect(fm.category).toBe('web')
     expect(fm.packages).toEqual([])
     expect(typeof fm.app).toBe('string')
-    expect(typeof fm.fs).toBe('object')
+    expect(fm.app).toBe('app.py')
+    expect(fm.fs).toBeUndefined()
   })
 
   it('uses index.php for PHP backend', () => {
