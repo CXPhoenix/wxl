@@ -43,8 +43,8 @@ function formatDate(d: string | null | undefined): string {
   <div class="home-content-wrapper px-6 pb-20">
     <!-- Platform intro -->
     <section class="max-w-screen-lg mx-auto mb-16 text-center">
-      <h2 class="text-2xl font-bold mb-4 color-[var(--vp-c-text-1)]">關於 WXL</h2>
-      <p class="text-base color-[var(--vp-c-text-2)] max-w-2xl mx-auto leading-relaxed">
+      <h2 class="text-2xl font-bold mb-4 color-[var(--ch-text-1)]">關於 WXL</h2>
+      <p class="text-base color-[var(--ch-text-2)] max-w-2xl mx-auto leading-relaxed">
         WXL（網站滲透實驗室）是完全基於前端 WebAssembly 技術的 Web 資安挑戰平台。
         所有挑戰後端（Flask、FastAPI、PHP）均在瀏覽器中執行，無需任何伺服器即可進行真實的滲透測試練習。
         內建 HTTP Repeater、Python Code Editor、終端機模擬器等工具，提供完整的攻擊工具鏈。
@@ -53,73 +53,73 @@ function formatDate(d: string | null | undefined): string {
 
     <!-- Stats -->
     <section class="max-w-screen-lg mx-auto mb-16">
-      <h2 class="text-2xl font-bold mb-8 text-center color-[var(--vp-c-text-1)]">平台統計</h2>
+      <h2 class="text-2xl font-bold mb-8 text-center color-[var(--ch-text-1)]">平台統計</h2>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="bg-[var(--vp-c-bg-soft)] rounded-xl p-5 text-center border border-[var(--vp-c-divider)]">
-          <div class="text-3xl font-bold color-[var(--vp-c-brand-1)] mb-1">{{ totalCount }}</div>
-          <div class="text-sm color-[var(--vp-c-text-2)]">題目總數</div>
+        <div class="bg-[var(--ch-bg-soft)] rounded-xl p-5 text-center border border-[var(--ch-border)]">
+          <div class="text-3xl font-bold color-[var(--ch-accent)] mb-1">{{ totalCount }}</div>
+          <div class="text-sm color-[var(--ch-text-2)]">題目總數</div>
         </div>
-        <div class="bg-[var(--vp-c-bg-soft)] rounded-xl p-5 text-center border border-[var(--vp-c-divider)]">
-          <div class="text-3xl font-bold text-[#065f46] dark:text-[#34d399] mb-1">{{ easyCount }}</div>
-          <div class="text-sm color-[var(--vp-c-text-2)]">Easy</div>
+        <div class="bg-[var(--ch-bg-soft)] rounded-xl p-5 text-center border border-[var(--ch-border)]">
+          <div class="text-3xl font-bold color-[var(--ch-easy-fg)] mb-1">{{ easyCount }}</div>
+          <div class="text-sm color-[var(--ch-text-2)]">Easy</div>
         </div>
-        <div class="bg-[var(--vp-c-bg-soft)] rounded-xl p-5 text-center border border-[var(--vp-c-divider)]">
-          <div class="text-3xl font-bold text-[#92400e] dark:text-[#fbbf24] mb-1">{{ mediumCount }}</div>
-          <div class="text-sm color-[var(--vp-c-text-2)]">Medium</div>
+        <div class="bg-[var(--ch-bg-soft)] rounded-xl p-5 text-center border border-[var(--ch-border)]">
+          <div class="text-3xl font-bold color-[var(--ch-med-fg)] mb-1">{{ mediumCount }}</div>
+          <div class="text-sm color-[var(--ch-text-2)]">Medium</div>
         </div>
-        <div class="bg-[var(--vp-c-bg-soft)] rounded-xl p-5 text-center border border-[var(--vp-c-divider)]">
-          <div class="text-3xl font-bold text-[#991b1b] dark:text-[#f87171] mb-1">{{ hardCount }}</div>
-          <div class="text-sm color-[var(--vp-c-text-2)]">Hard</div>
+        <div class="bg-[var(--ch-bg-soft)] rounded-xl p-5 text-center border border-[var(--ch-border)]">
+          <div class="text-3xl font-bold color-[var(--ch-hard-fg)] mb-1">{{ hardCount }}</div>
+          <div class="text-sm color-[var(--ch-text-2)]">Hard</div>
         </div>
-        <div class="bg-[var(--vp-c-bg-soft)] rounded-xl p-5 text-center border border-[var(--vp-c-divider)]">
-          <div class="text-3xl font-bold text-[#5b21b6] dark:text-[#a78bfa] mb-1">{{ mysteryCount }}</div>
-          <div class="text-sm color-[var(--vp-c-text-2)]">Mystery</div>
+        <div class="bg-[var(--ch-bg-soft)] rounded-xl p-5 text-center border border-[var(--ch-border)]">
+          <div class="text-3xl font-bold color-[var(--ch-myst-fg)] mb-1">{{ mysteryCount }}</div>
+          <div class="text-sm color-[var(--ch-text-2)]">Mystery</div>
         </div>
       </div>
     </section>
 
     <!-- Latest challenges -->
     <section v-if="latestChallenges.length > 0" class="max-w-screen-lg mx-auto mb-16">
-      <h2 class="text-2xl font-bold mb-8 text-center color-[var(--vp-c-text-1)]">最新題目</h2>
+      <h2 class="text-2xl font-bold mb-8 text-center color-[var(--ch-text-1)]">最新題目</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <a
           v-for="c in latestChallenges"
           :key="c.url"
           :href="withBase(c.url)"
-          class="no-underline bg-[var(--vp-c-bg-soft)] rounded-xl p-5 border border-[var(--vp-c-divider)] hover:border-[var(--vp-c-brand-1)] transition-colors cursor-pointer block"
+          class="no-underline bg-[var(--ch-bg-soft)] rounded-xl p-5 border border-[var(--ch-border)] hover:border-[var(--ch-accent)] transition-colors cursor-pointer block"
         >
           <div class="flex items-start justify-between gap-2 mb-2">
-            <span class="font-semibold color-[var(--vp-c-text-1)] text-base">{{ c.title }}</span>
+            <span class="font-semibold color-[var(--ch-text-1)] text-base">{{ c.title }}</span>
             <span
               v-if="c.difficulty"
               :class="difficultyBadge[c.difficulty ?? 'mystery'] ?? 'ch-badge'"
               class="shrink-0"
             >{{ c.difficulty }}</span>
           </div>
-          <p v-if="c.description" class="text-sm color-[var(--vp-c-text-2)] mb-2 line-clamp-2 m-0">{{ c.description }}</p>
-          <div class="text-xs color-[var(--vp-c-text-3)]">{{ formatDate(c.date) }}</div>
+          <p v-if="c.description" class="text-sm color-[var(--ch-text-2)] mb-2 line-clamp-2 m-0">{{ c.description }}</p>
+          <div class="text-xs color-[var(--ch-text-3)]">{{ formatDate(c.date) }}</div>
         </a>
       </div>
     </section>
 
     <!-- Quick start -->
     <section class="max-w-screen-lg mx-auto">
-      <h2 class="text-2xl font-bold mb-8 text-center color-[var(--vp-c-text-1)]">三步驟快速開始</h2>
+      <h2 class="text-2xl font-bold mb-8 text-center color-[var(--ch-text-1)]">三步驟快速開始</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-[var(--vp-c-brand-soft)] flex items-center justify-center text-xl font-bold color-[var(--vp-c-brand-1)] mx-auto mb-4">1</div>
-          <h3 class="font-semibold mb-2 color-[var(--vp-c-text-1)]">選擇挑戰</h3>
-          <p class="text-sm color-[var(--vp-c-text-2)] leading-relaxed">前往題目總覽，依難度或類別選擇適合的挑戰題目。</p>
+          <div class="w-12 h-12 rounded-full bg-[var(--ch-accent-soft)] flex items-center justify-center text-xl font-bold color-[var(--ch-accent)] mx-auto mb-4">1</div>
+          <h3 class="font-semibold mb-2 color-[var(--ch-text-1)]">選擇挑戰</h3>
+          <p class="text-sm color-[var(--ch-text-2)] leading-relaxed">前往題目總覽，依難度或類別選擇適合的挑戰題目。</p>
         </div>
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-[var(--vp-c-brand-soft)] flex items-center justify-center text-xl font-bold color-[var(--vp-c-brand-1)] mx-auto mb-4">2</div>
-          <h3 class="font-semibold mb-2 color-[var(--vp-c-text-1)]">使用工具</h3>
-          <p class="text-sm color-[var(--vp-c-text-2)] leading-relaxed">使用內建的 Browser、Terminal、Code Editor、Repeater 分析並利用漏洞。</p>
+          <div class="w-12 h-12 rounded-full bg-[var(--ch-accent-soft)] flex items-center justify-center text-xl font-bold color-[var(--ch-accent)] mx-auto mb-4">2</div>
+          <h3 class="font-semibold mb-2 color-[var(--ch-text-1)]">使用工具</h3>
+          <p class="text-sm color-[var(--ch-text-2)] leading-relaxed">使用內建的 Browser、Terminal、Code Editor、Repeater 分析並利用漏洞。</p>
         </div>
         <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-[var(--vp-c-brand-soft)] flex items-center justify-center text-xl font-bold color-[var(--vp-c-brand-1)] mx-auto mb-4">3</div>
-          <h3 class="font-semibold mb-2 color-[var(--vp-c-text-1)]">提交 Flag</h3>
-          <p class="text-sm color-[var(--vp-c-text-2)] leading-relaxed">找到 Flag 後，輸入到題目頁面的提交框並確認答案是否正確。</p>
+          <div class="w-12 h-12 rounded-full bg-[var(--ch-accent-soft)] flex items-center justify-center text-xl font-bold color-[var(--ch-accent)] mx-auto mb-4">3</div>
+          <h3 class="font-semibold mb-2 color-[var(--ch-text-1)]">提交 Flag</h3>
+          <p class="text-sm color-[var(--ch-text-2)] leading-relaxed">找到 Flag 後，輸入到題目頁面的提交框並確認答案是否正確。</p>
         </div>
       </div>
     </section>

@@ -16,26 +16,32 @@ hero:
 features:
   - icon:
       src: /icons/browser.svg
+      wrap: true
     title: 瀏覽器模擬器
     details: 內建 iframe sandbox，直接與挑戰應用程式互動
   - icon:
       src: /icons/terminal.svg
+      wrap: true
     title: Terminal (wxlsh)
     details: 內建終端機，支援 curl、base64、hex 等滲透測試常用工具
   - icon:
       src: /icons/code.svg
+      wrap: true
     title: Code Editor (Pyodide)
     details: Python 攻擊腳本編輯器，支援 requests 模組與自動化攻擊
   - icon:
       src: /icons/repeater.svg
+      wrap: true
     title: HTTP Repeater
     details: 攔截並重放 HTTP 請求，自由修改參數測試漏洞
   - icon:
       src: /icons/network.svg
+      wrap: true
     title: Network Traffic Log
     details: 完整記錄所有工具面板的 HTTP 請求與回應，含狀態碼與計時
   - icon:
       src: /icons/notes.svg
+      wrap: true
     title: 滲透測試筆記
     details: Markdown 筆記系統，自動記錄操作歷程，可匯出完整攻擊記錄
 ---
