@@ -173,4 +173,22 @@ describe('generateMarkdown', () => {
       expect(String(fm.app)).toContain('app.py')
     }
   })
+
+  it('includes a date field in ISO 8601 format', () => {
+    const before = Date.now()
+    const content = generateMarkdown(opts)
+    const after = Date.now()
+    const fm = extractFrontmatter(content)
+    expect(typeof fm.date).toBe('string')
+    const ts = new Date(fm.date as string).getTime()
+    expect(ts).toBeGreaterThanOrEqual(before)
+    expect(ts).toBeLessThanOrEqual(after)
+  })
+
+  it('includes a tags field as an empty array', () => {
+    const content = generateMarkdown(opts)
+    const fm = extractFrontmatter(content)
+    expect(Array.isArray(fm.tags)).toBe(true)
+    expect(fm.tags).toEqual([])
+  })
 })

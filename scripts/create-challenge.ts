@@ -216,6 +216,8 @@ export function generateMarkdown(opts: ScaffoldOptions): string {
     app: `./${slug}/${appFile}`,
     fs: { '/flag.txt': `./${slug}/flag.txt` },
     packages: [],
+    date: new Date().toISOString(),
+    tags: [],
   }
 
   const fmStr = yamlStringify(fm, { lineWidth: 0 }).trimEnd()

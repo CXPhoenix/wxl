@@ -14,6 +14,8 @@ export interface ChallengeConfig {
   difficulty?: string
   category?: string
   description?: string
+  date?: string
+  tags?: string[]
 }
 
 const REQUIRED: (keyof ChallengeConfig)[] = ['title', 'backend', 'app', 'fs']
@@ -46,5 +48,7 @@ export function validateChallengeConfig(raw: unknown): ChallengeConfig {
     difficulty: obj.difficulty as string | undefined,
     category: obj.category as string | undefined,
     description: obj.description as string | undefined,
+    date: obj.date as string | undefined,
+    tags: (Array.isArray(obj.tags) ? obj.tags : undefined) as string[] | undefined,
   }
 }

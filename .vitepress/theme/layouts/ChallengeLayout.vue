@@ -389,7 +389,7 @@ const categoryBadge: Record<string, string> = {
 </script>
 
 <template>
-  <div class="flex flex-col h-screen overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
+  <div class="flex flex-col h-[calc(100vh-var(--vp-nav-height))] mt-[var(--vp-nav-height)] overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
     <!-- Top navigation bar -->
     <header class="relative px-4 py-2 border-b border-[var(--ch-border)] bg-[var(--ch-bg)]">
       <div class="flex justify-center items-center gap-4">
