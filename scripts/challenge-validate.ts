@@ -19,8 +19,8 @@ import {
   VALID_TOOLS,
   VALID_COMMANDS,
   type BackendType,
-} from '../.vitepress/challenge/config'
-import { parseFsIgnore } from './fsignore'
+} from '../.vitepress/challenge/config.ts'
+import { parseFsIgnore } from './fsignore.ts'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

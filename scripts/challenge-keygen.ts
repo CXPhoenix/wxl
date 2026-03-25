@@ -23,8 +23,8 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { parseDocument } from 'yaml'
-import { scanSrcDirectory } from './challenge-utils'
-import { parseFsIgnore } from './fsignore'
+import { scanSrcDirectory } from './challenge-utils.ts'
+import { parseFsIgnore } from './fsignore.ts'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

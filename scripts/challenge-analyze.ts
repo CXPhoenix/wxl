@@ -14,8 +14,8 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs'
 import { resolve, dirname, join, basename, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseDocument } from 'yaml'
-import { VALID_TOOLS, VALID_COMMANDS, validateChallengeConfig } from '../.vitepress/challenge/config'
-import { scanSrcDirectory } from './challenge-utils'
+import { VALID_TOOLS, VALID_COMMANDS, validateChallengeConfig } from '../.vitepress/challenge/config.ts'
+import { scanSrcDirectory } from './challenge-utils.ts'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
