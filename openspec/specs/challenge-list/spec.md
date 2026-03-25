@@ -8,46 +8,28 @@ TBD - created by archiving change 'vitepress-platform-refactor'. Update Purpose 
 
 ### Requirement: Challenge list page collects all challenge frontmatter at build time using createContentLoader
 
-The challenges data loader (`docs/shared/challenges.data.ts`) SHALL continue to export `ChallengeData[]` as defined in the existing `challenge-list` spec. In addition to being consumed by the challenge list page, the `HomeContent.vue` component SHALL import this same data loader to retrieve challenge entries for displaying latest challenges on the homepage. No modifications to the data loader's exports or types are required; this change only adds a new consumer.
+The challenges data loader (`docs/shared/challenges.data.ts`) SHALL export `ChallengeData[]`. The `ChallengeData.difficulty` field SHALL be typed as `'easy' | 'medium' | 'hard' | 'mystery'` (a closed union without `| string`) to ensure compile-time type safety for difficulty values.
 
-#### Scenario: HomeContent reads challenge data without modifying the loader
+#### Scenario: Difficulty field rejects arbitrary string values at compile time
 
-- **WHEN** the homepage loads
-- **THEN** `HomeContent.vue` SHALL import and use the data from `challenges.data.ts` to display the latest 3 challenges, without modifying the data loader's exports or types
+- **WHEN** a developer assigns an arbitrary string (e.g., `"unknown"`) to `ChallengeData.difficulty`
+- **THEN** the TypeScript compiler SHALL report a type error
+
+#### Scenario: Valid difficulty values are accepted
+
+- **WHEN** a developer assigns `'easy'`, `'medium'`, `'hard'`, or `'mystery'` to `ChallengeData.difficulty`
+- **THEN** the TypeScript compiler SHALL accept the assignment without error
 
 
 <!-- @trace
-source: rich-homepage
+source: fix-project-config
 updated: 2026-03-25
 code:
-  - docs/guide/network.md
-  - docs/public/icons/code.svg
-  - docs/guide/python.md
-  - docs/challenge/sqli-demo.md
-  - .vitepress/challenge/config.ts
+  - package.json
   - .vitepress/theme/index.ts
-  - docs/guide/terminal.md
-  - .vitepress/theme/components/ChallengeList.vue
-  - .vitepress/config.mts
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/theme/components/HomeContent.vue
-  - docs/public/icons/browser.svg
-  - docs/public/icons/repeater.svg
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - scripts/create-challenge.ts
+  - .github/workflows/release.yml
   - docs/shared/challenges.data.ts
-  - docs/guide/index.md
-  - .vitepress/theme/style.css
-  - docs/challenge/php-demo.md
-  - .vitepress/theme/Layout.vue
-  - docs/public/icons/notes.svg
-  - docs/public/icons/network.svg
-  - docs/index.md
-  - docs/public/icons/terminal.svg
-  - uno.config.ts
-tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
+  - tsconfig.json
 -->
 
 ---
