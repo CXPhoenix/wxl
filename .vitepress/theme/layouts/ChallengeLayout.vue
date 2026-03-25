@@ -23,10 +23,12 @@ let currentExecutionId: string | null = null
 
 const { frontmatter, page } = useData()
 
-// Derive slug from relativePath: "challenge/sqli-demo.md" → "sqli-demo"
+// Derive slug from per-folder relativePath: "challenge/sqli-demo/index.md" → "sqli-demo"
 const slug = computed(() => {
   const rel: string = page.value.relativePath ?? ''
-  return rel.replace(/^.*\//, '').replace(/\.md$/, '')
+  const parts = rel.replace(/\.md$/, '').split('/')
+  // Per-folder: take parent dir name; flat fallback: take filename
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[parts.length - 1]
 })
 
 const fm = computed(() => frontmatter.value)

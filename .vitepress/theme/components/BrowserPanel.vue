@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, onMounted, onUnmounted } from 'vue'
+import { ref, watch, useTemplateRef, onMounted, onUnmounted } from 'vue'
 import BrowserChrome from './BrowserChrome.vue'
 
 const props = defineProps<{
@@ -139,6 +139,11 @@ function handleIframeMessage(event: MessageEvent) {
 
 onMounted(() => {
   window.addEventListener('message', handleIframeMessage)
+})
+
+// Auto-navigate when runtime becomes ready (disabled transitions false)
+watch(() => props.disabled, (newVal, oldVal) => {
+  if (oldVal && !newVal) navigate()
 })
 
 onUnmounted(() => {

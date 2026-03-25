@@ -16,7 +16,7 @@ vi.mock('vitepress', () => ({
         markdownBody: '# SQL Injection Demo\n\nA login form backed by SQLite.',
       },
     },
-    page: { value: { relativePath: 'challenges/sqli-demo.md' } },
+    page: { value: { relativePath: 'challenge/sqli-demo/index.md' } },
   })),
   withBase: (url: string) => url,
 }))
@@ -102,6 +102,15 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(nav.props('title')).toBe('SQL Injection Demo')
     expect(nav.props('difficulty')).toBe('easy')
     expect(nav.props('category')).toBe('web')
+  })
+
+  it('derives slug from per-folder relativePath and passes to BrowserPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+    const bp = wrapper.findComponent(BrowserPanel)
+    expect(bp.props('slug')).toBe('sqli-demo')
   })
 
   it('renders a back link via MergedNav', () => {

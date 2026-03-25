@@ -332,3 +332,46 @@ describe('BrowserPanel — form submit interception', () => {
     wrapper.unmount()
   })
 })
+
+// ─── Auto-navigation on runtime ready ──────────────────────────────────────────
+
+describe('BrowserPanel — auto-navigation on runtime ready', () => {
+  it('auto-navigates when disabled transitions from true to false', async () => {
+    const mockDispatch = vi.fn().mockResolvedValue(
+      new Response('<h1>Welcome</h1>', { headers: { 'Content-Type': 'text/html' } }),
+    )
+
+    const wrapper = mount(BrowserPanel, {
+      props: { slug: 'sqli-demo', dispatch: mockDispatch, disabled: true },
+    })
+
+    // Initially disabled — no dispatch should have been called
+    expect(mockDispatch).not.toHaveBeenCalled()
+
+    // Runtime becomes ready
+    await wrapper.setProps({ disabled: false })
+    await flushPromises()
+
+    // Should have auto-navigated
+    expect(mockDispatch).toHaveBeenCalledOnce()
+    const req: Request = mockDispatch.mock.calls[0][0]
+    expect(req.method).toBe('GET')
+    expect(req.url).toBe('https://challenge-sqli-demo.localhost/')
+  })
+
+  it('does not auto-navigate if disabled stays false (no transition)', async () => {
+    const mockDispatch = vi.fn().mockResolvedValue(
+      new Response('OK', { headers: { 'Content-Type': 'text/plain' } }),
+    )
+
+    // Mount with disabled=false from the start — the watch should not trigger
+    // (watch only fires on true→false transition, not initial false)
+    mount(BrowserPanel, {
+      props: { slug: 'test', dispatch: mockDispatch, disabled: false },
+    })
+    await flushPromises()
+
+    // No auto-navigation — dispatch not called
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+})
