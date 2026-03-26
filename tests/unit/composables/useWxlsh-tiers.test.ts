@@ -25,13 +25,17 @@ function makeWxlsh(commands: string[] = []) {
 describe('useWxlsh - five-tier dispatch', () => {
   // Tier 1: core shell commands (TypeScript)
   describe('Tier 1 - core shell', () => {
-    it('help returns list of available commands', async () => {
+    it('help returns list of available commands without FS commands', async () => {
       const wxlsh = makeWxlsh()
       await wxlsh.init()
       const result = await wxlsh.execute('help')
       expect(result.output).toContain('Available commands')
-      expect(result.output).toContain('ls')
-      expect(result.output).toContain('cat')
+      expect(result.output).toContain('echo')
+      expect(result.output).toContain('curl')
+      // FS commands should not appear
+      expect(result.output).not.toMatch(/\bls\b/)
+      expect(result.output).not.toMatch(/\bcat\b/)
+      expect(result.output).not.toMatch(/\btouch\b/)
     })
 
     it('pwd returns current working directory', async () => {
@@ -79,8 +83,16 @@ describe('useWxlsh - five-tier dispatch', () => {
     it('which returns command location for known commands', async () => {
       const wxlsh = makeWxlsh()
       await wxlsh.init()
+      const result = await wxlsh.execute('which echo')
+      expect(result.output).toBe('/usr/bin/echo')
+    })
+
+    it('which reports not found for removed FS commands', async () => {
+      const wxlsh = makeWxlsh()
+      await wxlsh.init()
       const result = await wxlsh.execute('which ls')
-      expect(result.output).toContain('ls')
+      expect(result.output).toBe('ls not found')
+      expect(result.error).toBe(true)
     })
   })
 
@@ -122,6 +134,55 @@ describe('useWxlsh - five-tier dispatch', () => {
       const result = await wxlsh.execute('nonexistent_cmd')
       expect(result.output).toContain('command not found')
       expect(result.error).toBe(true)
+    })
+  })
+
+  // Filesystem commands removed
+  describe('Filesystem commands not available', () => {
+    it.each(['ls', 'cat', 'touch', 'mkdir'])('%s returns command not found', async (cmd) => {
+      const wxlsh = makeWxlsh()
+      await wxlsh.init()
+      const result = await wxlsh.execute(cmd)
+      expect(result.output).toBe(`wxlsh: command not found: ${cmd}\nType 'help' for available commands.`)
+      expect(result.error).toBe(true)
+    })
+  })
+
+  // help <command> support
+  describe('help <command>', () => {
+    it('shows usage for a known command', async () => {
+      const wxlsh = makeWxlsh()
+      await wxlsh.init()
+      const result = await wxlsh.execute('help echo')
+      expect(result.output).toContain('echo')
+      expect(result.output).toContain('Usage:')
+      expect(result.output).toContain('display text')
+    })
+
+    it('shows options for curl', async () => {
+      const wxlsh = makeWxlsh()
+      await wxlsh.init()
+      const result = await wxlsh.execute('help curl')
+      expect(result.output).toContain('curl')
+      expect(result.output).toContain('Usage:')
+      expect(result.output).toContain('-X')
+    })
+
+    it('returns no help for unknown command', async () => {
+      const wxlsh = makeWxlsh()
+      await wxlsh.init()
+      const result = await wxlsh.execute('help nonexistent')
+      expect(result.output).toBe("help: no help for 'nonexistent'")
+    })
+  })
+
+  // Pipe support still works after FS removal
+  describe('Pipe support', () => {
+    it('pipes echo output through another command', async () => {
+      const wxlsh = makeWxlsh()
+      await wxlsh.init()
+      const result = await wxlsh.execute('echo hello | echo world')
+      expect(result.output).toContain('hello')
     })
   })
 })

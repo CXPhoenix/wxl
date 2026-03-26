@@ -585,9 +585,8 @@ _wxlsh_commands_py = {
 // ─── Tier classification ─────────────────────────────────────────────────────
 
 const TIER1_COMMANDS = new Set([
-  'help', 'clear', 'echo', 'cat', 'ls', 'pwd', 'cd', 'mkdir', 'touch',
-  'cp', 'mv', 'rm', 'head', 'tail', 'wc', 'whoami', 'id', 'env',
-  'export', 'history', 'file', 'date', 'which',
+  'help', 'clear', 'echo', 'pwd', 'cd', 'whoami', 'id', 'env',
+  'export', 'history', 'date', 'which',
 ])
 const TIER5_COMMANDS = new Set(['dirb', 'dirsearch', 'sqlmap', 'jwt', 'hydra', 'nmap'])
 const PYTHON_COMMANDS = new Set([
@@ -595,6 +594,54 @@ const PYTHON_COMMANDS = new Set([
   'urlencode', 'urldecode', 'grep', 'sed', 'awk', 'sort', 'uniq', 'cut',
   'tr', 'tee', 'xargs', 'diff',
 ])
+
+// ─── Help registry ───────────────────────────────────────────────────────────
+
+interface HelpEntry {
+  brief: string
+  usage: string
+  description: string
+  category: 'Shell' | 'Text' | 'Encoding' | 'Network'
+}
+
+const HELP_REGISTRY: Record<string, HelpEntry> = {
+  // ── Shell ──────────────────────────────────────────────────────────────
+  help:    { category: 'Shell', brief: 'display help for commands', usage: 'help [command]', description: 'Without arguments, lists all available commands.\nWith a command name, shows detailed usage for that command.' },
+  clear:   { category: 'Shell', brief: 'clear the terminal screen', usage: 'clear', description: 'Clears all output from the terminal.' },
+  echo:    { category: 'Shell', brief: 'display text', usage: 'echo [text ...]', description: 'Prints the given arguments separated by spaces.' },
+  pwd:     { category: 'Shell', brief: 'print working directory', usage: 'pwd', description: 'Displays the current working directory path.' },
+  cd:      { category: 'Shell', brief: 'change directory', usage: 'cd [directory]', description: 'Changes the current working directory.\n  cd         go to home directory (~)\n  cd ~       go to home directory\n  cd ..      go to parent directory\n  cd /path   go to absolute path\n  cd path    go to relative path' },
+  whoami:  { category: 'Shell', brief: 'print current username', usage: 'whoami', description: 'Displays the current user name.' },
+  id:      { category: 'Shell', brief: 'print user identity', usage: 'id', description: 'Displays uid, gid, and group membership of the current user.' },
+  env:     { category: 'Shell', brief: 'print environment variables', usage: 'env', description: 'Displays all environment variables in KEY=VALUE format.' },
+  export:  { category: 'Shell', brief: 'set environment variable', usage: 'export KEY=VALUE [...]', description: 'Sets one or more environment variables.\nExample: export DEBUG=1 LANG=en_US' },
+  history: { category: 'Shell', brief: 'show command history', usage: 'history', description: 'Displays previously executed commands in this session.' },
+  date:    { category: 'Shell', brief: 'display current date and time', usage: 'date', description: 'Displays the current date and time in Linux format.\nExample output: Tue Mar 25 22:40:36 CST 2026' },
+  which:   { category: 'Shell', brief: 'locate a command', usage: 'which <command>', description: 'Shows the path of the given command, or reports if it is not found.' },
+  // ── Text ───────────────────────────────────────────────────────────────
+  grep:    { category: 'Text', brief: 'search text using patterns', usage: 'grep [options] <pattern> [text]', description: 'Searches for lines matching a pattern.\n  -i    case-insensitive matching\n  -v    invert match (show non-matching lines)\n  -c    print count of matching lines\n  -n    prefix each line with line number' },
+  sed:     { category: 'Text', brief: 'stream editor for text', usage: 'sed <expression> [text]', description: 'Applies substitution and transformation expressions.\nExample: sed "s/old/new/g"' },
+  awk:     { category: 'Text', brief: 'pattern scanning and processing', usage: 'awk <program> [text]', description: 'Processes text using a pattern-action language.\nExample: awk "{print $1}"' },
+  sort:    { category: 'Text', brief: 'sort lines of text', usage: 'sort [options] [text]', description: 'Sorts input lines alphabetically.\n  -r    reverse order\n  -n    numeric sort\n  -u    unique lines only' },
+  uniq:    { category: 'Text', brief: 'filter duplicate lines', usage: 'uniq [options] [text]', description: 'Removes consecutive duplicate lines.\n  -c    prefix lines with occurrence count\n  -d    only print duplicated lines' },
+  cut:     { category: 'Text', brief: 'extract fields from text', usage: 'cut [options] [text]', description: 'Extracts sections from each line.\n  -d <delim>   use <delim> as field delimiter\n  -f <fields>  select fields (e.g., -f 1,3)' },
+  tr:      { category: 'Text', brief: 'translate characters', usage: 'tr <set1> <set2> [text]', description: 'Translates or deletes characters.\nExample: tr "a-z" "A-Z" (lowercase to uppercase)' },
+  tee:     { category: 'Text', brief: 'read from stdin and write to stdout', usage: 'tee [text]', description: 'Passes input through to output (useful in pipes).' },
+  xargs:   { category: 'Text', brief: 'build commands from input', usage: 'xargs <command> [text]', description: 'Reads input and passes it as arguments to a command.' },
+  diff:    { category: 'Text', brief: 'compare two texts', usage: 'diff <text1> <text2>', description: 'Shows differences between two inputs line by line.' },
+  // ── Encoding ───────────────────────────────────────────────────────────
+  base64:    { category: 'Encoding', brief: 'base64 encode/decode', usage: 'base64 [options] <text>', description: 'Encodes or decodes base64.\n  -d    decode instead of encode' },
+  decode:    { category: 'Encoding', brief: 'auto-detect and decode', usage: 'decode <text>', description: 'Attempts to detect the encoding of the input and decode it automatically.' },
+  encode:    { category: 'Encoding', brief: 'encode text in various formats', usage: 'encode <format> <text>', description: 'Encodes text in the specified format (base64, hex, url).' },
+  xxd:       { category: 'Encoding', brief: 'hex dump', usage: 'xxd [options] <text>', description: 'Creates a hex dump of the input.\n  -r    reverse (hex to binary)\n  -p    plain hex dump (no line numbers)' },
+  md5sum:    { category: 'Encoding', brief: 'compute MD5 hash', usage: 'md5sum <text>', description: 'Calculates and displays the MD5 hash of the input.' },
+  sha256sum: { category: 'Encoding', brief: 'compute SHA-256 hash', usage: 'sha256sum <text>', description: 'Calculates and displays the SHA-256 hash of the input.' },
+  urlencode: { category: 'Encoding', brief: 'URL-encode text', usage: 'urlencode <text>', description: 'Encodes text for use in URLs (percent-encoding).' },
+  urldecode: { category: 'Encoding', brief: 'URL-decode text', usage: 'urldecode <text>', description: 'Decodes percent-encoded URL text back to plain text.' },
+  // ── Network ────────────────────────────────────────────────────────────
+  curl:    { category: 'Network', brief: 'transfer data from a URL', usage: 'curl [options] <url>', description: 'Sends HTTP requests and displays the response.\n  -X <method>   HTTP method (GET, POST, PUT, DELETE)\n  -d <data>     request body\n  -H <header>   add header (e.g., -H "Content-Type: application/json")\n  -v            verbose output (show headers)\n  -o <file>     write output to file\n  -I            show response headers only' },
+  wget:    { category: 'Network', brief: 'download from a URL', usage: 'wget [options] <url>', description: 'Downloads content from a URL.\n  -O <file>   save to file\n  -q          quiet mode' },
+}
 
 // ─── Composable ───────────────────────────────────────────────────────────────
 
@@ -616,11 +663,31 @@ export function useWxlsh(options: WxlshOptions) {
     if (!TIER1_COMMANDS.has(command)) return null
     switch (command) {
       case 'help': {
-        const t1 = 'Shell:     cat cd clear cp echo env export file head history id ls mkdir mv pwd rm tail touch wc which whoami'
-        const t2 = 'Text:      awk cut diff grep sed sort tee tr uniq xargs'
-        const t3 = 'Encoding:  base64 decode encode md5sum sha256sum urldecode urlencode xxd'
-        const t4 = 'Network:   curl wget'
-        return { output: `Available commands:\n  ${t1}\n  ${t2}\n  ${t3}\n  ${t4}` }
+        if (args[0]) {
+          const entry = HELP_REGISTRY[args[0]]
+          if (!entry) return { output: `help: no help for '${args[0]}'` }
+          return { output: `${args[0]} — ${entry.brief}\n\nUsage: ${entry.usage}\n\n${entry.description}` }
+        }
+        const categories: Array<{ label: string; key: HelpEntry['category'] }> = [
+          { label: 'Shell', key: 'Shell' },
+          { label: 'Text', key: 'Text' },
+          { label: 'Encoding', key: 'Encoding' },
+          { label: 'Network', key: 'Network' },
+        ]
+        const lines = ['Available commands:', '']
+        for (const cat of categories) {
+          const cmds = Object.entries(HELP_REGISTRY)
+            .filter(([, e]) => e.category === cat.key)
+            .sort(([a], [b]) => a.localeCompare(b))
+          if (cmds.length === 0) continue
+          lines.push(`  ${cat.label}:`)
+          for (const [name, entry] of cmds) {
+            lines.push(`    ${name.padEnd(12)}${entry.brief}`)
+          }
+          lines.push('')
+        }
+        lines.push("Type 'help <command>' for detailed usage.")
+        return { output: lines.join('\n') }
       }
       case 'clear': return { output: '', clear: true }
       case 'echo': return { output: args.join(' ') }
@@ -670,18 +737,6 @@ export function useWxlsh(options: WxlshOptions) {
         return { output: `${cmd} not found`, error: true }
       }
       case 'history': return { output: historyBuffer.value.join('\n') }
-      // File commands — stubs for now, will be integrated with UserVFS in task 11.9
-      case 'ls': return { output: '' }
-      case 'cat': return { output: args.length ? `cat: ${args[0]}: No such file or directory` : 'Usage: cat <file>', error: !args.length }
-      case 'mkdir': return { output: '' }
-      case 'touch': return { output: '' }
-      case 'cp': return { output: '' }
-      case 'mv': return { output: '' }
-      case 'rm': return { output: '' }
-      case 'head': return { output: '' }
-      case 'tail': return { output: '' }
-      case 'wc': return { output: '0 0 0' }
-      case 'file': return { output: args[0] ? `${args[0]}: cannot open` : 'Usage: file <path>' }
       default: return null
     }
   }

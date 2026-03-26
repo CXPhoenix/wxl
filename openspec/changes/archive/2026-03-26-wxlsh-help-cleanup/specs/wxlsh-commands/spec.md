@@ -1,10 +1,4 @@
-# wxlsh-commands Specification
-
-## Purpose
-
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Five-tier command system
 
@@ -46,17 +40,8 @@ The wxlsh terminal SHALL implement a five-tier command system where Tier 1–4 c
 - **WHEN** user types a Tier 5 command that is not listed in the challenge `commands` field
 - **THEN** the terminal displays a message indicating the command is not available for this challenge
 
-
-<!-- @trace
-source: wxlsh-help-cleanup
-updated: 2026-03-26
-code:
-  - .vitepress/theme/composables/useWxlsh.ts
-tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
--->
-
 ---
+
 ### Requirement: Command behavior aligned to real Linux tools
 
 All implemented commands SHALL use flag syntax, argument parsing, and output formatting that match their real Linux counterparts.
@@ -111,99 +96,8 @@ All implemented commands SHALL use flag syntax, argument parsing, and output for
 - **THEN** the output SHALL be `/usr/bin/curl`
 - **AND** SHALL NOT display "not found"
 
-
-<!-- @trace
-source: wxlsh-help-cleanup
-updated: 2026-03-26
-code:
-  - .vitepress/theme/composables/useWxlsh.ts
-tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
--->
-
 ---
-### Requirement: Unsupported real parameters reported explicitly
 
-For Tier 5 tools implemented as simplified rewrites, any real parameter that is recognized but not implemented SHALL produce an explicit message indicating the parameter exists in the real tool but is not supported in this environment, with a link to the official documentation.
-
-#### Scenario: sqlmap unsupported option
-
-- **WHEN** user types `sqlmap -u "http://target/?id=1" --os-shell`
-- **THEN** the terminal displays: option '--os-shell' is available in the real sqlmap but is not supported in this environment, lists supported options, and provides a link to sqlmap.org
-
-#### Scenario: Unknown option
-
-- **WHEN** user types a command with a completely unknown flag (not a real flag of the tool)
-- **THEN** the terminal displays: `unknown option: --xxx`
-
-
-<!-- @trace
-source: challenge-ux-overhaul
-updated: 2026-03-25
-code:
-  - .vitepress/theme/style.css
-  - docs/challenge/php-demo/index.md
-  - .vitepress/challenge/plugin.ts
-  - .vitepress/theme/components/DescriptionModal.vue
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/sqli-demo/src/app.py
-  - docs/challenge/sqli-demo/index.md
-  - scripts/challenge-analyze.ts
-  - docs/challenge/fastapi-demo.md
-  - docs/challenge/fastapi-demo/src/app.py
-  - scripts/challenge-utils.ts
-  - docs/challenge/php-demo/index.php
-  - docs/challenge/fastapi-demo/index.md
-  - docs/challenge/php-demo/src/flag.txt
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - .vitepress/challenge/config.ts
-  - scripts/fsignore.ts
-  - scripts/challenge-validate.ts
-  - scripts/challenge-keygen.ts
-  - docs/challenge/php-demo/src/index.php
-  - .vitepress/theme/composables/useWxlsh.ts
-  - uno.config.ts
-  - docs/challenge/php-demo/flag.txt
-  - .vitepress/theme/components/BrowserChrome.vue
-  - docs/challenge/sqli-demo/app.py
-  - .vitepress/theme/components/MergedNav.vue
-  - docs/challenge/fastapi-demo/app.py
-  - .vitepress/theme/composables/useUserVfs.ts
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/fastapi-demo/flag.txt
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo/src/flag.txt
-  - docs/challenge/sqli-demo/src/flag.txt
-  - scripts/create-challenge.ts
-  - docs/challenge/sqli-demo.md
-tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
-  - tests/challenge-analyze.test.ts
-  - tests/unit/theme/challenge-design-tokens.test.ts
-  - tests/unit/challenge/config.test.ts
-  - tests/unit/components/MergedNav.test.ts
-  - tests/unit/composables/useWxlsh-tier3.test.ts
-  - tests/unit/composables/useWxlsh-tier2.test.ts
-  - tests/unit/composables/usePythonRuntime.test.ts
-  - tests/unit/components/DescriptionModal.test.ts
-  - tests/unit/composables/useUserVfs.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/components/BrowserChrome.test.ts
-  - tests/unit/composables/usePythonRuntime-fs.test.ts
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/challenge-validate.test.ts
-  - tests/unit/composables/usePythonRuntime-requests.test.ts
-  - tests/fsignore.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/theme/challenge-rwd.test.ts
-  - tests/challenge-utils.test.ts
-  - tests/unit/composables/useWxlsh-tier4.test.ts
-  - tests/unit/composables/usePythonRuntime-request.test.ts
--->
-
----
 ### Requirement: Pipe support
 
 The terminal SHALL support the `|` (pipe) operator to chain commands, passing stdout of the preceding command as stdin to the following command.
@@ -217,12 +111,3 @@ The terminal SHALL support the `|` (pipe) operator to chain commands, passing st
 
 - **WHEN** user types `echo -e "cherry\napple\nbanana" | sort | head -2`
 - **THEN** the commands execute in sequence with output piped through each stage
-
-<!-- @trace
-source: wxlsh-help-cleanup
-updated: 2026-03-26
-code:
-  - .vitepress/theme/composables/useWxlsh.ts
-tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
--->
