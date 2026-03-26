@@ -1,4 +1,4 @@
-# Web Exploitation Challenges
+# Web eXploitation Laboratory (WXL)
 
 > 完全基於前端 WebAssembly 的網頁滲透練習平台，無需後端伺服器
 
@@ -8,7 +8,7 @@
 
 ## 簡介
 
-**Web Exploitation Challenges** 是一個 CTF 風格的網頁滲透技術練習平台。所有挑戰皆在瀏覽器端執行，透過 WebAssembly 模擬真實後端環境，不需要任何伺服器基礎設施即可部署與使用。
+**Web eXploitation Laboratory (WXL)** 是一個 CTF 風格的網頁滲透技術練習平台。所有挑戰皆在瀏覽器端執行，透過 WebAssembly 模擬真實後端環境，不需要任何伺服器基礎設施即可部署與使用。
 
 ### 核心特色
 
@@ -41,8 +41,8 @@
 
 ```bash
 # 1. Clone 專案
-git clone https://github.com/CXPhoenix/web-exploitation-seclab.git
-cd web-exploitation-seclab
+git clone https://github.com/CXPhoenix/wxl.git
+cd wxl
 
 # 2. 安裝 Node.js 依賴
 pnpm install

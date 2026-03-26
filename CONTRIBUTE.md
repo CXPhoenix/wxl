@@ -1,4 +1,4 @@
-# Contributing to Web Exploitation Challenges
+# Contributing to Web eXploitation Laboratory
 
 感謝你對本專案的興趣！在提交 PR 之前，請先閱讀本指南。
 
@@ -48,15 +48,15 @@ staging ────────────────────────
 1. Fork 本 repository 並 clone 你的 fork：
 
    ```bash
-   git clone https://github.com/<your-username>/web-exploitation-seclab.git
-   cd web-exploitation-seclab
+   git clone https://github.com/<your-username>/wxl.git
+   cd wxl
    pnpm install
    ```
 
 2. 新增 upstream remote：
 
    ```bash
-   git remote add upstream https://github.com/CXPhoenix/web-exploitation-seclab.git
+   git remote add upstream https://github.com/CXPhoenix/wxl.git
    ```
 
 3. 從 `staging` 切出工作分支：
@@ -198,7 +198,7 @@ BREAKING CHANGE: `backend_url` 欄位不再支援，請改用 `backend: flask|fa
 
 ## Issue 回報
 
-請至 [GitHub Issues](https://github.com/CXPhoenix/web-exploitation-seclab/issues) 建立 Issue。
+請至 [GitHub Issues](https://github.com/CXPhoenix/wxl/issues) 建立 Issue。
 
 ### Bug 回報
 

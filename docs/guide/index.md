@@ -2,7 +2,7 @@
 
 ## 平台介紹
 
-WXL Web Exploit Challenge 是一個完全在瀏覽器端執行的 Web 資安挑戰平台。平台採用 **WASM（WebAssembly）架構**，所有工具與腳本執行環境均內建於前端，不需要任何後端伺服器。
+Web eXploitation Laboratory (WXL) 是一個完全在瀏覽器端執行的 Web 資安挑戰平台。平台採用 **WASM（WebAssembly）架構**，所有工具與腳本執行環境均內建於前端，不需要任何後端伺服器。
 
 主要特色：
 

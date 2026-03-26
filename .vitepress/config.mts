@@ -16,7 +16,7 @@ export default defineConfig({
     },
   },
 
-  title: "Web Exploitation Challenges",
+  title: "Web eXploitation Laboratory",
   description: "完全基於前端 WASM 的挑戰平台",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
@@ -36,7 +36,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/CXPhoenix/web-exploitation-seclab' }
+      { icon: 'github', link: 'https://github.com/CXPhoenix/wxl' }
     ]
   },
 

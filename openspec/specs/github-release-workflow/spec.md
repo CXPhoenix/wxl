@@ -75,7 +75,7 @@ code:
 ---
 ### Requirement: Artifact packaging
 
-The workflow SHALL package the `.vitepress/dist` directory into a zip file named `web-exploitation-seclab-{tag}.zip` where `{tag}` is the git tag that triggered the workflow (e.g., `web-exploitation-seclab-v0.6.0.zip`).
+The workflow SHALL package the `.vitepress/dist` directory into a zip file named `wxl-{tag}.zip` where `{tag}` is the git tag that triggered the workflow (e.g., `wxl-v1.0.0.zip`).
 
 #### Scenario: Dist directory packaged as zip
 

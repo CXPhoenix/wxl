@@ -1,17 +1,17 @@
 {
-  "name": "web-exploitation-seclab",
-  "version": "0.6.0",
-  "description": "Browser-based web exploitation challenge platform powered by WASM",
+  "name": "wxl",
+  "version": "1.0.0",
+  "description": "Web eXploitation Laboratory — Browser-based web exploitation challenge platform powered by WASM",
   "type": "module",
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CXPhoenix/web-exploitation-seclab.git"
+    "url": "git+https://github.com/CXPhoenix/wxl.git"
   },
   "bugs": {
-    "url": "https://github.com/CXPhoenix/web-exploitation-seclab/issues"
+    "url": "https://github.com/CXPhoenix/wxl/issues"
   },
-  "homepage": "https://github.com/CXPhoenix/web-exploitation-seclab#readme",
+  "homepage": "https://github.com/CXPhoenix/wxl#readme",
   "author": "CXPh03n1x",
   "license": "LicenseRef-LICENSE",
   "packageManager": "pnpm@10.28.0",
