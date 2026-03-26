@@ -8,56 +8,34 @@ TBD - created by archiving change 'rich-homepage'. Update Purpose after archive.
 
 ### Requirement: Homepage uses VitePress home layout with enhanced hero and feature cards
 
-The `docs/index.md` SHALL use VitePress `layout: home` with an enhanced hero section containing: a `name` field, a `text` field with platform description, a `tagline` with a compelling subtitle, and two action buttons — a primary "Challenges" button linking to the challenges page and a secondary button linking to the usage guide. The frontmatter SHALL include a `features` array with 6 feature cards, each specifying an `icon` (path to an SVG file in `/icons/`), `title`, and `details`.
+The homepage SHALL use VitePress's built-in `layout: home` with hero and features frontmatter. The `HomeContent.vue` component SHALL use exclusively `--ch-*` design tokens for all color references (backgrounds, text, borders, accents). The component SHALL NOT use VitePress default variables (`--vp-c-*`) directly. Specifically: text colors SHALL use `var(--ch-text-1)`, `var(--ch-text-2)`, `var(--ch-text-3)`; backgrounds SHALL use `var(--ch-bg-soft)` or `var(--ch-bg-card)`; borders SHALL use `var(--ch-border)` with hover state `var(--ch-border-hover)`; accent colors SHALL use `var(--ch-accent)` and `var(--ch-accent-soft)`.
 
-#### Scenario: Hero renders with two action buttons
+#### Scenario: HomeContent uses ch tokens exclusively
 
-- **WHEN** the user navigates to the homepage
-- **THEN** the hero section SHALL display two action buttons: a brand-themed primary button and an alt-themed secondary button
+- **WHEN** a developer inspects `HomeContent.vue` source code
+- **THEN** all CSS variable references SHALL use `--ch-*` tokens
+- **AND** no `--vp-c-*` variable SHALL appear in the component
 
-#### Scenario: Six feature cards render below the hero
+#### Scenario: Homepage stats cards match platform palette in dark mode
 
-- **WHEN** the homepage loads
-- **THEN** six feature cards SHALL be visible, each with an SVG icon, a title, and a description
+- **WHEN** the homepage is viewed in dark mode
+- **THEN** stats cards SHALL use `var(--ch-bg-soft)` for background and `var(--ch-border)` for borders
+- **AND** the visual appearance SHALL be consistent with challenge page components
 
-#### Scenario: Feature card icons load from public directory
+#### Scenario: Homepage latest challenges cards match platform palette
 
-- **WHEN** VitePress renders the feature cards
-- **THEN** each card's icon SHALL reference an SVG file at `/icons/<name>.svg` served from `docs/public/icons/`
+- **WHEN** the homepage is viewed in dark mode
+- **THEN** challenge cards SHALL use `var(--ch-bg-soft)` background, `var(--ch-border)` border, and `var(--ch-accent)` for hover border
+- **AND** text colors SHALL use `var(--ch-text-1)` for titles, `var(--ch-text-2)` for descriptions, `var(--ch-text-3)` for dates
 
 
 <!-- @trace
-source: rich-homepage
-updated: 2026-03-25
+source: unify-design-tokens-palette
+updated: 2026-03-26
 code:
-  - docs/guide/network.md
-  - docs/public/icons/code.svg
-  - docs/guide/python.md
-  - docs/challenge/sqli-demo.md
-  - .vitepress/challenge/config.ts
-  - .vitepress/theme/index.ts
-  - docs/guide/terminal.md
-  - .vitepress/theme/components/ChallengeList.vue
-  - .vitepress/config.mts
-  - docs/challenge/fastapi-demo.md
   - .vitepress/theme/components/HomeContent.vue
-  - docs/public/icons/browser.svg
-  - docs/public/icons/repeater.svg
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - scripts/create-challenge.ts
-  - docs/shared/challenges.data.ts
-  - docs/guide/index.md
-  - .vitepress/theme/style.css
-  - docs/challenge/php-demo.md
-  - .vitepress/theme/Layout.vue
-  - docs/public/icons/notes.svg
-  - docs/public/icons/network.svg
   - docs/index.md
-  - docs/public/icons/terminal.svg
-  - uno.config.ts
-tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
+  - .vitepress/theme/style.css
 -->
 
 ---
