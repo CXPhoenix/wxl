@@ -23,12 +23,20 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Challenges', link: '/challenges/' },
+      { text: 'Docs', link: '/guide/' },
     ],
 
-    sidebar: [],
+    sidebar: {
+      '/guide/': [
+        { text: '快速開始', link: '/guide/' },
+        { text: 'Python 程式碼指南', link: '/guide/python' },
+        { text: 'Terminal 使用指南', link: '/guide/terminal' },
+        { text: 'Network & Repeater', link: '/guide/network' },
+      ],
+    },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/vuejs/vitepress' }
+      { icon: 'github', link: 'https://github.com/CXPhoenix/web-exploitation-seclab' }
     ]
   },
 

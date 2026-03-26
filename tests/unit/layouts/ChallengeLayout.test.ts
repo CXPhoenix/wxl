@@ -16,7 +16,7 @@ vi.mock('vitepress', () => ({
         markdownBody: '# SQL Injection Demo\n\nA login form backed by SQLite.',
       },
     },
-    page: { value: { relativePath: 'challenges/sqli-demo.md' } },
+    page: { value: { relativePath: 'challenge/sqli-demo/index.md' } },
   })),
   withBase: (url: string) => url,
 }))
@@ -42,7 +42,21 @@ vi.mock('../../../.vitepress/theme/components/CodeEditorPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'pyodide', 'onCodeExecuted'], template: '<div data-code-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/FlagSubmit.vue', () => ({
-  default: defineComponent({ props: ['verify', 'onExport'], template: '<div data-flag-submit />' }),
+  default: defineComponent({ props: ['verify', 'onExport', 'onExportNotes'], template: '<div data-flag-submit />' }),
+}))
+vi.mock('../../../.vitepress/theme/components/DescriptionModal.vue', () => ({
+  default: defineComponent({
+    props: ['title', 'difficulty', 'category'],
+    emits: ['close'],
+    template: '<div data-description-modal />',
+  }),
+}))
+vi.mock('../../../.vitepress/theme/components/MergedNav.vue', () => ({
+  default: defineComponent({
+    props: ['title', 'difficulty', 'category', 'runtimeReady', 'runtimeError', 'noteCount', 'descriptionCollapsed'],
+    emits: ['open-notes', 'toggle-description'],
+    template: '<nav data-merged-nav :data-title="title" :data-collapsed="descriptionCollapsed"><a href="/challenges/">← Challenges</a></nav>',
+  }),
 }))
 
 // Mock WASM loader (extractCustomSection)
@@ -78,22 +92,43 @@ beforeEach(async () => {
 })
 
 describe('ChallengeLayout (VitePress layout)', () => {
-  it('renders a back link to /challenges/', () => {
+  it('renders MergedNav with challenge metadata props', async () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
-    const backLink = wrapper.find('a[href="/challenges/"]')
-    expect(backLink.exists()).toBe(true)
-    expect(backLink.text()).toContain('Challenges')
+    const { default: MergedNav } = await import('../../../.vitepress/theme/components/MergedNav.vue')
+    const nav = wrapper.findComponent(MergedNav)
+    expect(nav.exists()).toBe(true)
+    expect(nav.props('title')).toBe('SQL Injection Demo')
+    expect(nav.props('difficulty')).toBe('easy')
+    expect(nav.props('category')).toBe('web')
   })
 
-  it('renders title and metadata badges from frontmatter', () => {
+  it('derives slug from per-folder relativePath and passes to BrowserPanel', async () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
-    expect(wrapper.text()).toContain('SQL Injection Demo')
-    expect(wrapper.text()).toContain('easy')
-    expect(wrapper.text()).toContain('web')
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+    const bp = wrapper.findComponent(BrowserPanel)
+    expect(bp.props('slug')).toBe('sqli-demo')
+  })
+
+  it('renders a back link via MergedNav', () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    const nav = wrapper.find('[data-merged-nav]')
+    expect(nav.exists()).toBe(true)
+    const backLink = nav.find('a[href="/challenges/"]')
+    expect(backLink.exists()).toBe(true)
+  })
+
+  it('does not render a separate header element', () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    // The old <header> element should no longer exist
+    expect(wrapper.find('header').exists()).toBe(false)
   })
 
   it('renders description panel and FlagSubmit in left column', () => {
@@ -104,7 +139,7 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(wrapper.find('[data-description-panel]').exists()).toBe(true)
   })
 
-  it('toggles description panel collapsed state on click', async () => {
+  it('collapses description panel when toggle button is clicked', async () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
@@ -116,12 +151,42 @@ describe('ChallengeLayout (VitePress layout)', () => {
 
     await toggle.trigger('click')
     expect(panel.classes()).toContain('collapsed')
-
-    await toggle.trigger('click')
-    expect(panel.classes()).not.toContain('collapsed')
   })
 
-  it('renders all five interaction tabs (Browser, Network, Repeater, Terminal, Code)', () => {
+  it('expands description panel via MergedNav toggle-description event', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    // Collapse first
+    await wrapper.find('[data-description-toggle]').trigger('click')
+    expect(wrapper.find('[data-description-panel]').classes()).toContain('collapsed')
+
+    // MergedNav descriptionCollapsed prop should reflect the state
+    const { default: MergedNav } = await import('../../../.vitepress/theme/components/MergedNav.vue')
+    const nav = wrapper.findComponent(MergedNav)
+    expect(nav.props('descriptionCollapsed')).toBe(true)
+
+    // Emit toggle-description from MergedNav to re-expand
+    await nav.vm.$emit('toggle-description')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-description-panel]').classes()).not.toContain('collapsed')
+  })
+
+  it('shows persistent flag submit bar when description is collapsed', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    // Initially no flag bar
+    expect(wrapper.find('[data-flag-bar]').exists()).toBe(false)
+
+    // Collapse description
+    await wrapper.find('[data-description-toggle]').trigger('click')
+    expect(wrapper.find('[data-flag-bar]').exists()).toBe(true)
+    expect(wrapper.find('[data-flag-bar] [data-flag-submit]').exists()).toBe(true)
+  })
+
+  it('renders all five interaction tabs when tools field is not set (default)', () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })

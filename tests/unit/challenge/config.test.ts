@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateChallengeConfig, LEGACY_FIELDS } from '../../../.vitepress/challenge/config'
+import { validateChallengeConfig, LEGACY_FIELDS, VALID_TOOLS, VALID_COMMANDS } from '../../../.vitepress/challenge/config'
 
 describe('ChallengeConfig validation', () => {
   const minimal = {
@@ -28,9 +28,9 @@ describe('ChallengeConfig validation', () => {
     expect(() => validateChallengeConfig(rest as any)).toThrow(/app/)
   })
 
-  it('throws when fs is missing', () => {
+  it('accepts config without fs (fs is now optional/deprecated)', () => {
     const { fs: _, ...rest } = minimal
-    expect(() => validateChallengeConfig(rest as any)).toThrow(/fs/)
+    expect(() => validateChallengeConfig(rest as any)).not.toThrow()
   })
 
   it('throws when backend is an invalid value', () => {
@@ -90,6 +90,123 @@ describe('ChallengeConfig packages field', () => {
     const config = validateChallengeConfig({ ...minimal, backend: 'fastapi', packages: ['fastapi', 'anyio'] })
     expect(config.packages).toEqual(['fastapi', 'anyio'])
     expect(config.backend).toBe('fastapi')
+  })
+})
+
+describe('ChallengeConfig tools field', () => {
+  const minimal = {
+    title: 'Test',
+    backend: 'flask' as const,
+    app: './app.py',
+    fs: { '/flag.txt': './flag.txt' },
+  }
+
+  it('accepts config with no tools (defaults)', () => {
+    expect(() => validateChallengeConfig(minimal)).not.toThrow()
+  })
+
+  it('accepts valid tools: [browser, terminal]', () => {
+    const config = validateChallengeConfig({ ...minimal, tools: ['browser', 'terminal'] })
+    expect(config.tools).toEqual(['browser', 'terminal'])
+  })
+
+  it('throws when tools contains an invalid value', () => {
+    expect(() =>
+      validateChallengeConfig({ ...minimal, tools: ['browser', 'invalid'] }),
+    ).toThrow(/invalid tool/)
+  })
+
+  it('accepts empty tools array (no tabs shown)', () => {
+    const config = validateChallengeConfig({ ...minimal, tools: [] })
+    expect(config.tools).toEqual([])
+  })
+
+  it('accepts all valid tool values', () => {
+    const config = validateChallengeConfig({ ...minimal, tools: [...VALID_TOOLS] })
+    expect(config.tools).toEqual([...VALID_TOOLS])
+  })
+})
+
+describe('ChallengeConfig commands field', () => {
+  const minimal = {
+    title: 'Test',
+    backend: 'flask' as const,
+    app: './app.py',
+    fs: { '/flag.txt': './flag.txt' },
+  }
+
+  it('accepts config with no commands (defaults)', () => {
+    expect(() => validateChallengeConfig(minimal)).not.toThrow()
+  })
+
+  it('accepts valid commands: [sqlmap, dirb]', () => {
+    const config = validateChallengeConfig({ ...minimal, commands: ['sqlmap', 'dirb'] })
+    expect(config.commands).toEqual(['sqlmap', 'dirb'])
+  })
+
+  it('accepts commands: "all"', () => {
+    const config = validateChallengeConfig({ ...minimal, commands: 'all' })
+    expect(config.commands).toBe('all')
+  })
+
+  it('throws when commands contains an invalid value', () => {
+    expect(() =>
+      validateChallengeConfig({ ...minimal, commands: ['fake_tool'] }),
+    ).toThrow(/invalid command/)
+  })
+
+  it('accepts all valid command values as array', () => {
+    const config = validateChallengeConfig({ ...minimal, commands: [...VALID_COMMANDS] })
+    expect(config.commands).toEqual([...VALID_COMMANDS])
+  })
+})
+
+describe('ChallengeConfig tools + commands combined', () => {
+  const minimal = {
+    title: 'Test',
+    backend: 'flask' as const,
+    app: './app.py',
+    fs: { '/flag.txt': './flag.txt' },
+  }
+
+  it('accepts config with both tools and commands', () => {
+    const config = validateChallengeConfig({
+      ...minimal,
+      tools: ['browser', 'terminal'],
+      commands: ['sqlmap', 'dirb'],
+    })
+    expect(config.tools).toEqual(['browser', 'terminal'])
+    expect(config.commands).toEqual(['sqlmap', 'dirb'])
+  })
+
+  it('accepts config with flag field alongside tools and commands', () => {
+    expect(() =>
+      validateChallengeConfig({
+        ...minimal,
+        tools: ['browser', 'code'],
+        commands: 'all',
+        // flag is an existing optional concept in challenge configs
+      }),
+    ).not.toThrow()
+  })
+})
+
+describe('VALID_TOOLS and VALID_COMMANDS constants', () => {
+  it('exports VALID_TOOLS with expected values', () => {
+    expect(VALID_TOOLS).toContain('browser')
+    expect(VALID_TOOLS).toContain('network')
+    expect(VALID_TOOLS).toContain('repeater')
+    expect(VALID_TOOLS).toContain('terminal')
+    expect(VALID_TOOLS).toContain('code')
+  })
+
+  it('exports VALID_COMMANDS with expected values', () => {
+    expect(VALID_COMMANDS).toContain('dirb')
+    expect(VALID_COMMANDS).toContain('dirsearch')
+    expect(VALID_COMMANDS).toContain('sqlmap')
+    expect(VALID_COMMANDS).toContain('jwt')
+    expect(VALID_COMMANDS).toContain('hydra')
+    expect(VALID_COMMANDS).toContain('nmap')
   })
 })
 

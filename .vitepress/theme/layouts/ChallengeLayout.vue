@@ -8,9 +8,10 @@ import RepeatPanel from '../components/RepeatPanel.vue'
 import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
-import NotesButton from '../components/NotesButton.vue'
+import MergedNav from '../components/MergedNav.vue'
+import DescriptionModal from '../components/DescriptionModal.vue'
 import NotesModal from '../components/NotesModal.vue'
-import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
+import { PythonRuntime, installRequestsPatch, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 import { useTrafficLog } from '../composables/useTrafficLog'
 import { useAttackSession } from '../composables/useAttackSession'
@@ -22,10 +23,12 @@ let currentExecutionId: string | null = null
 
 const { frontmatter, page } = useData()
 
-// Derive slug from relativePath: "challenge/sqli-demo.md" → "sqli-demo"
+// Derive slug from per-folder relativePath: "challenge/sqli-demo/index.md" → "sqli-demo"
 const slug = computed(() => {
   const rel: string = page.value.relativePath ?? ''
-  return rel.replace(/^.*\//, '').replace(/\.md$/, '')
+  const parts = rel.replace(/\.md$/, '').split('/')
+  // Per-folder: take parent dir name; flat fallback: take filename
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[parts.length - 1]
 })
 
 const fm = computed(() => frontmatter.value)
@@ -57,20 +60,26 @@ let challengePort: MessagePort | null = null  // port1 — page listens here
 
 // ─── Collapsible description panel ───────────────────────────────────────────
 const descriptionCollapsed = ref(false)
+const descriptionModalVisible = ref(false)
 function toggleDescription() {
   descriptionCollapsed.value = !descriptionCollapsed.value
 }
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 type Tab = 'browser' | 'terminal' | 'repeater' | 'code' | 'network'
-const activeTab = ref<Tab>('browser')
-const tabs: { id: Tab; label: string }[] = [
+const ALL_TABS: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
   { id: 'network', label: 'Network' },
   { id: 'repeater', label: 'Repeater' },
   { id: 'terminal', label: 'Terminal' },
   { id: 'code', label: 'Code' },
 ]
+const tabs = computed(() => {
+  const allowedTools: string[] | undefined = fm.value.tools
+  if (!allowedTools || allowedTools.length === 0) return ALL_TABS
+  return ALL_TABS.filter(t => allowedTools.includes(t.id))
+})
+const activeTab = ref<Tab>('browser')
 
 // ─── Challenge dispatch: directly call runtime (bypasses SW round-trip) ──────
 async function dispatch(request: Request): Promise<Response> {
@@ -86,6 +95,20 @@ async function dispatch(request: Request): Promise<Response> {
 // ─── Traffic log ──────────────────────────────────────────────────────────────
 const { trafficLog, wrap: wrapDispatch, clear: clearTrafficLog } = useTrafficLog()
 const trackedDispatch = wrapDispatch(dispatch)
+
+// Create dispatch bridge for Python → JS HTTP routing
+const dispatchBridge = async (method: string, url: string, headersJson: string, body: string): Promise<string> => {
+  const headers: Record<string, string> = headersJson ? JSON.parse(headersJson) : {}
+  const req = new Request(url, {
+    method,
+    headers,
+    body: (method !== 'GET' && method !== 'HEAD' && body) ? body : undefined,
+  })
+  const res = await trackedDispatch(req)
+  const resHeaders = Object.fromEntries([...res.headers.entries()])
+  const text = await res.text()
+  return JSON.stringify({ status: res.status, headers: resHeaders, body: text })
+}
 
 // ─── Attack session ──────────────────────────────────────────────────────────
 const attackSession = useAttackSession(slug.value, fm.value.title ?? '')
@@ -184,7 +207,7 @@ async function initRuntime(): Promise<void> {
   }
 
   // 2. Instantiate the per-challenge WASM module
-  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_verify_flag } = await import(
+  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_fs_list, wasm_verify_flag } = await import(
     '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
@@ -204,8 +227,11 @@ async function initRuntime(): Promise<void> {
   const appBytes: Uint8Array = wasm_fs_read('__app__')
   appCode = new TextDecoder().decode(appBytes)
 
-  // Read other FS entries (from frontmatter fs map keys)
-  const fsPaths = Object.keys(fm.value.fs ?? {})
+  // Read other FS entries: use wasm_fs_list() to auto-discover all encrypted paths,
+  // falling back to frontmatter fs field for legacy WASM binaries without wasm_fs_list.
+  const fsPaths: string[] = typeof wasm_fs_list === 'function'
+    ? (JSON.parse(wasm_fs_list()) as string[]).filter((p: string) => p !== '__app__')
+    : Object.keys(fm.value.fs ?? {})
   for (const path of fsPaths) {
     fsEntries[path] = wasm_fs_read(path)
   }
@@ -257,6 +283,9 @@ async function initRuntime(): Promise<void> {
   // Expose Pyodide instance for wxlsh and code editor panels
   if (runtime instanceof PythonRuntime) {
     pyodideInstance.value = runtime.getPyodide() as PyodidePublicAPI | null
+    if (pyodideInstance.value) {
+      pyodideInstance.value.globals.set('_wxlsh_dispatch_bridge', dispatchBridge)
+    }
   }
 
   // For non-Python backends (e.g., PHP), load a standalone Pyodide as a tool layer
@@ -266,7 +295,10 @@ async function initRuntime(): Promise<void> {
     const loadPyodide = (globalThis as any).loadPyodide as LoadPyodideFn
     if (typeof loadPyodide === 'function') {
       const toolsPyodide = await loadPyodide()
+      // Install and patch requests on the tool-layer Pyodide too
+      await installRequestsPatch(toolsPyodide as any, dispatchBridge)
       pyodideInstance.value = toolsPyodide as unknown as PyodidePublicAPI
+      pyodideInstance.value.globals.set('_wxlsh_dispatch_bridge', dispatchBridge)
     }
   }
 }
@@ -376,43 +408,22 @@ onUnmounted(() => {
   }
 })
 
-// ─── Static badge class maps (full class names for UnoCSS extraction) ─────────
-const difficultyBadge: Record<string, string> = {
-  easy:    'ch-badge-easy',
-  medium:  'ch-badge-medium',
-  hard:    'ch-badge-hard',
-  mystery: 'ch-badge-mystery',
-}
-const categoryBadge: Record<string, string> = {
-  web: 'ch-badge-web',
-}
 </script>
 
 <template>
-  <div class="flex flex-col h-screen overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
-    <!-- Top navigation bar -->
-    <header class="relative px-4 py-2 border-b border-[var(--ch-border)] bg-[var(--ch-bg)]">
-      <div class="flex justify-center items-center gap-4">
-        <span class="font-semibold text-[1em] color-[var(--ch-text-1)]">{{ fm.title }}</span>
-        <span
-        v-if="fm.difficulty"
-        :class="difficultyBadge[fm.difficulty] ?? 'ch-badge'"
-        >{{ fm.difficulty }}</span>
-        <span
-        v-if="fm.category"
-        :class="categoryBadge[fm.category] ?? 'ch-badge'"
-        >{{ fm.category }}</span>
-        <!-- Runtime status indicator -->
-        <span v-if="!runtimeReady && !runtimeError" class="ch-badge text-[0.75em] opacity-60">Loading...</span>
-        <span v-if="runtimeError" class="ch-badge ch-badge-hard text-[0.75em]" :title="runtimeError">Runtime Error</span>
-      </div>
-      <a href="/challenges/" class="absolute inset-y-2 left-4 text-[0.9em] color-[var(--ch-accent)] no-underline whitespace-nowrap hover:underline">← Challenges</a>
-      <NotesButton
-        class="absolute inset-y-2 right-4"
-        :noteCount="pentestNotes.noteCount.value"
-        @click="notesModalVisible = true"
-      />
-    </header>
+  <div class="flex flex-col h-[calc(100vh-var(--vp-nav-height))] overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
+    <!-- Merged navigation bar (replaces VitePress nav + old challenge header) -->
+    <MergedNav
+      :title="fm.title ?? ''"
+      :difficulty="fm.difficulty ?? ''"
+      :category="fm.category ?? ''"
+      :runtimeReady="runtimeReady"
+      :runtimeError="runtimeError"
+      :noteCount="pentestNotes.noteCount.value"
+      :descriptionCollapsed="descriptionCollapsed"
+      @open-notes="notesModalVisible = true"
+      @toggle-description="toggleDescription"
+    />
 
     <!-- Main content: left + right columns -->
     <div class="flex flex-1 overflow-hidden">
@@ -446,7 +457,7 @@ const categoryBadge: Record<string, string> = {
 
       <!-- Right column: interaction panels -->
       <main class="vp-raw flex flex-col flex-1 overflow-hidden bg-[var(--ch-bg-panel)]">
-        <nav class="flex gap-1 px-3 py-2 border-b border-[var(--ch-border)] flex-shrink-0">
+        <nav class="flex gap-1 px-3 py-2 border-b border-[var(--ch-border)] flex-shrink-0 overflow-x-auto">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -476,6 +487,37 @@ const categoryBadge: Record<string, string> = {
       </main>
     </div>
 
+    <!-- Persistent flag submit bar (visible when description is collapsed) -->
+    <div
+      v-if="descriptionCollapsed"
+      data-flag-bar
+      class="shrink-0 px-3 py-2 border-t border-[var(--ch-border)] bg-[var(--ch-bg)]"
+    >
+      <FlagSubmit
+        :verify="verify"
+        :onExport="onExport"
+        :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
+      />
+    </div>
+
+    <!-- Description Modal (mobile fullscreen) -->
+    <DescriptionModal
+      v-if="descriptionModalVisible"
+      :title="fm.title ?? ''"
+      :difficulty="fm.difficulty ?? ''"
+      :category="fm.category ?? ''"
+      @close="descriptionModalVisible = false"
+    >
+      <Content />
+      <template #flag-submit>
+        <FlagSubmit
+          :verify="verify"
+          :onExport="onExport"
+          :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
+        />
+      </template>
+    </DescriptionModal>
+
     <!-- Pentest Notes Modal -->
     <NotesModal
       v-if="notesModalVisible"
@@ -489,12 +531,18 @@ const categoryBadge: Record<string, string> = {
 <style scoped>
 /* Minimal scoped block: only transition rules not expressible as UnoCSS utilities */
 .description-column {
-  width: 40%;
-  min-width: 40%;
-  transition: width 0.25s ease, min-width 0.25s ease;
+  width: 38%;
+  min-width: 280px;
+  max-width: 480px;
+  transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s ease;
 }
 .description-column.collapsed {
-  width: 36px;
-  min-width: 36px;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  border-right: none;
+  overflow: hidden;
+  pointer-events: none;
 }
 </style>

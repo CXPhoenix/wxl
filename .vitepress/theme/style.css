@@ -15,6 +15,7 @@
   --ch-text-1:      #1e1b4b;
   --ch-text-2:      #4b5563;
   --ch-text-3:      #9ca3af;
+  --ch-icon:        var(--ch-accent);
 
   /* Difficulty badge tokens */
   --ch-easy-bg:   #d1fae5;
@@ -41,15 +42,16 @@
   /* Platform palette — Midnight Indigo (dark) */
   --ch-bg:          #0f0f23;
   --ch-bg-soft:     #161630;
-  --ch-bg-card:     #12122a;
+  --ch-bg-card:     #15152f;
   --ch-bg-panel:    #14142e;
-  --ch-border:      #2a2a4a;
+  --ch-border:      #2d2d55;
   --ch-border-hover:#6366f1;
   --ch-accent:      #6366f1;
   --ch-accent-soft: rgba(99, 102, 241, 0.12);
   --ch-text-1:      #e2e8f0;
   --ch-text-2:      #94a3b8;
   --ch-text-3:      #475569;
+  --ch-icon:        #a5b4fc;
 
   /* Difficulty badge tokens */
   --ch-easy-bg:   rgba(52, 211, 153, 0.12);
@@ -99,6 +101,19 @@
 }
 
 /**
+ * VitePress layout variables → ch-* bridge
+ * Ensures docs / guide pages follow the platform color scheme.
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --vp-c-bg-soft: var(--ch-bg-soft);
+  --vp-c-text-1:  var(--ch-text-1);
+  --vp-c-text-2:  var(--ch-text-2);
+  --vp-c-text-3:  var(--ch-text-3);
+  --vp-c-divider: var(--ch-border);
+}
+
+/**
  * Component: Button
  * -------------------------------------------------------------------------- */
 
@@ -118,19 +133,11 @@
  * Component: Home
  * -------------------------------------------------------------------------- */
 
+/* Homepage hero gradient — indigo brand palette */
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(
-    120deg,
-    #bd34fe 30%,
-    #41d1ff
-  );
-
-  --vp-home-hero-image-background-image: linear-gradient(
-    -45deg,
-    #bd34fe 50%,
-    #47caff 50%
-  );
+  --vp-home-hero-name-background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+  --vp-home-hero-image-background-image: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, rgba(67, 56, 202, 0.05) 70%);
   --vp-home-hero-image-filter: blur(44px);
 }
 
@@ -147,6 +154,34 @@
 }
 
 /**
+ * Component: Feature card icons — rounded-square container
+ * -------------------------------------------------------------------------- */
+
+/* Override VitePress scoped .icon styles via --vp-c-default-soft token */
+:root {
+  --vp-c-default-soft: rgba(67, 56, 202, 0.08);
+}
+
+.dark {
+  --vp-c-default-soft: rgba(99, 102, 241, 0.15);
+}
+
+/* Add border and increase border-radius for the icon container */
+.VPFeature .box > .icon {
+  border-radius: 12px;
+  border: 1px solid rgba(67, 56, 202, 0.12);
+}
+
+.dark .VPFeature .box > .icon {
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Brighten SVG icons inside feature cards via CSS filter */
+.dark .VPFeature .icon .VPImage {
+  filter: brightness(0) invert(1) sepia(1) saturate(3) hue-rotate(210deg) brightness(1.2);
+}
+
+/**
  * Component: Custom Block
  * -------------------------------------------------------------------------- */
 
@@ -155,4 +190,18 @@
   --vp-custom-block-tip-text: var(--vp-c-text-1);
   --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
   --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
+}
+
+/* Challenge pages: hide all VitePress chrome — merged nav replaces VPNav */
+body.challenge-page .VPNav,
+body.challenge-page .VPLocalNav,
+body.challenge-page .VPSidebar,
+body.challenge-page .VPContent,
+body.challenge-page .VPFooter {
+  display: none !important;
+}
+
+/* Zero out nav height so ChallengeLayout fills the full viewport */
+body.challenge-page {
+  --vp-nav-height: 0px;
 }

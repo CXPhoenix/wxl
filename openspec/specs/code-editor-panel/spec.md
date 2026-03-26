@@ -105,17 +105,18 @@ tests:
 ---
 ### Requirement: Code Editor Panel executes Python via Pyodide
 
-The "Run" button (and the Ctrl+Enter keyboard shortcut) SHALL execute the editor's content using Pyodide's `runPythonAsync`. The Python execution environment SHALL have a pre-injected `requests` stub that routes HTTP calls through the challenge's `dispatch()` function. The `requests` stub SHALL access the dispatch bridge function (`_wxlsh_code_dispatch`) directly from Python's `__main__` globals (set via `py.globals.set()`), and SHALL NOT use `from js import` to access it. `print()` output and return values SHALL be shown in the output region. Uncaught exceptions SHALL be shown as a formatted traceback in the output region.
+The "Run" button (and the Ctrl+Enter keyboard shortcut) SHALL execute the editor's content using Pyodide's `runPythonAsync`. The Python execution environment SHALL have two HTTP dispatch paths: (1) the real `requests` library (installed via micropip) whose `HTTPAdapter.send()` is monkey-patched to call the async JS dispatch bridge via `pyodide.ffi.run_sync()`, and (2) a lightweight async `_RequestsStub` injected before user code execution that directly `await`s the JS bridge. The dispatch bridge function SHALL be injected into Pyodide globals as `_wxlsh_dispatch_bridge` via `py.globals.set()` before either path is used. `print()` output and return values SHALL be shown in the output region. Uncaught exceptions SHALL be shown as a formatted traceback in the output region.
 
 #### Scenario: Run button executes code and shows output
 
 - **WHEN** the user clicks "Run" or presses Ctrl+Enter
 - **THEN** the code in the editor SHALL be executed and its print output SHALL appear in the output region
 
-#### Scenario: requests.get routes through dispatch
+#### Scenario: requests.get routes through async dispatch bridge
 
 - **WHEN** Python code calls `requests.get("https://challenge-sqli.localhost/")`
-- **THEN** the request SHALL be routed through `dispatch()` and the response SHALL be returned to the Python caller
+- **THEN** the request SHALL be routed through the async JS dispatch bridge (NOT synchronous XMLHttpRequest)
+- **AND** the response SHALL be returned to the Python caller as a standard `requests.Response`
 
 #### Scenario: Python exception shows traceback
 
@@ -127,23 +128,28 @@ The "Run" button (and the Ctrl+Enter keyboard shortcut) SHALL execute the editor
 - **WHEN** `runtimeReady` is false
 - **THEN** the "Run" button SHALL be disabled and the editor SHALL display a "Runtime loading…" overlay
 
-#### Scenario: requests stub accesses dispatch bridge from Python globals
+#### Scenario: Dispatch bridge injected before requests patch
 
-- **WHEN** the `buildRequestsStub()` Python code is injected into Pyodide
-- **THEN** the `_dispatch` method SHALL reference `_wxlsh_code_dispatch` as a Python global variable
-- **AND** SHALL NOT use `from js import _wxlsh_code_dispatch`
-- **AND** the bridge function SHALL have been set via `py.globals.set('_wxlsh_code_dispatch', ...)` before stub injection
+- **WHEN** Pyodide initialization completes in ChallengeLayout
+- **THEN** `_wxlsh_dispatch_bridge` SHALL be set on Pyodide globals via `py.globals.set()` before `REQUESTS_MONKEY_PATCH` is executed
+- **AND** the bridge function SHALL route HTTP through the same dispatch path used by Browser panel
 
 
 <!-- @trace
-source: fix-code-editor-jsproxy-and-php-pyodide
-updated: 2026-03-24
+source: fix-terminal-and-http-dispatch
+updated: 2026-03-25
 code:
-  - .vitepress/theme/layouts/ChallengeLayout.vue
   - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useWxlsh.ts
 tests:
   - tests/unit/components/CodeEditorPanel.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
 -->
 
 ---

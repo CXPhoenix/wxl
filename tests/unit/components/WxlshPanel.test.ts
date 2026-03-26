@@ -56,6 +56,8 @@ vi.mock('../../../.vitepress/theme/composables/useWxlsh', () => ({
     historyPrev: mockHistoryPrev,
     historyNext: mockHistoryNext,
     historyBuffer: ref([]),
+    getPrompt: () => ({ text: 'hacker@wxlsh:~$ ', length: 16 }),
+    getCwd: () => '~',
   })),
 }))
 

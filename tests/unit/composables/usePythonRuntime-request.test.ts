@@ -12,6 +12,7 @@ function makeMockFlaskPyodide(status: number, body: string, headers: [string, st
   const responseJson = JSON.stringify({ status, headers, body: btoa(body) })
   const pyodide = {
     runPythonAsync: vi.fn().mockResolvedValue(undefined),
+    loadPackage: vi.fn().mockResolvedValue(undefined),
     FS: { writeFile: vi.fn() },
     globals: {
       get: vi.fn().mockImplementation((name: string) => {
@@ -19,6 +20,7 @@ function makeMockFlaskPyodide(status: number, body: string, headers: [string, st
           return vi.fn().mockResolvedValue(responseJson)
         }
       }),
+      set: vi.fn(),
     },
   }
   const loadPyodide = vi.fn().mockResolvedValue(pyodide)
@@ -46,11 +48,13 @@ describe('PythonRuntime.handleRequest()', () => {
     )
     const pyodide = {
       runPythonAsync: vi.fn().mockResolvedValue(undefined),
+      loadPackage: vi.fn().mockResolvedValue(undefined),
       FS: { writeFile: vi.fn() },
       globals: {
         get: vi.fn().mockImplementation((name: string) => {
           if (name === '_asgi_bridge') return bridgeSpy
         }),
+        set: vi.fn(),
       },
     }
     const loadPyodide = vi.fn().mockResolvedValue(pyodide)

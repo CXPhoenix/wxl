@@ -7,6 +7,7 @@ import './style.css'
 import Layout from './Layout.vue'
 import SourceViewer from './components/SourceViewer.vue'
 import ChallengeList from './components/ChallengeList.vue'
+import HomeContent from './components/HomeContent.vue'
 
 export default {
   extends: DefaultTheme,
@@ -22,9 +23,12 @@ export default {
     // ChallengeList is used in docs/challenges/index.md via <ChallengeList />
     app.component('ChallengeList', ChallengeList)
 
+    // HomeContent is used in docs/index.md via <HomeContent />
+    app.component('HomeContent', HomeContent)
+
     // Register Service Worker (challenge router)
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/challenge-sw.js').catch((err) => {
+      navigator.serviceWorker.register(`${import.meta.env.BASE_URL}challenge-sw.js`).catch((err) => {
         console.warn('[challenge-sw] registration failed:', err)
       })
     }

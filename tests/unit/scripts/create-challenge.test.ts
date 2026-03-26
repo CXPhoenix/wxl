@@ -67,8 +67,8 @@ describe('checkCollision', () => {
     expect(() => checkCollision('my-challenge', '/docs/challenge', existsFn)).toThrow()
   })
 
-  it('throws when <slug>/ directory already exists', () => {
-    const existsFn = (p: string) => !p.endsWith('.md') && p.endsWith('my-challenge')
+  it('throws when <slug>/index.md already exists', () => {
+    const existsFn = (p: string) => p.endsWith('my-challenge/index.md')
     expect(() => checkCollision('my-challenge', '/docs/challenge', existsFn)).toThrow()
   })
 
@@ -157,7 +157,8 @@ describe('generateMarkdown', () => {
     expect(fm.category).toBe('web')
     expect(fm.packages).toEqual([])
     expect(typeof fm.app).toBe('string')
-    expect(typeof fm.fs).toBe('object')
+    expect(fm.app).toBe('app.py')
+    expect(fm.fs).toBeUndefined()
   })
 
   it('uses index.php for PHP backend', () => {
@@ -172,5 +173,23 @@ describe('generateMarkdown', () => {
       const fm = extractFrontmatter(content)
       expect(String(fm.app)).toContain('app.py')
     }
+  })
+
+  it('includes a date field in ISO 8601 format', () => {
+    const before = Date.now()
+    const content = generateMarkdown(opts)
+    const after = Date.now()
+    const fm = extractFrontmatter(content)
+    expect(typeof fm.date).toBe('string')
+    const ts = new Date(fm.date as string).getTime()
+    expect(ts).toBeGreaterThanOrEqual(before)
+    expect(ts).toBeLessThanOrEqual(after)
+  })
+
+  it('includes a tags field as an empty array', () => {
+    const content = generateMarkdown(opts)
+    const fm = extractFrontmatter(content)
+    expect(Array.isArray(fm.tags)).toBe(true)
+    expect(fm.tags).toEqual([])
   })
 })

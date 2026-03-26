@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, onMounted, onUnmounted } from 'vue'
+import { ref, watch, useTemplateRef, onMounted, onUnmounted } from 'vue'
+import BrowserChrome from './BrowserChrome.vue'
 
 const props = defineProps<{
   slug: string
@@ -140,31 +141,24 @@ onMounted(() => {
   window.addEventListener('message', handleIframeMessage)
 })
 
+// Auto-navigate when runtime becomes ready (disabled transitions false)
+watch(() => props.disabled, (newVal, oldVal) => {
+  if (oldVal && !newVal) navigate()
+})
+
 onUnmounted(() => {
   window.removeEventListener('message', handleIframeMessage)
 })
 </script>
 
 <template>
-  <div class="flex flex-col h-full gap-2">
-    <!-- Address bar -->
-    <div class="flex gap-2 flex-shrink-0">
-      <input
-        data-url-input
-        v-model="url"
-        type="text"
-        placeholder="https://challenge-…"
-        @keydown.enter="navigate"
-        class="flex-1 px-2 py-1 rounded border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] text-[0.85em] font-mono outline-none focus:border-[var(--ch-accent)]"
-      />
-      <button
-        data-go
-        class="px-3 py-1 rounded bg-[var(--ch-accent)] color-white text-[0.85em] border-none"
-        :class="props.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'"
-        :disabled="props.disabled"
-        @click="navigate"
-      >{{ props.disabled ? 'Loading…' : 'Go' }}</button>
-    </div>
+  <div class="flex flex-col h-full">
+    <!-- Browser chrome (URL bar + nav buttons) -->
+    <BrowserChrome
+      v-model="url"
+      :disabled="props.disabled"
+      @navigate="navigate"
+    />
 
     <!-- Response viewport -->
     <iframe

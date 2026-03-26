@@ -31,6 +31,10 @@ impl FsStore {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.entries.keys().cloned().collect()
+    }
 }
 
 impl Default for FsStore {

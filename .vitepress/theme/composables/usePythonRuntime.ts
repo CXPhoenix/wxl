@@ -1,5 +1,71 @@
 export type LoadPyodideFn = (opts?: Record<string, unknown>) => Promise<PyodideInstance>
 
+/**
+ * Python code that monkey-patches requests.adapters.HTTPAdapter.send()
+ * to route HTTP through the async JS dispatch bridge injected as
+ * `_wxlsh_dispatch_bridge` on Pyodide globals.
+ *
+ * The bridge returns a JSON string { status, headers, body } to avoid
+ * JsProxy issues across the Pyodide boundary.
+ */
+const REQUESTS_MONKEY_PATCH = `
+import requests
+from requests.adapters import HTTPAdapter
+import json as _json
+from pyodide.ffi import run_sync as _run_sync
+
+_original_send = HTTPAdapter.send
+
+def _patched_send(self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None):
+    """Synchronous send that routes through the async JS dispatch bridge.
+
+    The JS bridge (_wxlsh_dispatch_bridge) is async, but requests.send() is
+    synchronous. We use pyodide.ffi.run_sync to bridge the gap — it drives
+    the event loop until the JS Promise resolves, then returns the result.
+    """
+    method = request.method or "GET"
+    url = request.url
+    headers = dict(request.headers or {})
+    body = request.body
+
+    if body and isinstance(body, bytes):
+        body = body.decode("utf-8", errors="replace")
+
+    try:
+        bridge = _wxlsh_dispatch_bridge
+    except NameError:
+        raise ConnectionError(
+            "WXL dispatch bridge not initialized: _wxlsh_dispatch_bridge is not set. "
+            "Ensure ChallengeLayout injects the bridge before requests is used."
+        )
+
+    try:
+        headers_json = _json.dumps(headers)
+        # bridge() returns a JS Promise (PyodideFuture); run_sync resolves it
+        raw_json = _run_sync(bridge(method, url, headers_json, body or ""))
+        result = _json.loads(raw_json)
+
+        status = int(result["status"])
+        resp_headers = result.get("headers", {})
+        resp_body = (result.get("body", "") or "").encode("utf-8")
+
+        from requests.models import Response
+        resp = Response()
+        resp.status_code = status
+        resp.headers.update(resp_headers)
+        resp._content = resp_body
+        resp.encoding = "utf-8"
+        resp.url = url
+        resp.request = request
+        return resp
+    except ConnectionError:
+        raise
+    except Exception as e:
+        raise ConnectionError(f"WXL dispatch bridge error: {e}") from e
+
+HTTPAdapter.send = _patched_send
+`
+
 /** Pyodide built-in packages that must be loaded via loadPackage(), not micropip */
 const PYODIDE_NATIVE_PKGS = new Set(['sqlite3', 'ssl', 'lzma', 'numpy', 'pandas'])
 
@@ -61,6 +127,10 @@ export class PythonRuntime {
       )
     }
     await this.pyodide.runPythonAsync(appCode)
+
+    // Install requests and monkey-patch HTTPAdapter.send to route through JS dispatch bridge
+    await this._installAndPatchRequests()
+
     // Inject ASGI/WSGI bridge: auto-detects Flask (WSGI) vs FastAPI (ASGI) and
     // serialises the response as JSON (body base64-encoded) to avoid Pyodide proxy issues.
     await this.pyodide.runPythonAsync(`
@@ -169,6 +239,21 @@ async def _asgi_bridge(method, path, query_string, js_headers, body_bytes):
 `)
   }
 
+  /**
+   * Install the real `requests` library via micropip and monkey-patch
+   * HTTPAdapter.send() to route all HTTP through the JS dispatch bridge.
+   */
+  private async _installAndPatchRequests(): Promise<void> {
+    if (!this.pyodide) return
+    // Ensure micropip is available
+    await this.pyodide.loadPackage('micropip')
+    await this.pyodide.runPythonAsync(
+      `import micropip; await micropip.install('requests')`,
+    )
+    // Monkey-patch the transport layer so requests uses the JS bridge
+    await this.pyodide.runPythonAsync(REQUESTS_MONKEY_PATCH)
+  }
+
   async handleRequest(request: Request): Promise<Response> {
     if (!this.pyodide) throw new Error('PythonRuntime not initialized')
 
@@ -196,4 +281,23 @@ async def _asgi_bridge(method, path, query_string, js_headers, body_bytes):
   get isReady(): boolean {
     return this.pyodide !== null
   }
+}
+
+/**
+ * Install requests and apply monkey-patch on any Pyodide instance.
+ * Used by ChallengeLayout to patch the standalone tool-layer Pyodide
+ * for non-Python backends (e.g., PHP).
+ */
+export async function installRequestsPatch(
+  pyodide: PyodideInstance,
+  dispatchBridge?: (method: string, url: string, headersJson: string, body: string) => Promise<string>,
+): Promise<void> {
+  await pyodide.loadPackage('micropip')
+  await pyodide.runPythonAsync(
+    `import micropip; await micropip.install('requests')`,
+  )
+  if (dispatchBridge) {
+    pyodide.globals.set('_wxlsh_dispatch_bridge', dispatchBridge)
+  }
+  await pyodide.runPythonAsync(REQUESTS_MONKEY_PATCH)
 }

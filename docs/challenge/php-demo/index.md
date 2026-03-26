@@ -5,11 +5,11 @@ difficulty: easy
 category: web
 backend: php
 source_visible: false
-app: ./php-demo/index.php
-fs:
-  /flag.txt: ./php-demo/flag.txt
+app: index.php
 description: >
   A PHP application with a file inclusion vulnerability. Can you read the flag?
+date: "2025-03-15T00:00:00.000Z"
+tags: [lfi, php, file-inclusion]
 wasmModule: /challenge/php-demo/runtime.wasm
 ---
 
