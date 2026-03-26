@@ -14,7 +14,7 @@ const difficultyFilter = ref('')
 const categoryFilter = ref('')
 const sortField = ref<'id' | 'difficulty' | 'category' | 'date'>('id')
 const sortDir = ref<'asc' | 'desc'>('asc')
-const viewMode = ref<'grid' | 'list'>('grid')
+const viewMode = ref<'grid' | 'list'>('list')
 
 // ─── Inline debounce (300ms) ─────────────────────────────────────────────────
 let debounceTimer: ReturnType<typeof setTimeout>
@@ -108,7 +108,7 @@ function toggleSortDir(): void {
 </script>
 
 <template>
-  <div class="max-w-[960px] mx-auto px-6 py-10">
+  <div class="max-w-screen-xl mx-auto px-6 py-10">
     <header class="mb-8">
       <h1 class="text-[2em] font-bold m-0 mb-2 color-[var(--ch-text-1)]">Challenges</h1>
       <p class="m-0 color-[var(--ch-text-2)]">Choose a challenge to begin</p>
@@ -202,28 +202,30 @@ function toggleSortDir(): void {
         data-challenge-card
         data-challenge-link
         :href="withBase(c.url)"
-        :class="['ch-card', 'before:absolute before:top-0 before:left-0 before:right-0 before:h-[3px] before:rounded-t-[10px] before:bg-[var(--ch-accent)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100']"
+        class="ch-card flex flex-col"
       >
-        <!-- ID + Title -->
-        <div class="flex items-center gap-2 mb-3">
+        <!-- Title line: ID + Title -->
+        <div class="flex items-center gap-2 mb-2">
           <span class="font-mono text-[0.75em] color-[var(--ch-accent)] font-bold shrink-0">{{ paddedId(c.id) }}</span>
-          <span class="font-semibold text-[1.05em] color-[var(--ch-text-1)] leading-snug">{{ c.title }}</span>
+          <span class="font-semibold text-[1.1em] color-[var(--ch-text-1)] leading-snug">{{ c.title }}</span>
         </div>
-        <!-- Badges -->
-        <div class="flex gap-[6px] flex-wrap mb-2">
+        <!-- Badges line -->
+        <div class="flex gap-[6px] flex-wrap mb-3">
           <span v-if="c.difficulty" :class="difficultyBadge[c.difficulty] ?? 'ch-badge'">{{ c.difficulty }}</span>
           <span v-if="c.category" :class="categoryBadge[c.category] ?? 'ch-badge'">{{ c.category }}</span>
         </div>
-        <!-- Description -->
-        <p v-if="c.description" class="m-0 mb-2 text-[0.85em] color-[var(--ch-text-2)] line-clamp-2 leading-relaxed">
+        <!-- Description block -->
+        <p v-if="c.description" class="m-0 mb-3 text-[0.85em] color-[var(--ch-text-2)] line-clamp-2 leading-relaxed">
           {{ c.description }}
         </p>
-        <!-- Tags -->
-        <div v-if="c.tags && c.tags.length > 0" class="flex flex-wrap gap-1 mb-2">
-          <span v-for="tag in c.tags" :key="tag" class="ch-tag">{{ tag }}</span>
+        <!-- Footer: Tags + Date -->
+        <div class="flex items-center gap-2 mt-auto">
+          <div v-if="c.tags && c.tags.length > 0" class="flex flex-wrap gap-1">
+            <span v-for="tag in c.tags" :key="tag" class="ch-tag">{{ tag }}</span>
+          </div>
+          <span class="flex-1"></span>
+          <span v-if="c.date" class="text-[0.75em] color-[var(--ch-text-3)] shrink-0 whitespace-nowrap">{{ formatDate(c.date) }}</span>
         </div>
-        <!-- Date -->
-        <div v-if="c.date" class="text-[0.75em] color-[var(--ch-text-3)] mt-auto">{{ formatDate(c.date) }}</div>
       </a>
     </div>
 
@@ -235,11 +237,21 @@ function toggleSortDir(): void {
         :href="withBase(c.url)"
         class="ch-list-row no-underline"
       >
-        <span class="font-mono text-[0.75em] color-[var(--ch-accent)] font-bold w-12 shrink-0">{{ paddedId(c.id) }}</span>
-        <span class="flex-1 font-medium color-[var(--ch-text-1)] truncate">{{ c.title }}</span>
-        <span v-if="c.difficulty" :class="difficultyBadge[c.difficulty] ?? 'ch-badge'" class="shrink-0">{{ c.difficulty }}</span>
-        <span v-if="c.category" :class="categoryBadge[c.category] ?? 'ch-badge'" class="shrink-0">{{ c.category }}</span>
-        <span class="text-[0.75em] color-[var(--ch-text-3)] shrink-0 w-24 text-right">{{ formatDate(c.date) }}</span>
+        <!-- Line 1: ID + Title + Badges + Date -->
+        <div class="flex items-center gap-2 w-full">
+          <span class="font-mono text-[0.75em] color-[var(--ch-accent)] font-bold shrink-0">{{ paddedId(c.id) }}</span>
+          <span class="font-medium color-[var(--ch-text-1)] truncate">{{ c.title }}</span>
+          <span v-if="c.difficulty" :class="difficultyBadge[c.difficulty] ?? 'ch-badge'" class="shrink-0">{{ c.difficulty }}</span>
+          <span v-if="c.category" :class="categoryBadge[c.category] ?? 'ch-badge'" class="shrink-0">{{ c.category }}</span>
+          <span class="text-[0.75em] color-[var(--ch-text-3)] shrink-0 ml-auto whitespace-nowrap">{{ formatDate(c.date) }}</span>
+        </div>
+        <!-- Line 2: Description + Tags -->
+        <div class="flex items-center gap-2 w-full" v-if="c.description || (c.tags && c.tags.length > 0)">
+          <span v-if="c.description" class="text-[0.8em] color-[var(--ch-text-2)] truncate">{{ c.description }}</span>
+          <div v-if="c.tags && c.tags.length > 0" class="flex gap-1 shrink-0 ml-auto">
+            <span v-for="tag in c.tags" :key="tag" class="ch-tag">{{ tag }}</span>
+          </div>
+        </div>
       </a>
     </div>
   </div>

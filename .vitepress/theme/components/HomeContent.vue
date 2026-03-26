@@ -44,10 +44,8 @@ function formatDate(d: string | null | undefined): string {
     <!-- Platform intro -->
     <section class="max-w-screen-lg mx-auto mb-16 text-center">
       <h2 class="text-2xl font-bold mb-4 color-[var(--ch-text-1)]">關於 WXL</h2>
-      <p class="text-base color-[var(--ch-text-2)] max-w-2xl mx-auto leading-relaxed">
-        WXL（網站滲透實驗室）是完全基於前端 WebAssembly 技術的 Web 資安挑戰平台。
-        所有挑戰後端（Flask、FastAPI、PHP）均在瀏覽器中執行，無需任何伺服器即可進行真實的滲透測試練習。
-        內建 HTTP Repeater、Python Code Editor、終端機模擬器等工具，提供完整的攻擊工具鏈。
+      <p class="text-base color-[var(--ch-text-2)] leading-loose text-justify">
+        WXL（網站滲透實驗室）是完全基於前端 WebAssembly 技術的 Web 資安挑戰平台。所有挑戰後端（Flask、FastAPI、PHP）均在瀏覽器中執行，無需任何伺服器即可進行真實的滲透測試練習。內建 HTTP Repeater、Python Code Editor、終端機模擬器等工具，提供完整的攻擊工具鏈。
       </p>
     </section>
 

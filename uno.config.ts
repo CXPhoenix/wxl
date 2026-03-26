@@ -27,7 +27,7 @@ export default defineConfig({
 
   shortcuts: [
     // Card: block link card with border + hover accent
-    ['ch-card', 'relative block rounded-[10px] border border-[var(--ch-border)] bg-[var(--ch-bg-card)] p-[18px] no-underline transition-[border-color,box-shadow] duration-200 overflow-hidden color-[var(--ch-text-1)] hover:border-[var(--ch-border-hover)] hover:shadow-[0_2px_12px_rgba(0,0,0,0.10)]'],
+    ['ch-card', 'relative block rounded-[10px] border border-[var(--ch-border)] bg-[var(--ch-bg-card)] p-[18px] no-underline transition-[border-color,box-shadow,transform] duration-200 overflow-hidden color-[var(--ch-text-1)] hover:border-[var(--ch-border-hover)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:translate-y-[-2px]'],
 
     // Tabs
     ['ch-tab-btn', 'px-3 py-1 text-[0.875em] rounded border border-transparent color-[var(--ch-text-2)] cursor-pointer bg-transparent transition-colors duration-150'],
@@ -60,6 +60,6 @@ export default defineConfig({
     ['ch-view-btn', 'px-2 py-1 rounded border border-[var(--ch-border)] bg-transparent color-[var(--ch-text-2)] cursor-pointer transition-colors hover:border-[var(--ch-accent)] hover:color-[var(--ch-accent)]'],
     ['ch-view-btn-active', 'px-2 py-1 rounded border border-[var(--ch-accent)] bg-[var(--ch-accent-soft)] color-[var(--ch-accent)] cursor-pointer'],
     ['ch-tag', 'inline-block px-1.5 py-[1px] rounded text-[10px] bg-[var(--ch-bg-soft)] color-[var(--ch-text-2)] border border-[var(--ch-border)]'],
-    ['ch-list-row', 'flex items-center gap-3 px-4 py-3 border-b border-[var(--ch-border)] cursor-pointer transition-colors hover:bg-[var(--ch-bg-soft)]'],
+    ['ch-list-row', 'flex flex-col gap-1 px-4 py-3 border-b border-[var(--ch-border)] border-l-2 border-l-transparent cursor-pointer transition-[background-color,border-color] duration-150 hover:bg-[var(--ch-bg-soft)] hover:border-l-[var(--ch-accent)]'],
   ],
 })

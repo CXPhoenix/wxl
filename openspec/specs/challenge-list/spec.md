@@ -344,56 +344,64 @@ tests:
 ---
 ### Requirement: Challenge list supports grid and list view modes
 
-The `ChallengeList` component SHALL provide a view mode toggle between grid view and list view. Grid view SHALL render rich cards with ID, title, badges, description (2-3 line clamp), tags, and date. List view SHALL render compact table rows with ID, title, difficulty, category, and date. The view mode toggle buttons SHALL use the `ch-view-btn` and `ch-view-btn-active` UnoCSS shortcuts.
+The `ChallengeList.vue` component SHALL provide two view modes: grid and list. The default view mode SHALL be `'list'`. Users SHALL be able to toggle between grid and list via toolbar buttons. Both views SHALL display challenge ID, title, difficulty badge, category badge, description, tags, and date. The component SHALL support text search (title + description + tags), difficulty filter, category filter, and sorting by ID, difficulty, category, or date.
 
-#### Scenario: Grid view displays rich cards
+#### Scenario: Default view is list mode
 
-- **WHEN** the user selects grid view (default)
-- **THEN** each challenge SHALL be rendered as a card with ID, title, difficulty badge, category badge, description excerpt, tag pills, and date
+- **WHEN** the Challenges page loads for the first time
+- **THEN** the list view SHALL be active (not grid)
+- **AND** the list toggle button SHALL appear in active state
 
-#### Scenario: List view displays compact rows
+#### Scenario: List view displays two-line rows with full information
 
-- **WHEN** the user selects list view
-- **THEN** each challenge SHALL be rendered as a compact table row showing ID, title, difficulty, category, and date
+- **WHEN** list view is active
+- **THEN** each challenge SHALL be displayed as a row with two lines:
+  - First line: ID badge, title, difficulty badge, category badge, and date (right-aligned)
+  - Second line: description (truncated to single line) and tags
+- **AND** hovering a row SHALL highlight the background with `var(--ch-bg-soft)` and show a left accent border
 
-#### Scenario: View mode persists during filtering
+#### Scenario: Grid view displays enhanced cards
 
-- **WHEN** the user switches to list view and then applies a search filter
-- **THEN** the filtered results SHALL continue to render in list view
+- **WHEN** grid view is active
+- **THEN** each challenge SHALL be displayed as a card with clear visual grouping: title line (ID + title), badges line, description block (2-line clamp), and footer (tags + date)
+- **AND** hovering a card SHALL change border to `var(--ch-border-hover)`, apply subtle upward translate, and add shadow
+
+#### Scenario: User toggles between views
+
+- **WHEN** user clicks the grid or list toggle button
+- **THEN** the view mode SHALL switch immediately without losing filter/sort state
+
+#### Scenario: Filtering and sorting work in both views
+
+- **WHEN** user applies a difficulty filter, category filter, search query, or sort option
+- **THEN** the filtered and sorted results SHALL display correctly in both grid and list views
 
 
 <!-- @trace
-source: challenge-list-redesign
-updated: 2026-03-25
+source: improve-challenge-list-ui
+updated: 2026-03-26
 code:
-  - docs/index.md
-  - .vitepress/theme/style.css
-  - .vitepress/theme/components/HomeContent.vue
-  - docs/public/icons/browser.svg
-  - docs/public/icons/terminal.svg
-  - .vitepress/theme/Layout.vue
-  - .vitepress/challenge/config.ts
-  - .vitepress/config.mts
-  - docs/challenge/fastapi-demo.md
-  - docs/challenge/sqli-demo.md
   - uno.config.ts
-  - docs/public/icons/code.svg
-  - docs/public/icons/repeater.svg
-  - .vitepress/theme/index.ts
-  - docs/public/icons/network.svg
-  - docs/guide/python.md
+  - docs/challenges.md
+  - .spectra.yaml
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .github/skills/spectra-discuss/SKILL.md
+  - .github/skills/spectra-propose/SKILL.md
+  - .vitepress/theme/components/HomeContent.vue
+  - .github/prompts/spectra-apply.prompt.md
+  - .github/prompts/spectra-propose.prompt.md
   - .vitepress/theme/components/ChallengeList.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/shared/challenges.data.ts
-  - docs/guide/index.md
-  - docs/guide/network.md
-  - docs/public/icons/notes.svg
-  - docs/challenge/php-demo.md
-  - docs/guide/terminal.md
-  - scripts/create-challenge.ts
+  - .github/skills/spectra-ingest/SKILL.md
+  - .github/skills/spectra-ask/SKILL.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - .github/prompts/spectra-ingest.prompt.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/skills/spectra-apply/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
 tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
+  - tests/unit/components/ChallengeList.test.ts
 -->
 
 ---

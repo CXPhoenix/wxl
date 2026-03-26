@@ -19,8 +19,10 @@ beforeEach(async () => {
 })
 
 describe('ChallengeList', () => {
-  it('renders a card for each challenge', () => {
+  it('renders a card for each challenge', async () => {
     const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
+    // Switch to grid view (default is now list)
+    await wrapper.find('button[title="格線模式"]').trigger('click')
     const cards = wrapper.findAll('[data-challenge-card]')
     expect(cards).toHaveLength(3)
   })
@@ -37,8 +39,10 @@ describe('ChallengeList', () => {
     expect(wrapper.text()).toContain('web')
   })
 
-  it('each card contains a link to the challenge page', () => {
+  it('each card contains a link to the challenge page', async () => {
     const wrapper = mount(ChallengeList, { props: { challenges: mockChallenges } })
+    // Switch to grid view (default is now list)
+    await wrapper.find('button[title="格線模式"]').trigger('click')
     const links = wrapper.findAll('a[data-challenge-link]')
     expect(links).toHaveLength(3)
     const hrefs = links.map((l) => l.attributes('href'))
