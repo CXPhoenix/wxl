@@ -364,27 +364,27 @@ tests:
 
 ### Requirement: ASGI bridge translates HTTP requests to ASGI scope and invokes Pyodide app
 
-A Rust WASM module (`wasm-asgi`) SHALL accept an HTTP request descriptor `{ method, url, headers, body }` and construct a valid ASGI HTTP connection scope dict. It SHALL invoke the Pyodide-executed ASGI application callable with the scope, a `receive` callable that yields the request body, and a `send` callable that collects response events.
+The ASGI bridge is implemented as inline Python code within Pyodide (in `usePythonRuntime.ts`), NOT as a Rust WASM module. The bridge SHALL accept an HTTP request descriptor `{ method, url, headers, body }` and construct a valid ASGI HTTP connection scope dict. It SHALL invoke the Pyodide-executed ASGI application callable with the scope, a `receive` callable that yields the request body, and a `send` callable that collects response events. The `chall-wasm/asgi-bridge/` Rust code exists but is used only for the custom section payload format, not for runtime ASGI bridging.
 
 #### Scenario: GET request is translated to ASGI scope
 
-- **WHEN** `wasm_asgi_handle({ method: "GET", url: "http://challenge-sqli.localhost/users", headers: {}, body: null })` is called
-- **THEN** the module SHALL construct an ASGI scope with `type: "http"`, `method: "GET"`, `path: "/users"`, and the parsed query string, and invoke the Pyodide app callable
+- **WHEN** the ASGI bridge receives `{ method: "GET", url: "http://challenge-sqli.localhost/users", headers: {}, body: null }`
+- **THEN** the bridge SHALL construct an ASGI scope with `type: "http"`, `method: "GET"`, `path: "/users"`, and the parsed query string, and invoke the Pyodide app callable
 
 #### Scenario: POST request with body is forwarded
 
-- **WHEN** `wasm_asgi_handle` is called with `method: "POST"` and a non-null body
+- **WHEN** the ASGI bridge receives a request with `method: "POST"` and a non-null body
 - **THEN** the `receive` callable SHALL yield `{ type: "http.request", body: <bytes>, more_body: false }`
 
 ---
 ### Requirement: ASGI bridge collects response events and returns HTTP response
 
-The `wasm-asgi` module SHALL collect all `http.response.start` and `http.response.body` events emitted by the app's `send` callable, assemble them into a complete HTTP response descriptor `{ status, headers, body }`, and return it to the Service Worker.
+The ASGI bridge (implemented in inline Python within Pyodide) SHALL collect all `http.response.start` and `http.response.body` events emitted by the app's `send` callable, assemble them into a complete HTTP response descriptor `{ status, headers, body }`, and return it to the caller.
 
 #### Scenario: Response is assembled from ASGI events
 
 - **WHEN** the Pyodide app sends `http.response.start` with status 200 and headers, then `http.response.body` with body bytes
-- **THEN** `wasm_asgi_handle` SHALL resolve with `{ status: 200, headers: [...], body: <bytes> }`
+- **THEN** the bridge SHALL resolve with `{ status: 200, headers: [...], body: <bytes> }`
 
 #### Scenario: Chunked response body is concatenated
 
@@ -424,7 +424,7 @@ Before executing `app_code`, the ASGI runtime SHALL mount all decrypted FS entri
 ---
 ### Requirement: Python ASGI runtime module resides in .vitepress/composables
 
-The `PythonRuntime` class SHALL be implemented in `.vitepress/theme/composables/usePythonRuntime.ts` (renamed from `chall-wasm/python-bridge/python-runtime.ts`). All consumers (`.vitepress/sw/router.ts` and test files) SHALL import from the new path. The public API — `initialize(appCode: string, fsEntries: FsEntry[]): Promise<void>` and `handleRequest(request: Request): Promise<Response>` — SHALL remain unchanged.
+The `PythonRuntime` class SHALL be implemented in `.vitepress/theme/composables/usePythonRuntime.ts` (renamed from `chall-wasm/python-bridge/python-runtime.ts`). All consumers (`.vitepress/sw/router.ts` and test files) SHALL import from the new path. The public API — `initialize(appCode: string, fsEntries: Record<string, Uint8Array>, packages: string[]): Promise<void>` and `handleRequest(request: Request): Promise<Response>` — SHALL remain unchanged except for the `initialize()` signature update.
 
 #### Scenario: Runtime module is importable from .vitepress/composables
 
@@ -483,22 +483,17 @@ tests:
 ---
 ### Requirement: Python ASGI runtime installs micropip packages before app execution
 
-When `PythonRuntime.initialize()` is called with a non-empty `packages` array, the runtime SHALL install all specified packages via `micropip.install()` inside Pyodide before executing `app_code`. Package installation SHALL complete before the app callable is invoked.
+The `PythonRuntime.initialize()` method SHALL accept the following signature: `initialize(appCode: string, fsEntries: Record<string, Uint8Array> = {}, packages: string[] = []): Promise<void>`. The `fsEntries` parameter SHALL be a `Record<string, Uint8Array>` mapping virtual paths to binary content. The `packages` parameter SHALL be an optional array of package names to install via micropip.
 
-#### Scenario: Packages are installed before app code runs
+#### Scenario: initialize called with all parameters
 
-- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, ['flask', 'requests'])` is called
-- **THEN** Pyodide SHALL execute `import micropip; await micropip.install(['flask', 'requests'])` before executing `appCode`
+- **WHEN** `PythonRuntime.initialize(appCode, { '/flag.txt': flagBytes }, ['fastapi', 'anyio'])` is called
+- **THEN** the runtime SHALL mount `/flag.txt` into Pyodide MEMFS, install `fastapi` and `anyio` via micropip, and execute `appCode`
 
-#### Scenario: Empty packages list skips micropip
+#### Scenario: initialize called with defaults
 
-- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, [])` is called
-- **THEN** the runtime SHALL NOT call `micropip.install` and SHALL execute `appCode` directly
-
-#### Scenario: Package installation failure surfaces as initialization error
-
-- **WHEN** a package in the `packages` list does not exist in the Pyodide package index
-- **THEN** `initialize()` SHALL reject with an error describing the failed package name
+- **WHEN** `PythonRuntime.initialize(appCode)` is called without fsEntries or packages
+- **THEN** the runtime SHALL use empty defaults and execute `appCode` without mounting files or installing packages
 
 ---
 ### Requirement: E2E test mock completeness

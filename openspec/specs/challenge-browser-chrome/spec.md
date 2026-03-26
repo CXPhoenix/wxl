@@ -186,8 +186,8 @@ The auto-navigation SHALL call the same `navigate()` function used by manual URL
 #### Scenario: No duplicate navigation on re-render
 
 - **WHEN** the `disabled` prop is already `false` at mount time
-- **THEN** BrowserPanel SHALL navigate once on mount
-- **AND** SHALL NOT navigate again unless the user explicitly triggers navigation
+- **THEN** BrowserPanel SHALL NOT automatically navigate on mount
+- **AND** navigation SHALL only occur when the user explicitly triggers it or when `disabled` transitions from `true` to `false`
 
 <!-- @trace
 source: fix-challenge-slug-and-autonav

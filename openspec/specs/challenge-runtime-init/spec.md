@@ -4,6 +4,8 @@
 
 When a challenge page mounts, the ChallengeLayout SHALL load the per-challenge WASM binary specified by the `wasmModule` frontmatter field, call `wasm_fs_init(slug)` to initialize the virtual filesystem from the WASM custom section, decrypt all FS entries using the `virtual-fs` WASM module, initialize the appropriate runtime (PythonRuntime or PhpRuntime), install micropip packages if specified, and establish a MessageChannel with the Service Worker. The runtime SHALL be initialized exactly once per page lifecycle.
 
+When navigating between challenges, the component unmounts and remounts, triggering a fresh `wasm_fs_init` with the new slug. This unmount/remount cycle is sufficient to clear and repopulate the WASM store; an explicit `wasm_fs_reset(slug)` call is NOT required.
+
 The `swReady` readiness gate SHALL be unlocked (`true`) when any of the following conditions are met:
 1. `navigator.serviceWorker.controller` is non-null at component setup time
 2. `navigator.serviceWorker.controller` is non-null when `onMounted` executes (fallback for missed `controllerchange` events)
@@ -15,10 +17,10 @@ The `swReady` readiness gate SHALL be unlocked (`true`) when any of the followin
 - **WHEN** a user navigates to a Python challenge page (`backend: flask` or `backend: fastapi`)
 - **THEN** ChallengeLayout SHALL fetch and instantiate the per-challenge WASM binary from `wasmModule`, call `wasm_fs_init(slug)` (which internally derives the key from the custom section), call `wasm_fs_read(path)` to decrypt each entry (no external key parameter), call `PythonRuntime.initialize(appCode, fsEntries, packages)`, and display a loading state until initialization completes
 
-#### Scenario: WASM FS store is reset on each challenge mount
+#### Scenario: Component unmount/remount resets WASM FS state
 
 - **WHEN** a user navigates from one challenge page to another within the same SPA session
-- **THEN** ChallengeLayout SHALL load the new challenge's per-challenge WASM binary and call `wasm_fs_reset(slug)` so that the WASM store is cleared and repopulated from the new WASM's custom section data
+- **THEN** ChallengeLayout SHALL unmount the old challenge component and remount a new one, which triggers a fresh `wasm_fs_init(slug)` with the new challenge's WASM binary, without requiring an explicit `wasm_fs_reset` call
 
 #### Scenario: Runtime initialization is idempotent
 

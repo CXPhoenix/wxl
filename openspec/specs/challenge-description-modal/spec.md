@@ -91,182 +91,45 @@ tests:
 -->
 
 ---
-### Requirement: Mobile description defaults to collapsed
+### ~~Requirement: Mobile description defaults to collapsed~~
 
-On Mobile viewports (< 768px), the description panel SHALL be collapsed by default. The tools panel SHALL occupy the full screen.
+**Reason:** The current design keeps the description visible by default on all breakpoints, including mobile. There is no separate collapsed-by-default behavior for mobile.
 
-#### Scenario: Mobile initial state
+#### Scenario: Removal confirmed
 
-- **WHEN** user loads a challenge page on a < 768px viewport
-- **THEN** the description panel is hidden
-- **AND** the tools panel is displayed at full width
-- **AND** a "📖 題目" button is visible in the nav bar second row
-
-
-<!-- @trace
-source: challenge-ux-overhaul
-updated: 2026-03-25
-code:
-  - .vitepress/theme/style.css
-  - docs/challenge/php-demo/index.md
-  - .vitepress/challenge/plugin.ts
-  - .vitepress/theme/components/DescriptionModal.vue
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/sqli-demo/src/app.py
-  - docs/challenge/sqli-demo/index.md
-  - scripts/challenge-analyze.ts
-  - docs/challenge/fastapi-demo.md
-  - docs/challenge/fastapi-demo/src/app.py
-  - scripts/challenge-utils.ts
-  - docs/challenge/php-demo/index.php
-  - docs/challenge/fastapi-demo/index.md
-  - docs/challenge/php-demo/src/flag.txt
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - .vitepress/challenge/config.ts
-  - scripts/fsignore.ts
-  - scripts/challenge-validate.ts
-  - scripts/challenge-keygen.ts
-  - docs/challenge/php-demo/src/index.php
-  - .vitepress/theme/composables/useWxlsh.ts
-  - uno.config.ts
-  - docs/challenge/php-demo/flag.txt
-  - .vitepress/theme/components/BrowserChrome.vue
-  - docs/challenge/sqli-demo/app.py
-  - .vitepress/theme/components/MergedNav.vue
-  - docs/challenge/fastapi-demo/app.py
-  - .vitepress/theme/composables/useUserVfs.ts
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/fastapi-demo/flag.txt
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo/src/flag.txt
-  - docs/challenge/sqli-demo/src/flag.txt
-  - scripts/create-challenge.ts
-  - docs/challenge/sqli-demo.md
-tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
-  - tests/challenge-analyze.test.ts
-  - tests/unit/theme/challenge-design-tokens.test.ts
-  - tests/unit/challenge/config.test.ts
-  - tests/unit/components/MergedNav.test.ts
-  - tests/unit/composables/useWxlsh-tier3.test.ts
-  - tests/unit/composables/useWxlsh-tier2.test.ts
-  - tests/unit/composables/usePythonRuntime.test.ts
-  - tests/unit/components/DescriptionModal.test.ts
-  - tests/unit/composables/useUserVfs.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/components/BrowserChrome.test.ts
-  - tests/unit/composables/usePythonRuntime-fs.test.ts
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/challenge-validate.test.ts
-  - tests/unit/composables/usePythonRuntime-requests.test.ts
-  - tests/fsignore.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/theme/challenge-rwd.test.ts
-  - tests/challenge-utils.test.ts
-  - tests/unit/composables/useWxlsh-tier4.test.ts
-  - tests/unit/composables/usePythonRuntime-request.test.ts
--->
+- **WHEN** a user loads a challenge page on a < 768px viewport
+- **THEN** the description panel SHALL be visible by default, the same as on desktop and tablet breakpoints
 
 ---
-### Requirement: Mobile description opens as fullscreen modal
+### ~~Requirement: Mobile description opens as fullscreen modal~~
 
-On Mobile viewports, opening the description SHALL display it as a fullscreen modal overlay (100% width, 100% height) for focused reading.
+**Reason:** The `DescriptionModal` component exists but is not actively used. The description is toggled via a collapse/expand mechanism on all breakpoints, not via a fullscreen modal overlay.
 
-#### Scenario: Mobile description modal open
+#### Scenario: Removal confirmed
 
-- **WHEN** user taps "📖 題目" on a < 768px viewport
-- **THEN** a fullscreen modal overlay appears containing: challenge title + badges in the modal header, full markdown description content (scrollable), and a "✕ 關閉" close button
-- **AND** the flag submission input is included at the bottom of the modal
-
-#### Scenario: Mobile description modal close
-
-- **WHEN** user taps "✕ 關閉" in the description modal
-- **THEN** the modal is dismissed
-- **AND** the tools panel is visible again at full width
-
-
-<!-- @trace
-source: challenge-ux-overhaul
-updated: 2026-03-25
-code:
-  - .vitepress/theme/style.css
-  - docs/challenge/php-demo/index.md
-  - .vitepress/challenge/plugin.ts
-  - .vitepress/theme/components/DescriptionModal.vue
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/sqli-demo/src/app.py
-  - docs/challenge/sqli-demo/index.md
-  - scripts/challenge-analyze.ts
-  - docs/challenge/fastapi-demo.md
-  - docs/challenge/fastapi-demo/src/app.py
-  - scripts/challenge-utils.ts
-  - docs/challenge/php-demo/index.php
-  - docs/challenge/fastapi-demo/index.md
-  - docs/challenge/php-demo/src/flag.txt
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - .vitepress/challenge/config.ts
-  - scripts/fsignore.ts
-  - scripts/challenge-validate.ts
-  - scripts/challenge-keygen.ts
-  - docs/challenge/php-demo/src/index.php
-  - .vitepress/theme/composables/useWxlsh.ts
-  - uno.config.ts
-  - docs/challenge/php-demo/flag.txt
-  - .vitepress/theme/components/BrowserChrome.vue
-  - docs/challenge/sqli-demo/app.py
-  - .vitepress/theme/components/MergedNav.vue
-  - docs/challenge/fastapi-demo/app.py
-  - .vitepress/theme/composables/useUserVfs.ts
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/fastapi-demo/flag.txt
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo/src/flag.txt
-  - docs/challenge/sqli-demo/src/flag.txt
-  - scripts/create-challenge.ts
-  - docs/challenge/sqli-demo.md
-tests:
-  - tests/unit/composables/useWxlsh-tiers.test.ts
-  - tests/challenge-analyze.test.ts
-  - tests/unit/theme/challenge-design-tokens.test.ts
-  - tests/unit/challenge/config.test.ts
-  - tests/unit/components/MergedNav.test.ts
-  - tests/unit/composables/useWxlsh-tier3.test.ts
-  - tests/unit/composables/useWxlsh-tier2.test.ts
-  - tests/unit/composables/usePythonRuntime.test.ts
-  - tests/unit/components/DescriptionModal.test.ts
-  - tests/unit/composables/useUserVfs.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/components/BrowserChrome.test.ts
-  - tests/unit/composables/usePythonRuntime-fs.test.ts
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/challenge-validate.test.ts
-  - tests/unit/composables/usePythonRuntime-requests.test.ts
-  - tests/fsignore.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/theme/challenge-rwd.test.ts
-  - tests/challenge-utils.test.ts
-  - tests/unit/composables/useWxlsh-tier4.test.ts
-  - tests/unit/composables/usePythonRuntime-request.test.ts
--->
+- **WHEN** the user interacts with the description toggle on mobile
+- **THEN** the description SHALL collapse or expand in-place
+- **AND** no fullscreen modal overlay SHALL be displayed
 
 ---
 ### Requirement: Flag submission always accessible
 
-The flag submission input SHALL be accessible regardless of the description panel state.
+The flag submission input SHALL be accessible regardless of the description panel state. When the description panel is collapsed, a persistent flag bar SHALL remain visible so users can always submit flags.
 
 #### Scenario: Flag submit visible when description collapsed on desktop
 
 - **WHEN** description is collapsed on Desktop
-- **THEN** the flag submission input is accessible (positioned in the merged nav area or a persistent bottom bar)
+- **THEN** the flag submission input SHALL be accessible via a persistent flag bar
 
-#### Scenario: Flag submit visible in mobile modal
+#### Scenario: Flag submit visible when description collapsed on mobile
 
-- **WHEN** the description modal is open on Mobile
-- **THEN** the flag submission input is displayed at the bottom of the modal
+- **WHEN** description is collapsed on Mobile
+- **THEN** the flag submission input SHALL be accessible via the same persistent flag bar as desktop
+
+#### Scenario: Flag submit visible when description expanded
+
+- **WHEN** the description panel is expanded on any breakpoint
+- **THEN** the flag submission input SHALL be visible at the bottom of the description panel
 
 <!-- @trace
 source: challenge-ux-overhaul

@@ -1,10 +1,4 @@
-# fastapi-challenge Specification
-
-## Purpose
-
-TBD - created by syncing change 'runtime-init-and-fastapi-challenge'. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: FastAPI demo challenge is available as a working example
 
@@ -31,36 +25,3 @@ The `packages` frontmatter field is optional, not required. `ChallengeLayout.vue
 
 - **WHEN** a FastAPI challenge's frontmatter contains `packages: ['extra-lib']`
 - **THEN** `ChallengeLayout.vue` SHALL merge the extra packages with `BASE_PACKAGES`, resulting in `['fastapi', 'anyio', 'sqlite3', 'extra-lib']` being passed to the runtime initialization
-
-<!-- @trace
-source: runtime-init-and-fastapi-challenge
-updated: 2026-03-16
-code:
-  - scripts/challenge-keygen.ts
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/challenge/config.ts
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - tests/__mocks__/virtual-fs.ts
-  - docs/challenge/php-demo/flag.txt
-  - docs/challenge/sqli-demo/app.py
-  - docs/challenge/fastapi-demo/app.py
-  - docs/challenge/php-demo.md
-  - vitest.config.ts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/php-demo/index.php
-  - .vitepress/theme/components/RepeatPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - .vitepress/workers/router.ts
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/fastapi-demo/flag.txt
-  - docs/public/challenge-sw.js
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/challenge/plugin.ts
-tests:
-  - tests/unit/challenge/plugin.test.ts
-  - tests/unit/workers/router.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/challenge/config.test.ts
--->

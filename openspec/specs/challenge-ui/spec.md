@@ -12,7 +12,7 @@ The `ChallengeLayout.vue` component SHALL render four panels accessible via tab 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
-- **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
+- **THEN** the request SHALL target `https://challenge-<slug>.localhost` and be intercepted by the Service Worker
 
 #### Scenario: Network tab is available alongside Browser and Repeater
 
@@ -198,7 +198,9 @@ tests:
 
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
 
-The Browser Panel SHALL provide: a URL input field pre-populated with `http://challenge-<slug>.localhost/`, an HTTP method selector (GET, POST, PUT, DELETE, PATCH), a request body editor (shown for non-GET methods), a "Send" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
+The Browser Panel SHALL provide: a URL input field pre-populated with `https://challenge-<slug>.localhost/`, a "Go" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
+
+The Browser Panel SHALL NOT include an HTTP method selector (GET/POST/PUT/DELETE/PATCH). HTTP method selection and request body editing are provided by the Repeater and Terminal panels.
 
 #### Scenario: HTML response is rendered in sandboxed iframe
 
@@ -209,6 +211,13 @@ The Browser Panel SHALL provide: a URL input field pre-populated with `http://ch
 
 - **WHEN** the challenge app returns `Content-Type: application/json`
 - **THEN** the Browser Panel SHALL display the JSON as syntax-highlighted text, not rendered HTML
+
+#### Scenario: Browser Panel does not include method selector or body editor
+
+- **WHEN** the Browser Panel is rendered
+- **THEN** there SHALL NOT be an HTTP method selector dropdown
+- **AND** there SHALL NOT be a request body editor
+- **AND** the panel SHALL only dispatch GET requests via the URL bar and "Go" button
 
 
 <!-- @trace

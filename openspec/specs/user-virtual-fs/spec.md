@@ -8,19 +8,26 @@ TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after 
 
 ### Requirement: User writable virtual filesystem
 
-The system SHALL provide a user-writable virtual filesystem mounted at `/home/hacker/`, backed by IndexedDB, where users can create, read, update, and delete files and directories.
+The system SHALL provide a user-writable virtual filesystem mounted at `/home/hacker/`, backed by IndexedDB, where users can create, read, update, and delete files and directories. The `UserVfs` class SHALL expose a full CRUD API including `writeFile`, `readFile`, `deleteFile`, `mkdir`, `listDir`, and `exists` methods.
 
-#### Scenario: Create and read a file
+> **Future work:** Terminal integration is not yet implemented. The `UserVfs` class provides the full CRUD API backed by IndexedDB but is not yet connected to the wxlsh terminal. Users cannot currently interact with the user VFS through shell commands.
 
-- **WHEN** user types `echo "test payload" > /home/hacker/payload.txt`
-- **THEN** the file is persisted to IndexedDB
-- **AND** `cat /home/hacker/payload.txt` returns "test payload"
+#### Scenario: UserVfs API provides file operations
 
-#### Scenario: Directory operations
+- **WHEN** the `UserVfs` class is instantiated with a challenge slug
+- **THEN** it SHALL expose `writeFile`, `readFile`, `deleteFile`, `mkdir`, `listDir`, and `exists` methods backed by IndexedDB
 
-- **WHEN** user types `mkdir /home/hacker/scripts && touch /home/hacker/scripts/exploit.py`
-- **THEN** the directory and file are created in the virtual FS
-- **AND** `ls /home/hacker/scripts/` lists `exploit.py`
+#### Scenario: UserVfs is not connected to terminal
+
+- **WHEN** a user types filesystem commands in the wxlsh terminal
+- **THEN** the commands SHALL NOT be routed to the `UserVfs` API
+- **AND** the terminal SHALL report `command not found` for filesystem commands
+
+#### Scenario: Directory operations via API
+
+- **WHEN** `mkdir('/home/hacker/scripts')` and `writeFile('/home/hacker/scripts/exploit.py', content)` are called via the API
+- **THEN** the directory and file SHALL be created in IndexedDB
+- **AND** `listDir('/home/hacker/scripts/')` SHALL include `exploit.py`
 
 
 <!-- @trace

@@ -126,15 +126,18 @@ tests:
 
 For Tier 5 tools implemented as simplified rewrites, any real parameter that is recognized but not implemented SHALL produce an explicit message indicating the parameter exists in the real tool but is not supported in this environment, with a link to the official documentation.
 
-#### Scenario: sqlmap unsupported option
+> **Future work:** Parameter-level allow/deny checking for Tier 5 commands is not yet implemented. Currently, Tier 5 commands only check command-name-level allow/deny via the challenge frontmatter `commands` field. Unsupported parameters within an allowed Tier 5 command are not individually detected or reported.
 
-- **WHEN** user types `sqlmap -u "http://target/?id=1" --os-shell`
-- **THEN** the terminal displays: option '--os-shell' is available in the real sqlmap but is not supported in this environment, lists supported options, and provides a link to sqlmap.org
+#### Scenario: Tier 5 commands use name-level gating only
 
-#### Scenario: Unknown option
+- **WHEN** a user types a Tier 5 command (e.g., `sqlmap`) that is listed in the challenge `commands` field
+- **THEN** the command SHALL execute regardless of which parameters are passed
+- **AND** no per-parameter validation or "unsupported parameter" messages SHALL be displayed
 
-- **WHEN** user types a command with a completely unknown flag (not a real flag of the tool)
-- **THEN** the terminal displays: `unknown option: --xxx`
+#### Scenario: Unknown option falls through to command handler
+
+- **WHEN** a user types a Tier 5 command with an unknown flag (e.g., `sqlmap --nonexistent-flag`)
+- **THEN** the behavior SHALL be determined by the command's own handler, not by a parameter-level checker
 
 
 <!-- @trace

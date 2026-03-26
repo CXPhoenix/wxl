@@ -1,10 +1,4 @@
-# platform-documentation Specification
-
-## Purpose
-
-TBD - created by archiving change 'documentation-pages'. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Getting Started page provides platform introduction and quick start guide
 
@@ -19,41 +13,6 @@ The file `docs/guide/index.md` SHALL be a VitePress Markdown page using the defa
 
 - **WHEN** the Getting Started page is built
 - **THEN** it SHALL contain headings for: platform introduction, system requirements, quick start, tool overview, and FAQ
-
-
-<!-- @trace
-source: documentation-pages
-updated: 2026-03-25
-code:
-  - docs/public/icons/network.svg
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/theme/style.css
-  - docs/public/icons/repeater.svg
-  - uno.config.ts
-  - docs/public/icons/notes.svg
-  - docs/guide/index.md
-  - docs/guide/network.md
-  - .vitepress/theme/components/ChallengeList.vue
-  - docs/guide/python.md
-  - .vitepress/challenge/config.ts
-  - docs/public/icons/code.svg
-  - docs/public/icons/browser.svg
-  - scripts/create-challenge.ts
-  - .vitepress/config.mts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/public/icons/terminal.svg
-  - .vitepress/theme/index.ts
-  - docs/shared/challenges.data.ts
-  - docs/index.md
-  - docs/guide/terminal.md
-  - .vitepress/theme/components/HomeContent.vue
-  - .vitepress/theme/Layout.vue
-tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
--->
 
 ---
 ### Requirement: Python Guide page documents Code Editor and Pyodide environment
@@ -70,41 +29,6 @@ The file `docs/guide/python.md` SHALL be a VitePress Markdown page documenting t
 - **WHEN** the Python Guide page is built
 - **THEN** it SHALL list the available Python modules including the `requests` stub and Pyodide standard library modules relevant to security testing (e.g., `json`, `base64`, `hashlib`, `re`)
 
-
-<!-- @trace
-source: documentation-pages
-updated: 2026-03-25
-code:
-  - docs/public/icons/network.svg
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/theme/style.css
-  - docs/public/icons/repeater.svg
-  - uno.config.ts
-  - docs/public/icons/notes.svg
-  - docs/guide/index.md
-  - docs/guide/network.md
-  - .vitepress/theme/components/ChallengeList.vue
-  - docs/guide/python.md
-  - .vitepress/challenge/config.ts
-  - docs/public/icons/code.svg
-  - docs/public/icons/browser.svg
-  - scripts/create-challenge.ts
-  - .vitepress/config.mts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/public/icons/terminal.svg
-  - .vitepress/theme/index.ts
-  - docs/shared/challenges.data.ts
-  - docs/index.md
-  - docs/guide/terminal.md
-  - .vitepress/theme/components/HomeContent.vue
-  - .vitepress/theme/Layout.vue
-tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
--->
-
 ---
 ### Requirement: Terminal Guide page documents built-in terminal commands
 
@@ -120,41 +44,6 @@ The file `docs/guide/terminal.md` SHALL be a VitePress Markdown page documenting
 - **WHEN** the Terminal Guide page is built
 - **THEN** it SHALL explain how to navigate command history using up/down arrow keys
 
-
-<!-- @trace
-source: documentation-pages
-updated: 2026-03-25
-code:
-  - docs/public/icons/network.svg
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/theme/style.css
-  - docs/public/icons/repeater.svg
-  - uno.config.ts
-  - docs/public/icons/notes.svg
-  - docs/guide/index.md
-  - docs/guide/network.md
-  - .vitepress/theme/components/ChallengeList.vue
-  - docs/guide/python.md
-  - .vitepress/challenge/config.ts
-  - docs/public/icons/code.svg
-  - docs/public/icons/browser.svg
-  - scripts/create-challenge.ts
-  - .vitepress/config.mts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/public/icons/terminal.svg
-  - .vitepress/theme/index.ts
-  - docs/shared/challenges.data.ts
-  - docs/index.md
-  - docs/guide/terminal.md
-  - .vitepress/theme/components/HomeContent.vue
-  - .vitepress/theme/Layout.vue
-tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
--->
-
 ---
 ### Requirement: Network Guide page documents Traffic Log and Repeater workflow
 
@@ -169,37 +58,3 @@ The file `docs/guide/network.md` SHALL be a VitePress Markdown page documenting 
 
 - **WHEN** the Network Guide page is built
 - **THEN** it SHALL contain at least one example showing how Network Traffic, Code Editor, and Terminal tools work together in a typical attack scenario
-
-<!-- @trace
-source: documentation-pages
-updated: 2026-03-25
-code:
-  - docs/public/icons/network.svg
-  - docs/challenge/php-demo.md
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/theme/style.css
-  - docs/public/icons/repeater.svg
-  - uno.config.ts
-  - docs/public/icons/notes.svg
-  - docs/guide/index.md
-  - docs/guide/network.md
-  - .vitepress/theme/components/ChallengeList.vue
-  - docs/guide/python.md
-  - .vitepress/challenge/config.ts
-  - docs/public/icons/code.svg
-  - docs/public/icons/browser.svg
-  - scripts/create-challenge.ts
-  - .vitepress/config.mts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - docs/public/icons/terminal.svg
-  - .vitepress/theme/index.ts
-  - docs/shared/challenges.data.ts
-  - docs/index.md
-  - docs/guide/terminal.md
-  - .vitepress/theme/components/HomeContent.vue
-  - .vitepress/theme/Layout.vue
-tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
--->
