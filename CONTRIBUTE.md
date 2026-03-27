@@ -141,6 +141,25 @@ pnpm create:challenge --name sqli-login --title "SQL Injection Login Bypass" \
   --backend flask --difficulty medium --flag "CTF{sqli_bypassed}"
 ```
 
+## Challenge Keygen
+
+使用 `challenge-keygen` 腳本為挑戰產生加密 WASM payload：
+
+```bash
+pnpm challenge:keygen                 # 處理所有挑戰
+pnpm challenge:keygen <slug>          # 處理指定挑戰
+pnpm challenge:keygen --force <slug>  # 強制重新產生
+```
+
+此腳本執行以下流程：
+1. 讀取挑戰 frontmatter 與 `src/` 目錄中的檔案
+2. 產生隨機 AES-256 金鑰，加密所有 FS 項目
+3. 推導 flag verifier（PBKDF2-HMAC-SHA256）
+4. 打包為 WASM custom section，注入模板 WASM 二進位
+5. 更新 frontmatter 中的 `wasmModule` 路徑
+
+> **跳過邏輯**：若 frontmatter 已包含 `wasmModule` 且對應的 `runtime.wasm` 檔案存在，腳本會跳過該挑戰。在 CI 環境中，由於 `.wasm` 檔案未納入版控，腳本會自動重新產生。使用 `--force` 可強制重新產生。
+
 ## Commit 規範
 
 本專案採用 **[Conventional Commits](https://www.conventionalcommits.org/)** 格式，並加入 **gitmoji** 前綴。

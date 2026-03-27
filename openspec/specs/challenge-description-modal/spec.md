@@ -8,20 +8,21 @@ TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after 
 
 ### Requirement: Description panel collapsible on all breakpoints
 
-The description panel SHALL be collapsible on Desktop, Tablet, and Mobile breakpoints. When collapsed, the tools panel SHALL expand to occupy 100% of the available width.
+The description panel on challenge pages SHALL support a collapse/expand toggle. When collapsed, the tools panel SHALL expand to occupy the full width. A "📖 題目" button SHALL appear in the merged navigation bar when the description is collapsed, allowing users to re-expand it. The `DescriptionModal` component SHALL NOT exist in the codebase — the collapse/expand mechanism replaces it entirely.
 
-#### Scenario: Desktop description collapse
+#### Scenario: Description collapsed hides panel and shows nav button
 
-- **WHEN** user clicks the collapse button (◀) on the description panel at ≥ 768px
-- **THEN** the description panel is hidden
-- **AND** the tools panel expands to 100% width
-- **AND** a "📖 題目" button appears in the merged nav bar
+- **WHEN** the user clicks the collapse toggle on the description panel
+- **THEN** the description panel width SHALL animate to zero
+- **AND** the tools panel SHALL expand to full width
+- **AND** a "📖 題目" button SHALL appear in MergedNav
 
-#### Scenario: Desktop description expand
+#### Scenario: DescriptionModal component does not exist
 
-- **WHEN** user clicks "📖 題目" in the merged nav bar at ≥ 768px
-- **THEN** the description panel slides out from the left (38% width)
-- **AND** the "📖 題目" button is removed from the nav bar
+- **WHEN** inspecting the codebase for modal-based description display
+- **THEN** no `DescriptionModal.vue` component SHALL exist
+- **AND** `ChallengeLayout.vue` SHALL NOT import or reference `DescriptionModal`
+- **AND** no `descriptionModalVisible` ref SHALL exist in `ChallengeLayout.vue`
 
 
 <!-- @trace

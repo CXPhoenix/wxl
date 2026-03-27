@@ -9,7 +9,6 @@ import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
 import MergedNav from '../components/MergedNav.vue'
-import DescriptionModal from '../components/DescriptionModal.vue'
 import NotesModal from '../components/NotesModal.vue'
 import { PythonRuntime, installRequestsPatch, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
@@ -60,7 +59,6 @@ let challengePort: MessagePort | null = null  // port1 — page listens here
 
 // ─── Collapsible description panel ───────────────────────────────────────────
 const descriptionCollapsed = ref(false)
-const descriptionModalVisible = ref(false)
 function toggleDescription() {
   descriptionCollapsed.value = !descriptionCollapsed.value
 }
@@ -499,24 +497,6 @@ onUnmounted(() => {
         :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
       />
     </div>
-
-    <!-- Description Modal (mobile fullscreen) -->
-    <DescriptionModal
-      v-if="descriptionModalVisible"
-      :title="fm.title ?? ''"
-      :difficulty="fm.difficulty ?? ''"
-      :category="fm.category ?? ''"
-      @close="descriptionModalVisible = false"
-    >
-      <Content />
-      <template #flag-submit>
-        <FlagSubmit
-          :verify="verify"
-          :onExport="onExport"
-          :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
-        />
-      </template>
-    </DescriptionModal>
 
     <!-- Pentest Notes Modal -->
     <NotesModal
