@@ -8,17 +8,26 @@ TBD - created by archiving change 'vitepress-platform-refactor'. Update Purpose 
 
 ### Requirement: Challenge pages use a custom VitePress layout registered as "challenge"
 
-The VitePress theme SHALL always render `DefaultTheme.Layout` as the root layout component. When `frontmatter.layout === 'challenge'`, Layout.vue SHALL inject `ChallengeLayout.vue` via the `#layout-bottom` slot of `DefaultTheme.Layout`. The VitePress navbar (VPNav) SHALL be hidden on challenge pages; MergedNav replaces it.
+The VitePress theme `index.ts` SHALL use object spread (`...DefaultTheme`) instead of `extends: DefaultTheme` to inherit from the default theme. The theme SHALL define `Layout` as a `defineComponent` with a `setup` function that returns a render function. When `frontmatter.layout === 'challenge'`, the render function SHALL return `h(ChallengeLayout)`. For all other layout values, the render function SHALL return `h(DefaultTheme.Layout)`.
 
-Layout.vue SHALL use `onMounted` and `watch(frontmatter)` to add the CSS class `challenge-page` to `document.body` when the current page has `layout: challenge`, and remove the class otherwise. This body class toggle MUST be SSR-safe (only executed on the client side).
+The `enhanceApp` function SHALL explicitly call `DefaultTheme.enhanceApp?.({ app })` before registering project-specific components and plugins to preserve the default theme's functionality.
 
-#### Scenario: Challenge page renders within DefaultTheme.Layout
+The `setup` function SHALL use `onMounted` to add the CSS class `challenge-page` to `document.body` when the current page has `layout: challenge`, and `onUnmounted` to remove the class. This body class toggle MUST be SSR-safe (lifecycle hooks only execute on the client side).
+
+`Layout.vue` SHALL NOT be imported by `index.ts`. The layout switching logic SHALL be fully contained within the `defineComponent` in `index.ts`.
+
+#### Scenario: Challenge page renders ChallengeLayout directly
 
 - **WHEN** a `.md` file with `layout: challenge` in frontmatter is rendered
-- **THEN** `DefaultTheme.Layout` SHALL be the root layout component
-- **AND** `ChallengeLayout.vue` SHALL be rendered inside the `#layout-bottom` slot
-- **AND** the VitePress navbar (VPNav) SHALL be hidden via CSS
-- **AND** MergedNav SHALL be visible as the replacement navigation
+- **THEN** the Layout component SHALL render `ChallengeLayout` directly via `h(ChallengeLayout)`
+- **AND** `DefaultTheme.Layout` SHALL NOT be rendered for that page
+- **AND** `ChallengeLayout` SHALL be visible with MergedNav, description panel, tool tabs, and FlagSubmit
+
+#### Scenario: Non-challenge page renders DefaultTheme.Layout
+
+- **WHEN** a `.md` file without `layout: challenge` (or with `layout: doc`, `layout: page`, `layout: home`) is rendered
+- **THEN** the Layout component SHALL render `DefaultTheme.Layout` via `h(DefaultTheme.Layout)`
+- **AND** the standard VitePress navigation and content layout SHALL be visible
 
 #### Scenario: Body class is applied on challenge pages
 
@@ -30,39 +39,19 @@ Layout.vue SHALL use `onMounted` and `watch(frontmatter)` to add the CSS class `
 - **WHEN** the user navigates from a challenge page to a non-challenge page
 - **THEN** `document.body` SHALL NOT have the class `challenge-page`
 
+#### Scenario: DefaultTheme functionality is preserved
+
+- **WHEN** the theme is loaded
+- **THEN** `DefaultTheme.enhanceApp` SHALL be called before project-specific `enhanceApp` logic
+- **AND** all DefaultTheme styles and components SHALL be available
+
 
 <!-- @trace
-source: challenge-nav-integration
-updated: 2026-03-25
+source: fix-challenge-layout-not-rendering
+updated: 2026-03-27
 code:
-  - docs/public/icons/terminal.svg
-  - docs/challenge/sqli-demo.md
-  - scripts/create-challenge.ts
-  - docs/public/icons/code.svg
-  - docs/public/icons/browser.svg
-  - .vitepress/challenge/config.ts
-  - uno.config.ts
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - .vitepress/theme/Layout.vue
-  - .vitepress/theme/style.css
-  - docs/index.md
-  - docs/challenge/php-demo.md
-  - docs/shared/challenges.data.ts
-  - .vitepress/theme/components/HomeContent.vue
-  - docs/guide/python.md
   - .vitepress/theme/index.ts
-  - .vitepress/theme/components/ChallengeList.vue
-  - docs/guide/network.md
-  - docs/guide/index.md
-  - docs/public/icons/network.svg
-  - docs/public/icons/notes.svg
-  - docs/challenge/fastapi-demo.md
-  - docs/public/icons/repeater.svg
-  - .vitepress/config.mts
-  - docs/guide/terminal.md
-tests:
-  - tests/unit/scripts/create-challenge.test.ts
-  - tests/unit/components/HomeContent.test.ts
+  - .vitepress/theme/Layout.vue
 -->
 
 ---

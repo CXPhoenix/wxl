@@ -23,9 +23,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <DefaultTheme.Layout>
-    <template v-if="isChallenge" #layout-bottom>
-      <ChallengeLayout />
-    </template>
-  </DefaultTheme.Layout>
+  <ChallengeLayout v-if="isChallenge" />
+  <DefaultTheme.Layout v-else />
 </template>
