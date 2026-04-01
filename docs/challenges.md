@@ -1,5 +1,6 @@
 ---
 title: Challenges
+layout: page
 ---
 
 <script setup>

@@ -1,7 +1,4 @@
 schema: spec-driven
-locale: tw
-tdd: true
-audit: true
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.

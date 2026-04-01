@@ -73,6 +73,60 @@ describe('FlagSubmit', () => {
     expect(wrapper.find('[data-export]').exists()).toBe(false)
   })
 
+  it('shows export notes button on success when onExportNotes is provided', async () => {
+    const verify = vi.fn().mockResolvedValue(true)
+    const onExportNotes = vi.fn()
+    const wrapper = mount(FlagSubmit, { props: { verify, onExportNotes } })
+
+    await wrapper.find('[data-flag-input]').setValue(CORRECT_FLAG)
+    await wrapper.find('[data-submit]').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const exportNotesBtn = wrapper.find('[data-export-notes]')
+    expect(exportNotesBtn.exists()).toBe(true)
+    expect(exportNotesBtn.text()).toContain('下載滲透筆記')
+  })
+
+  it('clicking export notes button calls onExportNotes', async () => {
+    const verify = vi.fn().mockResolvedValue(true)
+    const onExportNotes = vi.fn()
+    const wrapper = mount(FlagSubmit, { props: { verify, onExportNotes } })
+
+    await wrapper.find('[data-flag-input]').setValue(CORRECT_FLAG)
+    await wrapper.find('[data-submit]').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('[data-export-notes]').trigger('click')
+    expect(onExportNotes).toHaveBeenCalledOnce()
+  })
+
+  it('does not show export notes button when onExportNotes is not provided', async () => {
+    const verify = vi.fn().mockResolvedValue(true)
+    const wrapper = mount(FlagSubmit, { props: { verify } })
+
+    await wrapper.find('[data-flag-input]').setValue(CORRECT_FLAG)
+    await wrapper.find('[data-submit]').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-export-notes]').exists()).toBe(false)
+  })
+
+  it('does not show export notes button on failure', async () => {
+    const verify = vi.fn().mockResolvedValue(false)
+    const onExportNotes = vi.fn()
+    const wrapper = mount(FlagSubmit, { props: { verify, onExportNotes } })
+
+    await wrapper.find('[data-flag-input]').setValue('CTF{wrong}')
+    await wrapper.find('[data-submit]').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-export-notes]').exists()).toBe(false)
+  })
+
   it('shows failure indicator and no hint when wrong flag submitted', async () => {
     const verify = vi.fn().mockResolvedValue(false)
     const wrapper = mount(FlagSubmit, { props: { verify } })

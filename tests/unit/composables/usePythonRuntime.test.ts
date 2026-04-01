@@ -7,8 +7,9 @@ function makeMockPyodide() {
   const runPythonAsync = vi.fn().mockResolvedValue(undefined)
   const pyodide = {
     runPythonAsync,
+    loadPackage: vi.fn().mockResolvedValue(undefined),
     FS: { writeFile: vi.fn() },
-    globals: { get: vi.fn().mockReturnValue(vi.fn()) },
+    globals: { get: vi.fn().mockReturnValue(vi.fn()), set: vi.fn() },
   }
   const loadPyodide = vi.fn().mockResolvedValue(pyodide)
   return { loadPyodide, pyodide, runPythonAsync }

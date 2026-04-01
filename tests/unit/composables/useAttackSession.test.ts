@@ -13,6 +13,9 @@ vi.mock('../../../.vitepress/theme/composables/useChallengePersistence', () => (
   useChallengePersistence: () => ({
     saveAttackSession: mockSaveAttackSession,
     loadAttackSession: mockLoadAttackSession,
+    saveNote: vi.fn(),
+    loadNotesBySlug: vi.fn(async () => []),
+    deleteNote: vi.fn(),
   }),
 }))
 
@@ -243,6 +246,193 @@ describe('useAttackSession', () => {
     // Optional fields absent from challengeInfo should not appear
     expect(payload.challenge.difficulty).toBeUndefined()
     expect(payload.challenge.description).toBeUndefined()
+  })
+
+  it('addTerminalCommand appends terminal_command event', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addTerminalCommand('help', 'Available commands: ...', false)
+
+    const s = session.getSession()!
+    expect(s.events).toHaveLength(2) // challenge_start + terminal_command
+    const ev = s.events[1]
+    expect(ev.type).toBe('terminal_command')
+    expect((ev as any).command).toBe('help')
+    expect((ev as any).output).toBe('Available commands: ...')
+    expect((ev as any).error).toBe(false)
+    expect(mockSaveAttackSession).toHaveBeenCalledTimes(2) // init + addTerminalCommand
+  })
+
+  it('addTerminalCommand records error commands', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addTerminalCommand('foo', 'wxlsh: command not found: foo', true)
+
+    const ev = session.getSession()!.events[1]
+    expect(ev.type).toBe('terminal_command')
+    expect((ev as any).error).toBe(true)
+  })
+
+  it('addCodeExecution appends code_execution event', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addCodeExecution('print("hello")', 'hello\n', false, 150)
+
+    const s = session.getSession()!
+    expect(s.events).toHaveLength(2) // challenge_start + code_execution
+    const ev = s.events[1]
+    expect(ev.type).toBe('code_execution')
+    expect((ev as any).code).toBe('print("hello")')
+    expect((ev as any).output).toBe('hello\n')
+    expect((ev as any).error).toBe(false)
+    expect((ev as any).duration).toBe(150)
+    expect(mockSaveAttackSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('addCodeExecution records error with duration', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addCodeExecution('x', 'Error:\nNameError: name \'x\' is not defined', true, 50)
+
+    const ev = session.getSession()!.events[1]
+    expect(ev.type).toBe('code_execution')
+    expect((ev as any).error).toBe(true)
+    expect((ev as any).duration).toBe(50)
+  })
+
+  it('addHttpEvent accepts terminal and code sources', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    const entry = {
+      id: 1, timestamp: Date.now(), method: 'GET', url: 'https://challenge-test.localhost/',
+      requestHeaders: [] as [string, string][],
+      requestBody: null, status: 200,
+      responseHeaders: [] as [string, string][],
+      responseBody: 'ok', duration: 10,
+    }
+    await session.addHttpEvent(entry, 'terminal')
+    await session.addHttpEvent({ ...entry, id: 2 }, 'code')
+
+    const events = session.getSession()!.events
+    expect((events[1] as any).source).toBe('terminal')
+    expect((events[2] as any).source).toBe('code')
+  })
+
+  it('addCodeExecution includes executionId in event', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addCodeExecution('print("x")', 'x\n', false, 100, 'exec-uuid-1')
+
+    const ev = session.getSession()!.events[1]
+    expect(ev.type).toBe('code_execution')
+    expect((ev as any).executionId).toBe('exec-uuid-1')
+    expect((ev as any).code).toBe('print("x")')
+  })
+
+  it('addHttpEvent with source=code and executionId links to code execution', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    const entry = {
+      id: 1, timestamp: Date.now(), method: 'GET', url: 'https://challenge-test.localhost/',
+      requestHeaders: [] as [string, string][],
+      requestBody: null, status: 200,
+      responseHeaders: [] as [string, string][],
+      responseBody: 'ok', duration: 10,
+    }
+    await session.addHttpEvent(entry, 'code', 'exec-uuid-1')
+
+    const ev = session.getSession()!.events[1]
+    expect(ev.type).toBe('http_request')
+    expect((ev as any).executionId).toBe('exec-uuid-1')
+  })
+
+  it('addHttpEvent with source=browser has no executionId', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    const entry = {
+      id: 1, timestamp: Date.now(), method: 'GET', url: 'https://challenge-test.localhost/',
+      requestHeaders: [] as [string, string][],
+      requestBody: null, status: 200,
+      responseHeaders: [] as [string, string][],
+      responseBody: 'ok', duration: 10,
+    }
+    await session.addHttpEvent(entry, 'browser')
+
+    const ev = session.getSession()!.events[1]
+    expect((ev as any).executionId).toBeUndefined()
+  })
+
+  it('addNoteEvent appends note event to session', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    await session.addNoteEvent('note-1', 'my first note')
+
+    const s = session.getSession()!
+    expect(s.events).toHaveLength(2)
+    const ev = s.events[1]
+    expect(ev.type).toBe('note')
+    expect((ev as any).id).toBe('note-1')
+    expect((ev as any).content).toBe('my first note')
+    expect((ev as any).updatedAt).toBeNull()
+    expect(mockSaveAttackSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('updateNoteEvent updates content and updatedAt on existing note event', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+    await session.addNoteEvent('note-1', 'original')
+
+    await session.updateNoteEvent('note-1', 'revised')
+
+    const ev = session.getSession()!.events.find(e => e.type === 'note' && (e as any).id === 'note-1')
+    expect(ev).toBeDefined()
+    expect((ev as any).content).toBe('revised')
+    expect((ev as any).updatedAt).toBeTypeOf('number')
+  })
+
+  it('updateNoteEvent is a no-op for nonexistent id', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('test', 'Test')
+    await session.init()
+
+    // Should not throw
+    await expect(session.updateNoteEvent('ghost-id', 'text')).resolves.toBeUndefined()
+  })
+
+  it('exportSession systemPrompt references note event type', async () => {
+    const { useAttackSession } = await import('../../../.vitepress/theme/composables/useAttackSession')
+    const session = useAttackSession('sqli-demo', 'SQL Injection Demo')
+    await session.init()
+
+    let capturedBlob: Blob | null = null
+    vi.spyOn(document, 'createElement').mockReturnValue({ href: '', download: '', click: vi.fn() } as any)
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob) => { capturedBlob = blob; return 'blob:test' })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    session.exportSession({})
+
+    const text = await capturedBlob!.text()
+    const payload = JSON.parse(text)
+    expect(payload.meta.systemPrompt).toContain('note')
   })
 
   it('creates a new session overwriting solved session on re-visit', async () => {

@@ -1,17 +1,17 @@
 {
-  "name": "web-exploitation-seclab",
-  "version": "0.6.0",
-  "description": "",
+  "name": "wxl",
+  "version": "1.0.0",
+  "description": "Web eXploitation Laboratory — Browser-based web exploitation challenge platform powered by WASM",
   "type": "module",
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CXPhoenix/web-exploitation-seclab.git"
+    "url": "git+https://github.com/CXPhoenix/wxl.git"
   },
   "bugs": {
-    "url": "https://github.com/CXPhoenix/web-exploitation-seclab/issues"
+    "url": "https://github.com/CXPhoenix/wxl/issues"
   },
-  "homepage": "https://github.com/CXPhoenix/web-exploitation-seclab#readme",
+  "homepage": "https://github.com/CXPhoenix/wxl#readme",
   "author": "CXPh03n1x",
   "license": "LicenseRef-LICENSE",
   "packageManager": "pnpm@10.28.0",
@@ -26,7 +26,13 @@
     "dev": "pnpm wasm:build && pnpm challenge:keygen && pnpm docs:dev",
     "build": "pnpm wasm:build && pnpm challenge:keygen && pnpm docs:build",
     "challenge:keygen": "node --experimental-strip-types scripts/challenge-keygen.ts",
-    "create:challenge": "node --experimental-strip-types scripts/create-challenge.ts"
+    "create:challenge": "node --experimental-strip-types scripts/create-challenge.ts",
+    "challenge:validate": "node --experimental-strip-types scripts/challenge-validate.ts",
+    "challenge:analyze": "node --experimental-strip-types scripts/challenge-analyze.ts",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bash scripts/pre-commit.sh"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
@@ -39,6 +45,7 @@
     "@xterm/xterm": "^6.0.0",
     "codemirror": "^6.0.2",
     "idb": "^8.0.3",
+    "marked": "^17.0.5",
     "php-wasm": "^0.0.8",
     "pinia": "^3.0.4",
     "pyodide": "^0.29.3",
@@ -48,12 +55,14 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",
-    "binaryen": "^122.0.0",
     "@vue/test-utils": "^2.4.6",
     "@vueuse/core": "^14.2.1",
+    "binaryen": "^122.0.0",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.8.4",
     "jsdom": "^29.0.0",
     "postcss": "^8.5.8",
+    "simple-git-hooks": "^2.13.1",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0",
     "vitest": "^4.1.0",

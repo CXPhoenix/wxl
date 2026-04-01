@@ -56,6 +56,8 @@ vi.mock('../../../.vitepress/theme/composables/useWxlsh', () => ({
     historyPrev: mockHistoryPrev,
     historyNext: mockHistoryNext,
     historyBuffer: ref([]),
+    getPrompt: () => ({ text: 'hacker@wxlsh:~$ ', length: 16 }),
+    getCwd: () => '~',
   })),
 }))
 
@@ -72,18 +74,17 @@ vi.mock('../../../.vitepress/theme/composables/useChallengePersistence', () => (
 
 const mockDispatch = vi.fn(async (req: Request) => new Response('ok', { status: 200 }))
 
-async function mountPanel(disabled = false) {
+async function mountPanel(disabled = false, onCommandExecuted?: (e: { command: string; output: string; error: boolean }) => void) {
+  const props: Record<string, unknown> = {
+    slug: 'test-challenge',
+    dispatch: mockDispatch,
+    disabled,
+    pyodide: ref(null),
+  }
+  if (onCommandExecuted) props.onCommandExecuted = onCommandExecuted
   const wrapper = mount(
     (await import('../../../.vitepress/theme/components/WxlshPanel.vue')).default,
-    {
-      props: {
-        slug: 'test-challenge',
-        dispatch: mockDispatch,
-        disabled,
-        pyodide: ref(null),
-      },
-      attachTo: document.body,
-    },
+    { props, attachTo: document.body },
   )
   await flushPromises()
   return wrapper
@@ -173,6 +174,52 @@ describe('WxlshPanel', () => {
     const wrapper = await mountPanel()
     wrapper.unmount()
     expect(mockTerminalInstance.dispose).toHaveBeenCalled()
+  })
+
+  it('calls onCommandExecuted callback after successful command', async () => {
+    mockExecute.mockResolvedValueOnce({ output: 'Available commands: ...', clear: false, error: false })
+    const cb = vi.fn()
+    const wrapper = await mountPanel(false, cb)
+    mockOnDataCb('h')
+    mockOnDataCb('e')
+    mockOnDataCb('l')
+    mockOnDataCb('p')
+    mockOnDataCb('\r')
+    await flushPromises()
+    expect(cb).toHaveBeenCalledWith({ command: 'help', output: 'Available commands: ...', error: false })
+    wrapper.unmount()
+  })
+
+  it('calls onCommandExecuted with error flag for failed command', async () => {
+    mockExecute.mockResolvedValueOnce({ output: 'wxlsh: command not found: xyz', error: true })
+    const cb = vi.fn()
+    const wrapper = await mountPanel(false, cb)
+    mockOnDataCb('x')
+    mockOnDataCb('y')
+    mockOnDataCb('z')
+    mockOnDataCb('\r')
+    await flushPromises()
+    expect(cb).toHaveBeenCalledWith({ command: 'xyz', output: 'wxlsh: command not found: xyz', error: true })
+    wrapper.unmount()
+  })
+
+  it('does not call onCommandExecuted on empty input', async () => {
+    const cb = vi.fn()
+    const wrapper = await mountPanel(false, cb)
+    mockOnDataCb('\r')
+    await flushPromises()
+    expect(cb).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('works without onCommandExecuted prop (optional)', async () => {
+    mockExecute.mockResolvedValueOnce({ output: 'ok', clear: false })
+    const wrapper = await mountPanel(false) // no callback
+    mockOnDataCb('t')
+    mockOnDataCb('\r')
+    await flushPromises()
+    expect(mockExecute).toHaveBeenCalledWith('t')
+    wrapper.unmount()
   })
 
   it('shows error output for unknown command', async () => {

@@ -9,6 +9,8 @@ const props = defineProps<{
   disabled?: boolean
   /** Pyodide instance passed down from ChallengeLayout (already unwrapped by Vue). */
   pyodide?: PyodidePublicAPI | null
+  /** Called after each code execution with the code, output, error flag, and duration. */
+  onCodeExecuted?: (event: { code: string; output: string; error: boolean; duration: number }) => void
 }>()
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
@@ -158,7 +160,7 @@ function onDragEnd() {
 
 // ─── Code execution ───────────────────────────────────────────────────────────
 
-/** Python requests stub that routes through dispatch(). */
+/** Python requests stub that routes through the dispatch bridge. */
 function buildRequestsStub(): string {
   return `
 import json as _json
@@ -167,7 +169,7 @@ class _RequestsStub:
     class _Response:
         def __init__(self, status, headers, text):
             self.status_code = status
-            self.headers = {k: v for k, v in headers}
+            self.headers = {k: v for k, v in headers.items()} if isinstance(headers, dict) else {k: v for k, v in headers}
             self.text = text
             self.content = text.encode()
         def json(self):
@@ -176,7 +178,6 @@ class _RequestsStub:
             return f'<Response [{self.status_code}]>'
 
     async def _dispatch(self, method, url, **kwargs):
-        from js import _wxlsh_code_dispatch
         from urllib.parse import urlencode as _urlencode
         headers = dict(kwargs.get('headers') or {})
         data = kwargs.get('data')
@@ -191,13 +192,11 @@ class _RequestsStub:
             body = data
         else:
             body = ''
-        # _wxlsh_code_dispatch is a JS async function — await its Promise
-        r = await _wxlsh_code_dispatch(method, url, list(headers.items()), body or '')
-        r = r.to_py()  # convert JsProxy → native Python dict/list/str
-        status = int(r['status'])
-        text   = str(r['body'])
-        hdrs   = [[str(p[0]), str(p[1])] for p in r['headers']]
-        return self._Response(status, hdrs, text)
+        # Route through the async JS dispatch bridge (JSON string in/out)
+        headers_json = _json.dumps(headers)
+        raw_json = await _wxlsh_dispatch_bridge(method, url, headers_json, body or '')
+        r = _json.loads(raw_json)
+        return self._Response(int(r['status']), r.get('headers', {}), r.get('body', ''))
 
     async def get(self, url, **kw): return await self._dispatch('GET', url, **kw)
     async def post(self, url, **kw): return await self._dispatch('POST', url, **kw)
@@ -218,20 +217,13 @@ async function runCode() {
   const code = editorView.value.state.doc.toString()
   isRunning.value = true
   outputText.value = ''
+  const startTime = Date.now()
+  let isError = false
 
   try {
-    // Inject dispatch bridge — a direct async callable so Python can `await` it
-    py.globals.set('_wxlsh_code_dispatch', async (method: string, url: string, headers: [string, string][], body: string) => {
-      const req = new Request(url, {
-        method,
-        headers: Object.fromEntries(headers),
-        body: body || undefined,
-      })
-      const res = await props.dispatch(req)
-      const resHeaders = [...res.headers.entries()]
-      const text = await res.text()
-      return { status: res.status, headers: resHeaders, body: text }
-    })
+    // Inject dispatch bridge as an object with .call() method
+    // (same pattern as useWxlsh.ts uses for _wxlsh_bridge)
+    // _wxlsh_dispatch_bridge is already injected by ChallengeLayout into Pyodide globals
 
     // Capture stdout
     await py.runPythonAsync(`
@@ -250,8 +242,13 @@ sys.stdout = _wxlsh_stdout
     const captured = await py.runPythonAsync('_wxlsh_stdout.getvalue()') as string
     outputText.value = captured || '(no output)'
   } catch (err) {
+    isError = true
     outputText.value = `Error:\n${err instanceof Error ? err.message : String(err)}`
   } finally {
+    // Callback BEFORE stdout restoration to avoid being affected by restoration failures
+    const duration = Date.now() - startTime
+    props.onCodeExecuted?.({ code, output: outputText.value, error: isError, duration })
+
     // Restore stdout
     try {
       await props.pyodide?.runPythonAsync('import sys; sys.stdout = sys.__stdout__')

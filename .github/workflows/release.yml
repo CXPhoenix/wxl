@@ -46,17 +46,23 @@ jobs:
       - name: Generate challenge keys
         run: pnpm challenge:keygen
 
+      - name: Run tests
+        run: pnpm test --run
+
+      - name: Validate challenge frontmatter
+        run: pnpm challenge:validate
+
       - name: Build VitePress site
         run: pnpm docs:build
 
       - name: Package dist as zip
         run: |
           cd .vitepress/dist
-          zip -r "../../web-exploitation-seclab-${GITHUB_REF_NAME}.zip" .
+          zip -r "../../wxl-${GITHUB_REF_NAME}.zip" .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: "Release ${{ github.ref_name }}"
           generate_release_notes: true
-          files: "web-exploitation-seclab-${{ github.ref_name }}.zip"
+          files: "wxl-${{ github.ref_name }}.zip"

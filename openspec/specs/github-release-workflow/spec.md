@@ -32,13 +32,27 @@ code:
 ---
 ### Requirement: Complete build pipeline execution
 
-The workflow SHALL execute the full build pipeline in order: install Rust toolchain and wasm-pack → install binaryen (wasm-opt) → install Node.js and pnpm → install dependencies → wasm:build → challenge:keygen → docs:build.
+The workflow SHALL execute the full build pipeline in order: install Rust toolchain and wasm-pack → install binaryen (wasm-opt) → install Node.js and pnpm → install dependencies → wasm:build → challenge:keygen → **test --run** → **challenge:validate** → docs:build. The test and validation steps SHALL run after challenge:keygen (which generates files needed by tests) and before docs:build. If either `pnpm test --run` or `pnpm challenge:validate` fails, the workflow SHALL stop and no GitHub Release SHALL be created.
 
-#### Scenario: Successful build pipeline
+#### Scenario: Successful build pipeline with tests and validation
 
 - **WHEN** the workflow is triggered by a valid tag push
-- **THEN** the workflow SHALL execute `pnpm wasm:build`, `pnpm challenge:keygen`, and `pnpm docs:build` in sequence
+- **THEN** the workflow SHALL execute `pnpm wasm:build`, `pnpm challenge:keygen`, `pnpm test --run`, `pnpm challenge:validate`, and `pnpm docs:build` in sequence
 - **AND** the `.vitepress/dist` directory SHALL contain the built static site
+
+#### Scenario: Test failure halts workflow before building
+
+- **WHEN** `pnpm test --run` fails during the workflow
+- **THEN** the workflow SHALL stop and report the failure
+- **AND** `pnpm docs:build` SHALL NOT execute
+- **AND** no GitHub Release SHALL be created
+
+#### Scenario: Validation failure halts workflow before building
+
+- **WHEN** `pnpm challenge:validate` fails during the workflow
+- **THEN** the workflow SHALL stop and report the failure
+- **AND** `pnpm docs:build` SHALL NOT execute
+- **AND** no GitHub Release SHALL be created
 
 #### Scenario: Build failure halts workflow
 
@@ -48,17 +62,20 @@ The workflow SHALL execute the full build pipeline in order: install Rust toolch
 
 
 <!-- @trace
-source: add-release-github-action
-updated: 2026-03-23
+source: fix-release-workflow
+updated: 2026-03-25
 code:
+  - tsconfig.json
   - .github/workflows/release.yml
+  - .vitepress/theme/index.ts
+  - docs/shared/challenges.data.ts
   - package.json
 -->
 
 ---
 ### Requirement: Artifact packaging
 
-The workflow SHALL package the `.vitepress/dist` directory into a zip file named `web-exploitation-seclab-{tag}.zip` where `{tag}` is the git tag that triggered the workflow (e.g., `web-exploitation-seclab-v0.6.0.zip`).
+The workflow SHALL package the `.vitepress/dist` directory into a zip file named `wxl-{tag}.zip` where `{tag}` is the git tag that triggered the workflow (e.g., `wxl-v1.0.0.zip`).
 
 #### Scenario: Dist directory packaged as zip
 

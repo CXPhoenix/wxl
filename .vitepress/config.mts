@@ -16,19 +16,27 @@ export default defineConfig({
     },
   },
 
-  title: "Web Exploitation Challenges",
+  title: "Web eXploitation Laboratory",
   description: "完全基於前端 WASM 的挑戰平台",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Challenges', link: '/challenges/' },
+      { text: 'Docs', link: '/guide/' },
     ],
 
-    sidebar: [],
+    sidebar: {
+      '/guide/': [
+        { text: '快速開始', link: '/guide/' },
+        { text: 'Python 程式碼指南', link: '/guide/python' },
+        { text: 'Terminal 使用指南', link: '/guide/terminal' },
+        { text: 'Network & Repeater', link: '/guide/network' },
+      ],
+    },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/vuejs/vitepress' }
+      { icon: 'github', link: 'https://github.com/CXPhoenix/wxl' }
     ]
   },
 

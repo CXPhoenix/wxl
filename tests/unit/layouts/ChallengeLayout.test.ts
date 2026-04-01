@@ -16,7 +16,7 @@ vi.mock('vitepress', () => ({
         markdownBody: '# SQL Injection Demo\n\nA login form backed by SQLite.',
       },
     },
-    page: { value: { relativePath: 'challenges/sqli-demo.md' } },
+    page: { value: { relativePath: 'challenge/sqli-demo/index.md' } },
   })),
   withBase: (url: string) => url,
 }))
@@ -30,7 +30,7 @@ vi.mock('../../../.vitepress/theme/components/BrowserPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-browser-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/WxlshPanel.vue', () => ({
-  default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-wxlsh-panel :data-disabled="disabled" />' }),
+  default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'pyodide', 'onCommandExecuted'], template: '<div data-wxlsh-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/RepeatPanel.vue', () => ({
   default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'injectedRequest'], template: '<div data-repeat-panel :data-disabled="disabled" :data-injected="injectedRequest" />' }),
@@ -39,10 +39,24 @@ vi.mock('../../../.vitepress/theme/components/NetworkPanel.vue', () => ({
   default: defineComponent({ props: ['trafficLog'], emits: ['clear', 'sendToRepeater'], template: '<div data-network-panel />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/CodeEditorPanel.vue', () => ({
-  default: defineComponent({ props: ['slug', 'dispatch', 'disabled'], template: '<div data-code-panel :data-disabled="disabled" />' }),
+  default: defineComponent({ props: ['slug', 'dispatch', 'disabled', 'pyodide', 'onCodeExecuted'], template: '<div data-code-panel :data-disabled="disabled" />' }),
 }))
 vi.mock('../../../.vitepress/theme/components/FlagSubmit.vue', () => ({
-  default: defineComponent({ props: ['verify', 'onExport'], template: '<div data-flag-submit />' }),
+  default: defineComponent({ props: ['verify', 'onExport', 'onExportNotes'], template: '<div data-flag-submit />' }),
+}))
+vi.mock('../../../.vitepress/theme/components/DescriptionModal.vue', () => ({
+  default: defineComponent({
+    props: ['title', 'difficulty', 'category'],
+    emits: ['close'],
+    template: '<div data-description-modal />',
+  }),
+}))
+vi.mock('../../../.vitepress/theme/components/MergedNav.vue', () => ({
+  default: defineComponent({
+    props: ['title', 'difficulty', 'category', 'runtimeReady', 'runtimeError', 'noteCount', 'descriptionCollapsed'],
+    emits: ['open-notes', 'toggle-description'],
+    template: '<nav data-merged-nav :data-title="title" :data-collapsed="descriptionCollapsed"><a href="/challenges/">← Challenges</a></nav>',
+  }),
 }))
 
 // Mock WASM loader (extractCustomSection)
@@ -52,6 +66,8 @@ vi.mock('../../../.vitepress/theme/composables/useWasmLoader', () => ({
 
 // Mock useAttackSession
 const mockAddHttpEvent = vi.fn()
+const mockAddTerminalCommand = vi.fn()
+const mockAddCodeExecution = vi.fn()
 const mockAddFlagAttempt = vi.fn()
 const mockExportSession = vi.fn()
 const mockInit = vi.fn().mockResolvedValue(undefined)
@@ -60,6 +76,8 @@ vi.mock('../../../.vitepress/theme/composables/useAttackSession', () => ({
     init: mockInit,
     getSession: vi.fn(() => null),
     addHttpEvent: mockAddHttpEvent,
+    addTerminalCommand: mockAddTerminalCommand,
+    addCodeExecution: mockAddCodeExecution,
     addFlagAttempt: mockAddFlagAttempt,
     exportSession: mockExportSession,
   })),
@@ -74,22 +92,43 @@ beforeEach(async () => {
 })
 
 describe('ChallengeLayout (VitePress layout)', () => {
-  it('renders a back link to /challenges/', () => {
+  it('renders MergedNav with challenge metadata props', async () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
-    const backLink = wrapper.find('a[href="/challenges/"]')
-    expect(backLink.exists()).toBe(true)
-    expect(backLink.text()).toContain('Challenges')
+    const { default: MergedNav } = await import('../../../.vitepress/theme/components/MergedNav.vue')
+    const nav = wrapper.findComponent(MergedNav)
+    expect(nav.exists()).toBe(true)
+    expect(nav.props('title')).toBe('SQL Injection Demo')
+    expect(nav.props('difficulty')).toBe('easy')
+    expect(nav.props('category')).toBe('web')
   })
 
-  it('renders title and metadata badges from frontmatter', () => {
+  it('derives slug from per-folder relativePath and passes to BrowserPanel', async () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
-    expect(wrapper.text()).toContain('SQL Injection Demo')
-    expect(wrapper.text()).toContain('easy')
-    expect(wrapper.text()).toContain('web')
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+    const bp = wrapper.findComponent(BrowserPanel)
+    expect(bp.props('slug')).toBe('sqli-demo')
+  })
+
+  it('renders a back link via MergedNav', () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    const nav = wrapper.find('[data-merged-nav]')
+    expect(nav.exists()).toBe(true)
+    const backLink = nav.find('a[href="/challenges/"]')
+    expect(backLink.exists()).toBe(true)
+  })
+
+  it('does not render a separate header element', () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    // The old <header> element should no longer exist
+    expect(wrapper.find('header').exists()).toBe(false)
   })
 
   it('renders description panel and FlagSubmit in left column', () => {
@@ -100,7 +139,7 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(wrapper.find('[data-description-panel]').exists()).toBe(true)
   })
 
-  it('toggles description panel collapsed state on click', async () => {
+  it('collapses description panel when toggle button is clicked', async () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
@@ -112,21 +151,53 @@ describe('ChallengeLayout (VitePress layout)', () => {
 
     await toggle.trigger('click')
     expect(panel.classes()).toContain('collapsed')
-
-    await toggle.trigger('click')
-    expect(panel.classes()).not.toContain('collapsed')
   })
 
-  it('renders active interaction tabs (Browser, Repeater, Network)', () => {
+  it('expands description panel via MergedNav toggle-description event', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    // Collapse first
+    await wrapper.find('[data-description-toggle]').trigger('click')
+    expect(wrapper.find('[data-description-panel]').classes()).toContain('collapsed')
+
+    // MergedNav descriptionCollapsed prop should reflect the state
+    const { default: MergedNav } = await import('../../../.vitepress/theme/components/MergedNav.vue')
+    const nav = wrapper.findComponent(MergedNav)
+    expect(nav.props('descriptionCollapsed')).toBe(true)
+
+    // Emit toggle-description from MergedNav to re-expand
+    await nav.vm.$emit('toggle-description')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-description-panel]').classes()).not.toContain('collapsed')
+  })
+
+  it('shows persistent flag submit bar when description is collapsed', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    // Initially no flag bar
+    expect(wrapper.find('[data-flag-bar]').exists()).toBe(false)
+
+    // Collapse description
+    await wrapper.find('[data-description-toggle]').trigger('click')
+    expect(wrapper.find('[data-flag-bar]').exists()).toBe(true)
+    expect(wrapper.find('[data-flag-bar] [data-flag-submit]').exists()).toBe(true)
+  })
+
+  it('renders all five interaction tabs when tools field is not set (default)', () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
     })
     const tabs = wrapper.findAll('[data-tab]')
-    expect(tabs).toHaveLength(3)
+    expect(tabs).toHaveLength(5)
     const tabIds = tabs.map(t => t.attributes('data-tab'))
     expect(tabIds).toContain('browser')
-    expect(tabIds).toContain('repeater')
     expect(tabIds).toContain('network')
+    expect(tabIds).toContain('repeater')
+    expect(tabIds).toContain('terminal')
+    expect(tabIds).toContain('code')
   })
 
   it('shows NetworkPanel when network tab is active', async () => {
@@ -345,6 +416,67 @@ describe('ChallengeLayout (VitePress layout)', () => {
     )
   })
 
+  it('renders WxlshPanel and CodeEditorPanel in the layout', () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+    expect(wrapper.find('[data-wxlsh-panel]').exists()).toBe(true)
+    expect(wrapper.find('[data-code-panel]').exists()).toBe(true)
+  })
+
+  it('passes distinct dispatch functions to Terminal and Code panels', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: WxlshPanel } = await import('../../../.vitepress/theme/components/WxlshPanel.vue')
+    const { default: CodePanel } = await import('../../../.vitepress/theme/components/CodeEditorPanel.vue')
+    const { default: BrowserPanel } = await import('../../../.vitepress/theme/components/BrowserPanel.vue')
+
+    const wp = wrapper.findComponent(WxlshPanel)
+    const cp = wrapper.findComponent(CodePanel)
+    const bp = wrapper.findComponent(BrowserPanel)
+
+    const terminalFn = wp.props('dispatch')
+    const codeFn = cp.props('dispatch')
+    const browserFn = bp.props('dispatch')
+
+    expect(terminalFn).toBeTypeOf('function')
+    expect(codeFn).toBeTypeOf('function')
+    // All should be distinct source-attributed dispatch wrappers
+    expect(terminalFn).not.toBe(browserFn)
+    expect(codeFn).not.toBe(browserFn)
+    expect(terminalFn).not.toBe(codeFn)
+  })
+
+  it('passes onCommandExecuted callback to WxlshPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: WxlshPanel } = await import('../../../.vitepress/theme/components/WxlshPanel.vue')
+    const wp = wrapper.findComponent(WxlshPanel)
+    const cb = wp.props('onCommandExecuted') as (e: { command: string; output: string; error: boolean }) => void
+    expect(cb).toBeTypeOf('function')
+
+    cb({ command: 'help', output: 'Available commands', error: false })
+    expect(mockAddTerminalCommand).toHaveBeenCalledWith('help', 'Available commands', false)
+  })
+
+  it('passes onCodeExecuted callback to CodeEditorPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: CodePanel } = await import('../../../.vitepress/theme/components/CodeEditorPanel.vue')
+    const cp = wrapper.findComponent(CodePanel)
+    const cb = cp.props('onCodeExecuted') as (e: { code: string; output: string; error: boolean; duration: number }) => void
+    expect(cb).toBeTypeOf('function')
+
+    cb({ code: 'print(1)', output: '1\n', error: false, duration: 100 })
+    expect(mockAddCodeExecution).toHaveBeenCalledWith('print(1)', '1\n', false, 100, expect.any(String))
+  })
+
   it('passes onExport prop to FlagSubmit', async () => {
     const wrapper = mount(ChallengeLayout, {
       global: { stubs: { Content: true } },
@@ -372,5 +504,37 @@ describe('ChallengeLayout (VitePress layout)', () => {
     expect(challengeInfo.backend).toBe('flask')
     expect(challengeInfo.description).toBe('A simple Flask app with a SQL injection vulnerability.')
     expect(challengeInfo.fullDescription).toBe('# SQL Injection Demo\n\nA login form backed by SQLite.')
+  })
+
+  it('passes pyodide prop to WxlshPanel and CodeEditorPanel', async () => {
+    const wrapper = mount(ChallengeLayout, {
+      global: { stubs: { Content: true } },
+    })
+
+    const { default: WxlshPanel } = await import('../../../.vitepress/theme/components/WxlshPanel.vue')
+    const { default: CodePanel } = await import('../../../.vitepress/theme/components/CodeEditorPanel.vue')
+
+    const wp = wrapper.findComponent(WxlshPanel)
+    const cp = wrapper.findComponent(CodePanel)
+
+    // pyodide prop exists on both panels (may be null in test env since initRuntime exits early)
+    expect(wp.props()).toHaveProperty('pyodide')
+    expect(cp.props()).toHaveProperty('pyodide')
+  })
+
+  it('initRuntime code path includes standalone Pyodide loading for non-Python backends', async () => {
+    // Verify the source code contains the standalone Pyodide loading logic
+    // This is a structural test — the actual loading is integration-level
+    const { readFileSync } = await import('fs')
+    const { resolve } = await import('path')
+    const source = readFileSync(
+      resolve(__dirname, '../../../.vitepress/theme/layouts/ChallengeLayout.vue'),
+      'utf-8',
+    )
+    // Must have the standalone Pyodide fallback for non-Python backends
+    expect(source).toContain('if (!pyodideInstance.value)')
+    expect(source).toContain('loadPyodide')
+    // Must NOT hardcode to only Python backends
+    expect(source).toContain('toolsPyodide')
   })
 })

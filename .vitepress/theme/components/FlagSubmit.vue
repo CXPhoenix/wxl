@@ -4,6 +4,7 @@ import { ref } from 'vue'
 const props = defineProps<{
   verify: (flag: string) => Promise<boolean>
   onExport?: () => void
+  onExportNotes?: () => void
 }>()
 
 const flag = ref('')
@@ -44,6 +45,12 @@ async function submit() {
         class="px-3 py-1 rounded text-[0.85em] border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] cursor-pointer hover:border-[var(--ch-accent)]"
         @click="props.onExport?.()"
       >下載攻擊紀錄</button>
+      <button
+        v-if="props.onExportNotes"
+        data-export-notes
+        class="px-3 py-1 rounded text-[0.85em] border border-[var(--ch-border)] bg-[var(--ch-bg-soft)] color-[var(--ch-text-1)] cursor-pointer hover:border-[var(--ch-accent)]"
+        @click="props.onExportNotes?.()"
+      >下載滲透筆記</button>
     </div>
     <div
       v-if="state === 'failure'"

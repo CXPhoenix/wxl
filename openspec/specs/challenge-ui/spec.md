@@ -12,7 +12,7 @@ The `ChallengeLayout.vue` component SHALL render four panels accessible via tab 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
-- **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
+- **THEN** the request SHALL target `https://challenge-<slug>.localhost` and be intercepted by the Service Worker
 
 #### Scenario: Network tab is available alongside Browser and Repeater
 
@@ -179,9 +179,28 @@ tests:
   - tests/unit/components/RepeatPanel.test.ts
 -->
 
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+-->
+
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
 
-The Browser Panel SHALL provide: a URL input field pre-populated with `http://challenge-<slug>.localhost/`, an HTTP method selector (GET, POST, PUT, DELETE, PATCH), a request body editor (shown for non-GET methods), a "Send" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
+The Browser Panel SHALL provide: a URL input field pre-populated with `https://challenge-<slug>.localhost/`, a "Go" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
+
+The Browser Panel SHALL NOT include an HTTP method selector (GET/POST/PUT/DELETE/PATCH). HTTP method selection and request body editing are provided by the Repeater and Terminal panels.
 
 #### Scenario: HTML response is rendered in sandboxed iframe
 
@@ -192,6 +211,13 @@ The Browser Panel SHALL provide: a URL input field pre-populated with `http://ch
 
 - **WHEN** the challenge app returns `Content-Type: application/json`
 - **THEN** the Browser Panel SHALL display the JSON as syntax-highlighted text, not rendered HTML
+
+#### Scenario: Browser Panel does not include method selector or body editor
+
+- **WHEN** the Browser Panel is rendered
+- **THEN** there SHALL NOT be an HTTP method selector dropdown
+- **AND** there SHALL NOT be a request body editor
+- **AND** the panel SHALL only dispatch GET requests via the URL bar and "Go" button
 
 
 <!-- @trace
@@ -785,22 +811,22 @@ tests:
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, Repeater Panel, and Network Panel. All panels that issue HTTP requests SHALL share a single `trackedDispatch` wrapper for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
+The `ChallengeLayout.vue` component SHALL render five panels accessible via tab navigation: Browser Panel, Network Panel, Repeater Panel, Terminal Panel (WxlshPanel), and Code Editor Panel (CodeEditorPanel). All panels that issue HTTP requests SHALL use source-attributed dispatch wrappers for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
 
 #### Scenario: User switches between panels without losing state
 
-- **WHEN** a user switches from the Browser Panel to the Network Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries)
+- **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
+- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries, terminal history, editor content)
 
 #### Scenario: All panels target the same challenge origin
 
 - **WHEN** any panel sends an HTTP request
 - **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
 
-#### Scenario: Network tab is available alongside Browser and Repeater
+#### Scenario: All five tabs are visible in the tab navigation
 
 - **WHEN** the challenge page loads
-- **THEN** the tab navigation SHALL display three tabs: Browser, Repeater, and Network
+- **THEN** the tab navigation SHALL display five tabs: Browser, Network, Repeater, Terminal, and Code
 
 #### Scenario: RepeatPanel receives injected request from Network panel
 
@@ -946,6 +972,8 @@ The challenge page SHALL include a persistent flag submission form below the int
 
 When the flag is correct, the success state SHALL additionally display a "下載攻擊紀錄" (Download Attack Log) button. Clicking this button SHALL invoke an `onExport` callback prop provided by the parent layout, which triggers the JSON file download of the current attack session.
 
+`FlagSubmit.vue` SHALL accept an optional `onExportNotes?: () => void` prop alongside the existing `onExport` prop. When `onExportNotes` is provided and the challenge is in the `success` state, a `下載滲透筆記` button SHALL be rendered after the existing `下載攻擊紀錄` button. Clicking the `下載滲透筆記` button SHALL invoke `onExportNotes()`.
+
 #### Scenario: Correct flag shows success message and export button
 
 - **WHEN** a user submits the correct flag
@@ -957,6 +985,21 @@ When the flag is correct, the success state SHALL additionally display a "下載
 - **WHEN** a user clicks "下載攻擊紀錄" after solving the challenge
 - **THEN** the `onExport` prop callback SHALL be invoked
 - **AND** the browser SHALL initiate a JSON file download of the attack session
+
+#### Scenario: Notes download button appears after solving when prop is provided
+
+- **WHEN** the challenge is solved and `onExportNotes` prop is set
+- **THEN** the `下載滲透筆記` button SHALL be visible in the success state UI
+
+#### Scenario: Notes download button is absent when prop is not provided
+
+- **WHEN** `onExportNotes` is `undefined`
+- **THEN** no notes download button SHALL be rendered
+
+#### Scenario: Clicking the notes download button invokes the callback
+
+- **WHEN** the user clicks `下載滲透筆記`
+- **THEN** `onExportNotes()` SHALL be called, triggering `pentestNotes.downloadMarkdown(title, slug)` in `ChallengeLayout`
 
 #### Scenario: Incorrect flag shows failure message without revealing answer
 
@@ -1004,4 +1047,415 @@ code:
 tests:
   - tests/unit/components/BrowserPanel.test.ts
   - tests/unit/composables/useTrafficLog.test.ts
+-->
+
+---
+### Requirement: ChallengeLayout renders a NotesButton in the header
+
+`ChallengeLayout.vue` SHALL render a `NotesButton` component in the right side of the challenge header, positioned to be visually symmetric with the `← Challenges` back link on the left. The button SHALL be absolutely positioned within the header's flex container.
+
+The `NotesButton` SHALL receive `noteCount` from `pentestNotes.noteCount`. Clicking the button SHALL set `notesModalVisible.value = true`.
+
+#### Scenario: NotesButton is visible on challenge page load
+
+- **WHEN** a user opens a challenge page
+- **THEN** the `NotesButton` SHALL be visible in the header area to the right of the challenge title
+
+#### Scenario: Clicking NotesButton opens the modal
+
+- **WHEN** the user clicks the `NotesButton`
+- **THEN** `notesModalVisible` SHALL be set to `true` and the `NotesModal` SHALL become visible
+
+
+<!-- @trace
+source: add-pentest-notes
+updated: 2026-03-24
+code:
+  - .vitepress/theme/composables/usePentestNotes.ts
+  - package.json
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - uno.config.ts
+  - .vitepress/theme/composables/useAttackSession.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/components/NotesModal.vue
+  - .vitepress/theme/components/FlagSubmit.vue
+  - .vitepress/theme/components/NotesButton.vue
+  - .vitepress/theme/components/NoteCard.vue
+  - .vitepress/theme/components/NoteEditor.vue
+tests:
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/FlagSubmit.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/usePentestNotes.test.ts
+-->
+
+---
+### Requirement: ChallengeLayout integrates usePentestNotes and NotesModal
+
+`ChallengeLayout.vue` SHALL instantiate `usePentestNotes(attackSession, slug)` and call `pentestNotes.init(slug.value)` after `attackSession.init()` during `onMounted`. It SHALL render `<NotesModal>` (conditionally with `v-if="notesModalVisible"`) just before the root closing `</div>`. The modal SHALL receive `pentestNotes` as a prop and emit a `close` event that sets `notesModalVisible.value = false`.
+
+#### Scenario: Pentest notes are initialized with attack session
+
+- **WHEN** the challenge page mounts
+- **THEN** `pentestNotes.init(slug)` SHALL be called after `attackSession.init()` so notes are loaded from IndexedDB before the modal is first opened
+
+#### Scenario: NotesModal is not rendered when closed
+
+- **WHEN** `notesModalVisible` is `false`
+- **THEN** the `NotesModal` component SHALL NOT be present in the DOM
+
+
+<!-- @trace
+source: add-pentest-notes
+updated: 2026-03-24
+code:
+  - .vitepress/theme/composables/usePentestNotes.ts
+  - package.json
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - uno.config.ts
+  - .vitepress/theme/composables/useAttackSession.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/components/NotesModal.vue
+  - .vitepress/theme/components/FlagSubmit.vue
+  - .vitepress/theme/components/NotesButton.vue
+  - .vitepress/theme/components/NoteCard.vue
+  - .vitepress/theme/components/NoteEditor.vue
+tests:
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/FlagSubmit.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/usePentestNotes.test.ts
+-->
+
+---
+### Requirement: ChallengeLayout threads executionId through code execution dispatch
+
+`ChallengeLayout.vue` SHALL maintain a module-level variable `let currentExecutionId: string | null = null`. Before invoking the code execution callback (`onCodeExecuted`), it SHALL generate `currentExecutionId = crypto.randomUUID()`. After the execution completes, it SHALL reset `currentExecutionId = null`.
+
+The `makeSourceDispatch('code')` function SHALL read `currentExecutionId` and pass it as the `executionId` parameter when calling `attackSession.addHttpEvent(entry, 'code', currentExecutionId)`.
+
+#### Scenario: HTTP requests made during code execution share the executionId
+
+- **WHEN** Python code executes and makes an HTTP request via the `requests` stub
+- **THEN** both the `code_execution` event and all `http_request` events generated during that execution SHALL share the same non-null `executionId`
+
+#### Scenario: HTTP requests outside code execution have no executionId
+
+- **WHEN** an HTTP request is made from the Browser panel, Repeater panel, or terminal (not from code execution)
+- **THEN** the resulting `http_request` event SHALL have no `executionId` field
+
+
+<!-- @trace
+source: add-pentest-notes
+updated: 2026-03-24
+code:
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/components/NotesButton.vue
+  - .vitepress/theme/components/NotesModal.vue
+  - .vitepress/theme/components/FlagSubmit.vue
+tests:
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/components/NotesButton.test.ts
+  - tests/unit/components/NotesModal.test.ts
+  - tests/unit/components/FlagSubmit.test.ts
+-->
+
+
+<!-- @trace
+source: add-pentest-notes
+updated: 2026-03-24
+code:
+  - .vitepress/theme/composables/usePentestNotes.ts
+  - package.json
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - uno.config.ts
+  - .vitepress/theme/composables/useAttackSession.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/components/NotesModal.vue
+  - .vitepress/theme/components/FlagSubmit.vue
+  - .vitepress/theme/components/NotesButton.vue
+  - .vitepress/theme/components/NoteCard.vue
+  - .vitepress/theme/components/NoteEditor.vue
+tests:
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/FlagSubmit.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/usePentestNotes.test.ts
+-->
+
+---
+### Requirement: FlagSubmit supports a notes export download action
+
+`FlagSubmit.vue` SHALL accept an optional `onExportNotes?: () => void` prop alongside the existing `onExport` prop. When `onExportNotes` is provided and the challenge is in the `success` state, a `下載滲透筆記` button SHALL be rendered after the existing `下載攻擊紀錄` button. Clicking the `下載滲透筆記` button SHALL invoke `onExportNotes()`.
+
+#### Scenario: Notes download button appears after solving when prop is provided
+
+- **WHEN** the challenge is solved and `onExportNotes` prop is set
+- **THEN** the `下載滲透筆記` button SHALL be visible in the success state UI
+
+#### Scenario: Notes download button is absent when prop is not provided
+
+- **WHEN** `onExportNotes` is `undefined`
+- **THEN** no notes download button SHALL be rendered
+
+#### Scenario: Clicking the notes download button invokes the callback
+
+- **WHEN** the user clicks `下載滲透筆記`
+- **THEN** `onExportNotes()` SHALL be called, triggering `pentestNotes.downloadMarkdown(title, slug)` in `ChallengeLayout`
+
+<!-- @trace
+source: add-pentest-notes
+updated: 2026-03-24
+code:
+  - .vitepress/theme/composables/usePentestNotes.ts
+  - package.json
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - uno.config.ts
+  - .vitepress/theme/composables/useAttackSession.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/components/NotesModal.vue
+  - .vitepress/theme/components/FlagSubmit.vue
+  - .vitepress/theme/components/NotesButton.vue
+  - .vitepress/theme/components/NoteCard.vue
+  - .vitepress/theme/components/NoteEditor.vue
+tests:
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/composables/useChallengePersistence.test.ts
+  - tests/unit/components/FlagSubmit.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/usePentestNotes.test.ts
+-->
+
+---
+### Requirement: MergedNav component
+
+The system SHALL provide a MergedNav component that renders the unified navigation bar on challenge pages, containing brand, navigation links, challenge metadata, and utility controls.
+
+#### Scenario: MergedNav renders on challenge page
+
+- **WHEN** a challenge page is loaded
+- **THEN** the MergedNav component renders with all required elements based on the current viewport breakpoint
+
+
+<!-- @trace
+source: challenge-ux-overhaul
+updated: 2026-03-25
+code:
+  - .vitepress/theme/style.css
+  - docs/challenge/php-demo/index.md
+  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/sqli-demo/src/app.py
+  - docs/challenge/sqli-demo/index.md
+  - scripts/challenge-analyze.ts
+  - docs/challenge/fastapi-demo.md
+  - docs/challenge/fastapi-demo/src/app.py
+  - scripts/challenge-utils.ts
+  - docs/challenge/php-demo/index.php
+  - docs/challenge/fastapi-demo/index.md
+  - docs/challenge/php-demo/src/flag.txt
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - .vitepress/challenge/config.ts
+  - scripts/fsignore.ts
+  - scripts/challenge-validate.ts
+  - scripts/challenge-keygen.ts
+  - docs/challenge/php-demo/src/index.php
+  - .vitepress/theme/composables/useWxlsh.ts
+  - uno.config.ts
+  - docs/challenge/php-demo/flag.txt
+  - .vitepress/theme/components/BrowserChrome.vue
+  - docs/challenge/sqli-demo/app.py
+  - .vitepress/theme/components/MergedNav.vue
+  - docs/challenge/fastapi-demo/app.py
+  - .vitepress/theme/composables/useUserVfs.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/challenge/php-demo.md
+  - docs/challenge/fastapi-demo/src/flag.txt
+  - docs/challenge/sqli-demo/src/flag.txt
+  - scripts/create-challenge.ts
+  - docs/challenge/sqli-demo.md
+tests:
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/challenge-analyze.test.ts
+  - tests/unit/theme/challenge-design-tokens.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/MergedNav.test.ts
+  - tests/unit/composables/useWxlsh-tier3.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - tests/unit/components/DescriptionModal.test.ts
+  - tests/unit/composables/useUserVfs.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/components/BrowserChrome.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/scripts/create-challenge.test.ts
+  - tests/challenge-validate.test.ts
+  - tests/unit/composables/usePythonRuntime-requests.test.ts
+  - tests/fsignore.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/theme/challenge-rwd.test.ts
+  - tests/challenge-utils.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
+-->
+
+---
+### Requirement: DescriptionModal component
+
+The system SHALL provide a DescriptionModal component for Mobile viewports that renders the challenge description as a fullscreen overlay.
+
+#### Scenario: DescriptionModal opens and closes
+
+- **WHEN** user opens the description modal on Mobile
+- **THEN** a fullscreen overlay appears with scrollable challenge content and a close button
+- **AND** clicking close dismisses the modal
+
+
+<!-- @trace
+source: challenge-ux-overhaul
+updated: 2026-03-25
+code:
+  - .vitepress/theme/style.css
+  - docs/challenge/php-demo/index.md
+  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/sqli-demo/src/app.py
+  - docs/challenge/sqli-demo/index.md
+  - scripts/challenge-analyze.ts
+  - docs/challenge/fastapi-demo.md
+  - docs/challenge/fastapi-demo/src/app.py
+  - scripts/challenge-utils.ts
+  - docs/challenge/php-demo/index.php
+  - docs/challenge/fastapi-demo/index.md
+  - docs/challenge/php-demo/src/flag.txt
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - .vitepress/challenge/config.ts
+  - scripts/fsignore.ts
+  - scripts/challenge-validate.ts
+  - scripts/challenge-keygen.ts
+  - docs/challenge/php-demo/src/index.php
+  - .vitepress/theme/composables/useWxlsh.ts
+  - uno.config.ts
+  - docs/challenge/php-demo/flag.txt
+  - .vitepress/theme/components/BrowserChrome.vue
+  - docs/challenge/sqli-demo/app.py
+  - .vitepress/theme/components/MergedNav.vue
+  - docs/challenge/fastapi-demo/app.py
+  - .vitepress/theme/composables/useUserVfs.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/challenge/php-demo.md
+  - docs/challenge/fastapi-demo/src/flag.txt
+  - docs/challenge/sqli-demo/src/flag.txt
+  - scripts/create-challenge.ts
+  - docs/challenge/sqli-demo.md
+tests:
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/challenge-analyze.test.ts
+  - tests/unit/theme/challenge-design-tokens.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/MergedNav.test.ts
+  - tests/unit/composables/useWxlsh-tier3.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - tests/unit/components/DescriptionModal.test.ts
+  - tests/unit/composables/useUserVfs.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/components/BrowserChrome.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/scripts/create-challenge.test.ts
+  - tests/challenge-validate.test.ts
+  - tests/unit/composables/usePythonRuntime-requests.test.ts
+  - tests/fsignore.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/theme/challenge-rwd.test.ts
+  - tests/challenge-utils.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
+-->
+
+---
+### Requirement: BrowserChrome component
+
+The system SHALL provide a BrowserChrome component that renders the browser-like URL bar, adapting its layout between Desktop (capsule with nav buttons) and Mobile (minimal input + go button).
+
+#### Scenario: BrowserChrome adapts to viewport
+
+- **WHEN** viewport changes from Desktop to Mobile
+- **THEN** the BrowserChrome switches from capsule layout (← → ↻ + capsule URL + Go) to minimal layout (URL input + → button)
+
+<!-- @trace
+source: challenge-ux-overhaul
+updated: 2026-03-25
+code:
+  - .vitepress/theme/style.css
+  - docs/challenge/php-demo/index.md
+  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/sqli-demo/src/app.py
+  - docs/challenge/sqli-demo/index.md
+  - scripts/challenge-analyze.ts
+  - docs/challenge/fastapi-demo.md
+  - docs/challenge/fastapi-demo/src/app.py
+  - scripts/challenge-utils.ts
+  - docs/challenge/php-demo/index.php
+  - docs/challenge/fastapi-demo/index.md
+  - docs/challenge/php-demo/src/flag.txt
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - .vitepress/challenge/config.ts
+  - scripts/fsignore.ts
+  - scripts/challenge-validate.ts
+  - scripts/challenge-keygen.ts
+  - docs/challenge/php-demo/src/index.php
+  - .vitepress/theme/composables/useWxlsh.ts
+  - uno.config.ts
+  - docs/challenge/php-demo/flag.txt
+  - .vitepress/theme/components/BrowserChrome.vue
+  - docs/challenge/sqli-demo/app.py
+  - .vitepress/theme/components/MergedNav.vue
+  - docs/challenge/fastapi-demo/app.py
+  - .vitepress/theme/composables/useUserVfs.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/challenge/php-demo.md
+  - docs/challenge/fastapi-demo/src/flag.txt
+  - docs/challenge/sqli-demo/src/flag.txt
+  - scripts/create-challenge.ts
+  - docs/challenge/sqli-demo.md
+tests:
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/challenge-analyze.test.ts
+  - tests/unit/theme/challenge-design-tokens.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/MergedNav.test.ts
+  - tests/unit/composables/useWxlsh-tier3.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - tests/unit/components/DescriptionModal.test.ts
+  - tests/unit/composables/useUserVfs.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/components/BrowserChrome.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/scripts/create-challenge.test.ts
+  - tests/challenge-validate.test.ts
+  - tests/unit/composables/usePythonRuntime-requests.test.ts
+  - tests/fsignore.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/theme/challenge-rwd.test.ts
+  - tests/challenge-utils.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
 -->

@@ -22,6 +22,7 @@ function makeMockFlaskPyodide(output: string, status = 200) {
   })
   const pyodide = {
     runPythonAsync: vi.fn().mockResolvedValue(undefined),
+    loadPackage: vi.fn().mockResolvedValue(undefined),
     FS: { writeFile: vi.fn() },
     globals: {
       get: vi.fn().mockImplementation((name: string) => {
@@ -29,6 +30,7 @@ function makeMockFlaskPyodide(output: string, status = 200) {
           return vi.fn().mockResolvedValue(responseJson)
         }
       }),
+      set: vi.fn(),
     },
   }
   return vi.fn().mockResolvedValue(pyodide)

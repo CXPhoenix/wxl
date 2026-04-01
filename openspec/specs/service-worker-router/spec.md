@@ -59,7 +59,7 @@ tests:
 ---
 ### Requirement: Router dispatches to correct runtime based on challenge type
 
-Upon intercepting a request, the Service Worker SHALL look up the registered challenge's `port` (a `MessagePort` transferred from the challenge page at registration time). The Service Worker SHALL serialize the request into `{ method, url, headers, body }`, create a per-request `MessageChannel`, and send `{ type: 'HANDLE_REQUEST', method, url, headers, body, responsePort }` to the challenge's `port` with `responsePort` as a transferable. The Service Worker SHALL await the response on the other end of the per-request channel. If `backend` is `flask` or `fastapi`, the port-based relay SHALL be used. If `backend` is `php`, the existing PHP dispatch SHALL be used.
+Upon intercepting a request, the Service Worker SHALL look up the registered challenge's `port` (a `MessagePort` transferred from the challenge page at registration time). The Service Worker SHALL serialize the request into `{ method, url, headers, body }`, create a per-request `MessageChannel`, and send `{ type: 'HANDLE_REQUEST', method, url, headers, body, responsePort }` to the challenge's `port` with `responsePort` as a transferable. The Service Worker SHALL await the response on the other end of the per-request channel. All backend types (`flask`, `fastapi`, and `php`) SHALL use the same port-based `relayRequest(port, request)` mechanism for dispatching requests.
 
 #### Scenario: Flask challenge request is dispatched via MessageChannel relay
 
@@ -71,10 +71,10 @@ Upon intercepting a request, the Service Worker SHALL look up the registered cha
 - **WHEN** the active challenge has `backend: fastapi` and a request arrives at `challenge-<slug>.localhost`
 - **THEN** the Service Worker SHALL send a `HANDLE_REQUEST` message to the challenge's registered `MessagePort` and await a `{ status, headers, body }` response
 
-#### Scenario: PHP challenge request is dispatched to PHP runtime
+#### Scenario: PHP challenge request is dispatched via MessageChannel relay
 
 - **WHEN** the active challenge has `backend: php` and a request arrives at `challenge-<slug>.localhost`
-- **THEN** the Service Worker SHALL invoke the PHP Runtime with the request details
+- **THEN** the Service Worker SHALL send a `HANDLE_REQUEST` message to the challenge's registered `MessagePort` and await a `{ status, headers, body }` response, using the same `relayRequest(port, request)` mechanism as Python backends
 
 #### Scenario: Unknown backend type returns 501
 
@@ -269,7 +269,7 @@ tests:
 ---
 ### Requirement: Service Worker source resides in .vitepress/workers/
 
-The Service Worker router source file SHALL be located at `.vitepress/workers/router.ts` (renamed from `.vitepress/sw/router.ts`). The compiled output path (`docs/public/challenge-sw.js`) and all runtime behaviors SHALL remain unchanged. Any build scripts or import references that pointed to `.vitepress/sw/` SHALL be updated to `.vitepress/workers/`.
+The Service Worker router source file SHALL be located at `.vitepress/workers/router.ts` (renamed from `.vitepress/sw/router.ts`). The compiled output path (`docs/public/challenge-sw.js`) and all runtime behaviors SHALL remain unchanged. Any build scripts or import references that pointed to `.vitepress/sw/` SHALL be updated to `.vitepress/workers/`. The Service Worker registration in `.vitepress/theme/index.ts` SHALL use `import.meta.env.BASE_URL` to construct the registration path as `${import.meta.env.BASE_URL}challenge-sw.js`, ensuring correct resolution when VitePress is configured with a non-root `base` path.
 
 #### Scenario: Router test file imports from the new path
 
@@ -281,72 +281,26 @@ The Service Worker router source file SHALL be located at `.vitepress/workers/ro
 - **WHEN** the service worker is compiled to `docs/public/challenge-sw.js`
 - **THEN** the output file path and contents SHALL be identical to before the rename
 
+#### Scenario: Service Worker registration respects VitePress base path
+
+- **WHEN** VitePress is configured with `base: '/seclab/'`
+- **THEN** the Service Worker SHALL be registered at `/seclab/challenge-sw.js`
+
+#### Scenario: Service Worker registration works with default root base
+
+- **WHEN** VitePress uses the default root base (`/`)
+- **THEN** the Service Worker SHALL be registered at `/challenge-sw.js`
+
 
 <!-- @trace
-source: vitepress-structure-refactor
-updated: 2026-03-15
--->
-
-<!-- @trace
-source: vitepress-structure-refactor
-updated: 2026-03-15
+source: fix-build-settings
+updated: 2026-03-25
 code:
-  - .vitepress/theme/index.ts
-  - .vitepress/theme/Layout.vue
-  - .vitepress/workers/router.ts
-  - .vitepress/sw/router.ts
-  - docs/challenges/index.md
-  - vitest.config.ts
-  - .vitepress/theme/components/ChallengeList.vue
   - package.json
-  - .vitepress/theme/layouts/ChallengeListLayout.vue
-  - .vitepress/theme/components/ChallengeLayout.vue
-tests:
-  - .vitepress/theme/layouts/ChallengeLayout.test.ts
-  - tests/unit/challenge/plugin-obfuscation.test.ts
-  - tests/unit/challenge/flag-verifier.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/composables/usePhpRuntime-post.test.ts
-  - tests/unit/challenge/config.test.ts
-  - tests/unit/components/ChallengeList.test.ts
-  - tests/unit/composables/usePythonRuntime-request.test.ts
-  - tests/unit/components/SourceViewer.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-singleton.test.ts
-  - .vitepress/sw/router.test.ts
-  - tests/e2e/php-demo.test.ts
-  - tests/unit/components/FlagSubmit.test.ts
-  - tests/unit/composables/usePhpRuntime.test.ts
-  - tests/e2e/flask-sqli.test.ts
-  - tests/unit/components/TerminalPanel.test.ts
-  - .vitepress/theme/layouts/ChallengeListLayout.test.ts
-  - .vitepress/challenge/flag-verifier-global.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-fs.test.ts
-  - tests/unit/composables/usePhpRuntime-headers.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-post.test.ts
-  - .vitepress/theme/composables/usePythonRuntime.test.ts
-  - tests/unit/challenge/plugin.test.ts
-  - .vitepress/theme/components/SourceViewer.test.ts
-  - .vitepress/theme/components/FlagSubmit.test.ts
-  - tests/unit/challenge/flag-verifier-global.test.ts
-  - .vitepress/challenge/plugin-obfuscation.test.ts
-  - .vitepress/theme/composables/usePythonRuntime-request.test.ts
-  - .vitepress/theme/components/RepeatPanel.test.ts
-  - tests/unit/composables/usePhpRuntime-fs.test.ts
-  - .vitepress/theme/components/TerminalPanel.test.ts
-  - .vitepress/theme/components/ChallengeLayout.test.ts
-  - tests/unit/composables/usePythonRuntime.test.ts
-  - .vitepress/challenge/plugin.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
-  - .vitepress/theme/components/BrowserPanel.test.ts
-  - .vitepress/challenge/config.test.ts
-  - tests/unit/composables/usePythonRuntime-fs.test.ts
-  - .vitepress/theme/composables/usePhpRuntime-headers.test.ts
-  - .vitepress/theme/composables/usePythonRuntime-fs.test.ts
-  - tests/unit/composables/usePhpRuntime-singleton.test.ts
-  - .vitepress/challenge/flag-verifier.test.ts
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/workers/router.test.ts
-  - .vitepress/theme/composables/usePhpRuntime.test.ts
+  - .github/workflows/release.yml
+  - docs/shared/challenges.data.ts
+  - tsconfig.json
+  - .vitepress/theme/index.ts
 -->
 
 ---

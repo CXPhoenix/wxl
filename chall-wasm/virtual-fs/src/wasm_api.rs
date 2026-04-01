@@ -114,6 +114,21 @@ pub fn wasm_verify_flag(flag_bytes: &[u8]) -> Result<bool, JsValue> {
     })
 }
 
+/// List all entry paths in the virtual FS store.
+/// Returns a JSON-serialized string array, e.g. `["__app__", "/flag.txt"]`.
+#[wasm_bindgen]
+pub fn wasm_fs_list() -> Result<String, JsValue> {
+    STATE.with(|s| {
+        let state = s.borrow();
+        if state.key.is_none() {
+            return Err(JsValue::from_str("not initialized; call wasm_fs_init first"));
+        }
+        let keys = state.store.keys();
+        serde_json::to_string(&keys)
+            .map_err(|e| JsValue::from_str(&format!("JSON serialize error: {e}")))
+    })
+}
+
 /// Internal: parse payload, derive key, populate store.
 fn init_from_payload(state: &mut ChallengeState, slug: &str, payload_bytes: &[u8]) -> Result<(), JsValue> {
     let payload = parse_payload(payload_bytes)

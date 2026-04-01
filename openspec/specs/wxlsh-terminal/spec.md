@@ -8,12 +8,23 @@ TBD - created by archiving change 'challenge-tools-evolution'. Update Purpose af
 
 ### Requirement: wxlsh terminal renders using xterm.js
 
-The `WxlshPanel.vue` component SHALL use xterm.js (`xterm` + `@xterm/addon-fit`) as its display layer. The terminal SHALL display the prompt brand name `wxlsh` (not `bash`). The xterm.js instance SHALL be initialized lazily inside `onMounted` and SHALL be destroyed in `onUnmounted`. On first render, the terminal SHALL display a startup banner: "wxlsh 1.0 — web exploit shell" followed by "type 'help' for available commands".
+The `WxlshPanel.vue` component SHALL use xterm.js (`xterm` + `@xterm/addon-fit`) as its display layer. The terminal SHALL display the prompt in Linux-style format `hacker@wxlsh:<cwd>$ ` where `<cwd>` is the current working directory with `~` shorthand for `/home/hacker`. The xterm.js instance SHALL be initialized lazily inside `onMounted` and SHALL be destroyed in `onUnmounted`. On first render, the terminal SHALL display a startup banner: "wxlsh 1.0 — web exploit shell" followed by "type 'help' for available commands".
 
-#### Scenario: Terminal displays wxlsh brand
+#### Scenario: Terminal displays Linux-style prompt
 
 - **WHEN** the wxlsh tab is first rendered
-- **THEN** the terminal SHALL show the brand banner containing "wxlsh" and the xterm.js canvas SHALL be visible
+- **THEN** the terminal SHALL show the brand banner containing "wxlsh"
+- **AND** the prompt SHALL display as `hacker@wxlsh:~$ ` (with green username@host and blue path)
+
+#### Scenario: Prompt reflects current directory
+
+- **WHEN** the user runs `cd /tmp`
+- **THEN** the next prompt SHALL display as `hacker@wxlsh:/tmp$ `
+
+#### Scenario: Prompt uses tilde for home directory
+
+- **WHEN** the current working directory is `/home/hacker/scripts`
+- **THEN** the prompt SHALL display as `hacker@wxlsh:~/scripts$ `
 
 #### Scenario: Terminal is lazy-loaded
 
@@ -27,33 +38,20 @@ The `WxlshPanel.vue` component SHALL use xterm.js (`xterm` + `@xterm/addon-fit`)
 
 
 <!-- @trace
-source: challenge-tools-evolution
-updated: 2026-03-16
+source: fix-terminal-and-http-dispatch
+updated: 2026-03-25
 code:
-  - Cargo.toml
   - .vitepress/theme/components/CodeEditorPanel.vue
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/composables/useWxlsh.ts
-  - docs/public/challenge-sw.js
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - chall-wasm/wxlsh-parser/src/lib.rs
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - package.json
-  - .vitepress/theme/components/RepeatPanel.vue
-  - chall-wasm/wxlsh-parser/Cargo.toml
-  - chall-wasm/wxlsh-parser/src/commands.rs
-  - chall-wasm/wxlsh-parser/src/parser.rs
-  - .vitepress/theme/composables/useChallengePersistence.ts
   - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useWxlsh.ts
 tests:
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/composables/useChallengePersistence.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
-  - tests/unit/components/TerminalPanel.test.ts
-  - tests/unit/components/WxlshPanel.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
 -->
 
 ---
@@ -247,4 +245,137 @@ tests:
   - tests/unit/components/WxlshPanel.test.ts
   - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
+---
+### Requirement: WxlshPanel reports command execution via callback prop
+
+The `WxlshPanel.vue` component SHALL accept an optional `onCommandExecuted` callback prop with the signature:
+```typescript
+onCommandExecuted?: (event: { command: string; output: string; error: boolean }) => void
+```
+
+After each command execution completes (i.e., after `wxlsh.execute(line)` resolves), WxlshPanel SHALL invoke `onCommandExecuted` with the command string, the output text, and the error flag from the `CommandResult`. The callback SHALL be invoked before the output is written to the xterm.js display. If the callback prop is not provided, execution SHALL proceed without error (optional chaining).
+
+The callback SHALL NOT be invoked when the user presses Enter on an empty input line.
+
+#### Scenario: Successful command triggers callback
+
+- **WHEN** a user executes `help` in the terminal and the command returns output with `error: false`
+- **THEN** `onCommandExecuted` SHALL be called with `{ command: 'help', output: <help text>, error: false }`
+- **AND** the output SHALL then be written to the terminal display
+
+#### Scenario: Error command triggers callback with error flag
+
+- **WHEN** a user executes an unknown command `foo` and the terminal returns an error message with `error: true`
+- **THEN** `onCommandExecuted` SHALL be called with `{ command: 'foo', output: <error message>, error: true }`
+
+#### Scenario: Empty input does not trigger callback
+
+- **WHEN** a user presses Enter without typing any command
+- **THEN** `onCommandExecuted` SHALL NOT be invoked
+
+#### Scenario: Callback is optional
+
+- **WHEN** `WxlshPanel` is mounted without an `onCommandExecuted` prop
+- **THEN** command execution SHALL proceed normally without error
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+-->
+
+---
+### Requirement: User VFS integration
+
+The terminal SHALL integrate with the User Virtual FS for all file-related commands in a future iteration. Currently, filesystem commands (`ls`, `cat`, `mkdir`, `touch`, `cp`, `mv`, `rm`) are NOT implemented and SHALL produce `wxlsh: command not found: <cmd>` output. The `UserVfs` class exists in `useUserVfs.ts` but is not imported by `useWxlsh.ts`.
+
+> **Future work:** Connect the `UserVfs` API to the wxlsh command dispatcher so that filesystem commands operate on the IndexedDB-backed user filesystem at `/home/hacker/`.
+
+#### Scenario: Filesystem commands are not yet available
+
+- **WHEN** user types a filesystem command such as `cat`, `ls`, `mkdir`, `touch`, `cp`, `mv`, or `rm`
+- **THEN** the terminal SHALL display `wxlsh: command not found: <cmd>` followed by `Type 'help' for available commands.`
+
+#### Scenario: UserVfs class is not connected to terminal
+
+- **WHEN** the wxlsh terminal initializes via `useWxlsh.ts`
+- **THEN** the composable SHALL NOT import or reference `useUserVfs.ts`
+- **AND** no VFS-backed file operations SHALL be available in the terminal
+
+<!-- @trace
+source: challenge-ux-overhaul
+updated: 2026-03-25
+code:
+  - .vitepress/theme/style.css
+  - docs/challenge/php-demo/index.md
+  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/components/DescriptionModal.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - docs/challenge/sqli-demo/src/app.py
+  - docs/challenge/sqli-demo/index.md
+  - scripts/challenge-analyze.ts
+  - docs/challenge/fastapi-demo.md
+  - docs/challenge/fastapi-demo/src/app.py
+  - scripts/challenge-utils.ts
+  - docs/challenge/php-demo/index.php
+  - docs/challenge/fastapi-demo/index.md
+  - docs/challenge/php-demo/src/flag.txt
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - docs/challenge/sqli-demo/flag.txt
+  - package.json
+  - .vitepress/challenge/config.ts
+  - scripts/fsignore.ts
+  - scripts/challenge-validate.ts
+  - scripts/challenge-keygen.ts
+  - docs/challenge/php-demo/src/index.php
+  - .vitepress/theme/composables/useWxlsh.ts
+  - uno.config.ts
+  - docs/challenge/php-demo/flag.txt
+  - .vitepress/theme/components/BrowserChrome.vue
+  - docs/challenge/sqli-demo/app.py
+  - .vitepress/theme/components/MergedNav.vue
+  - docs/challenge/fastapi-demo/app.py
+  - .vitepress/theme/composables/useUserVfs.ts
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/fastapi-demo/flag.txt
+  - docs/challenge/php-demo.md
+  - docs/challenge/fastapi-demo/src/flag.txt
+  - docs/challenge/sqli-demo/src/flag.txt
+  - scripts/create-challenge.ts
+  - docs/challenge/sqli-demo.md
+tests:
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/challenge-analyze.test.ts
+  - tests/unit/theme/challenge-design-tokens.test.ts
+  - tests/unit/challenge/config.test.ts
+  - tests/unit/components/MergedNav.test.ts
+  - tests/unit/composables/useWxlsh-tier3.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
+  - tests/unit/composables/usePythonRuntime.test.ts
+  - tests/unit/components/DescriptionModal.test.ts
+  - tests/unit/composables/useUserVfs.test.ts
+  - tests/unit/composables/usePythonRuntime-packages.test.ts
+  - tests/unit/components/BrowserChrome.test.ts
+  - tests/unit/composables/usePythonRuntime-fs.test.ts
+  - tests/unit/scripts/create-challenge.test.ts
+  - tests/challenge-validate.test.ts
+  - tests/unit/composables/usePythonRuntime-requests.test.ts
+  - tests/fsignore.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/theme/challenge-rwd.test.ts
+  - tests/challenge-utils.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/usePythonRuntime-request.test.ts
 -->

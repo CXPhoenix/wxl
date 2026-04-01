@@ -105,17 +105,18 @@ tests:
 ---
 ### Requirement: Code Editor Panel executes Python via Pyodide
 
-The "Run" button (and the Ctrl+Enter keyboard shortcut) SHALL execute the editor's content using Pyodide's `runPythonAsync`. The Python execution environment SHALL have a pre-injected `requests` stub that routes HTTP calls through the challenge's `dispatch()` function. `print()` output and return values SHALL be shown in the output region. Uncaught exceptions SHALL be shown as a formatted traceback in the output region.
+The "Run" button (and the Ctrl+Enter keyboard shortcut) SHALL execute the editor's content using Pyodide's `runPythonAsync`. The Python execution environment SHALL have two HTTP dispatch paths: (1) the real `requests` library (installed via micropip) whose `HTTPAdapter.send()` is monkey-patched to call the async JS dispatch bridge via `pyodide.ffi.run_sync()`, and (2) a lightweight async `_RequestsStub` injected before user code execution that directly `await`s the JS bridge. The dispatch bridge function SHALL be injected into Pyodide globals as `_wxlsh_dispatch_bridge` via `py.globals.set()` before either path is used. `print()` output and return values SHALL be shown in the output region. Uncaught exceptions SHALL be shown as a formatted traceback in the output region.
 
 #### Scenario: Run button executes code and shows output
 
 - **WHEN** the user clicks "Run" or presses Ctrl+Enter
 - **THEN** the code in the editor SHALL be executed and its print output SHALL appear in the output region
 
-#### Scenario: requests.get routes through dispatch
+#### Scenario: requests.get routes through async dispatch bridge
 
 - **WHEN** Python code calls `requests.get("https://challenge-sqli.localhost/")`
-- **THEN** the request SHALL be routed through `dispatch()` and the response SHALL be returned to the Python caller
+- **THEN** the request SHALL be routed through the async JS dispatch bridge (NOT synchronous XMLHttpRequest)
+- **AND** the response SHALL be returned to the Python caller as a standard `requests.Response`
 
 #### Scenario: Python exception shows traceback
 
@@ -127,35 +128,28 @@ The "Run" button (and the Ctrl+Enter keyboard shortcut) SHALL execute the editor
 - **WHEN** `runtimeReady` is false
 - **THEN** the "Run" button SHALL be disabled and the editor SHALL display a "Runtime loading…" overlay
 
+#### Scenario: Dispatch bridge injected before requests patch
+
+- **WHEN** Pyodide initialization completes in ChallengeLayout
+- **THEN** `_wxlsh_dispatch_bridge` SHALL be set on Pyodide globals via `py.globals.set()` before `REQUESTS_MONKEY_PATCH` is executed
+- **AND** the bridge function SHALL route HTTP through the same dispatch path used by Browser panel
+
 
 <!-- @trace
-source: challenge-tools-evolution
-updated: 2026-03-16
+source: fix-terminal-and-http-dispatch
+updated: 2026-03-25
 code:
-  - Cargo.toml
   - .vitepress/theme/components/CodeEditorPanel.vue
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/composables/useWxlsh.ts
-  - docs/public/challenge-sw.js
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - chall-wasm/wxlsh-parser/src/lib.rs
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - package.json
-  - .vitepress/theme/components/RepeatPanel.vue
-  - chall-wasm/wxlsh-parser/Cargo.toml
-  - chall-wasm/wxlsh-parser/src/commands.rs
-  - chall-wasm/wxlsh-parser/src/parser.rs
-  - .vitepress/theme/composables/useChallengePersistence.ts
   - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useWxlsh.ts
 tests:
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/composables/useChallengePersistence.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
-  - tests/unit/components/TerminalPanel.test.ts
-  - tests/unit/components/WxlshPanel.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
+  - tests/unit/composables/useWxlsh-tier4.test.ts
+  - tests/unit/composables/useWxlsh-tiers.test.ts
+  - tests/unit/composables/useWxlsh-tier2.test.ts
 -->
 
 ---
@@ -206,4 +200,66 @@ tests:
   - tests/unit/components/WxlshPanel.test.ts
   - tests/unit/layouts/ChallengeLayout.test.ts
   - tests/unit/components/CodeEditorPanel.test.ts
+-->
+
+---
+### Requirement: CodeEditorPanel reports code execution via callback prop
+
+The `CodeEditorPanel.vue` component SHALL accept an optional `onCodeExecuted` callback prop with the signature:
+```typescript
+onCodeExecuted?: (event: { code: string; output: string; error: boolean; duration: number }) => void
+```
+
+The callback SHALL be invoked inside the `finally` block of `runCode()`, positioned **before** the stdout restoration step (`sys.stdout = sys.__stdout__`). This placement ensures the callback executes regardless of whether the code succeeded or threw an exception, and is not affected by potential stdout restoration failures.
+
+The callback SHALL use a locally tracked boolean (`isError`) set in the `catch` block to determine the `error` flag, rather than relying on string prefix matching of the output text.
+
+The `duration` field SHALL be computed as `Date.now() - startTime`, where `startTime` is captured at the beginning of `runCode()` before any Pyodide calls.
+
+The callback SHALL NOT be invoked when `runCode()` exits early due to null `pyodide` or null `editorView` (silent exit path — no actual execution occurred).
+
+If the callback prop is not provided, execution SHALL proceed without error (optional chaining).
+
+#### Scenario: Successful code execution triggers callback
+
+- **WHEN** a user runs Python code that prints "hello" and execution completes without error
+- **THEN** `onCodeExecuted` SHALL be called with `{ code: <source>, output: 'hello\n', error: false, duration: <ms> }`
+- **AND** the callback SHALL be invoked before stdout restoration
+
+#### Scenario: Failed code execution triggers callback with error flag
+
+- **WHEN** a user runs Python code that raises `NameError: name 'x' is not defined`
+- **THEN** `onCodeExecuted` SHALL be called with `{ code: <source>, output: 'Error:\nNameError: ...', error: true, duration: <ms> }`
+
+#### Scenario: Callback is not invoked on silent exit
+
+- **WHEN** `runCode()` is called but `pyodide` is null (runtime not yet loaded)
+- **THEN** `onCodeExecuted` SHALL NOT be invoked
+- **AND** the function SHALL return without changing `outputText`
+
+#### Scenario: Callback is optional
+
+- **WHEN** `CodeEditorPanel` is mounted without an `onCodeExecuted` prop
+- **THEN** code execution SHALL proceed normally without error
+
+#### Scenario: Callback is invoked before stdout restoration
+
+- **WHEN** code execution completes (success or error) and the `finally` block begins
+- **THEN** `onCodeExecuted` SHALL be invoked first
+- **AND** stdout restoration (`sys.stdout = sys.__stdout__`) SHALL happen after the callback
+
+<!-- @trace
+source: restore-terminal-and-code-panels
+updated: 2026-03-24
+code:
+  - .vitepress/theme/components/CodeEditorPanel.vue
+  - .vitepress/theme/components/WxlshPanel.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useAttackSession.ts
+tests:
+  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/layouts/ChallengeLayout.test.ts
+  - tests/unit/composables/useAttackSession.test.ts
+  - tests/unit/components/WxlshPanel.test.ts
 -->

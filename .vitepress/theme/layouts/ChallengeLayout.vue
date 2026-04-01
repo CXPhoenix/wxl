@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
 import { Content } from 'vitepress/client'
 import BrowserPanel from '../components/BrowserPanel.vue'
@@ -8,18 +8,26 @@ import RepeatPanel from '../components/RepeatPanel.vue'
 import NetworkPanel from '../components/NetworkPanel.vue'
 import CodeEditorPanel from '../components/CodeEditorPanel.vue'
 import FlagSubmit from '../components/FlagSubmit.vue'
-import { PythonRuntime, type LoadPyodideFn } from '../composables/usePythonRuntime'
+import MergedNav from '../components/MergedNav.vue'
+import NotesModal from '../components/NotesModal.vue'
+import { PythonRuntime, installRequestsPatch, type LoadPyodideFn } from '../composables/usePythonRuntime'
 import { PhpRuntime } from '../composables/usePhpRuntime'
 import { useTrafficLog } from '../composables/useTrafficLog'
 import { useAttackSession } from '../composables/useAttackSession'
+import { usePentestNotes } from '../composables/usePentestNotes'
 import { extractCustomSection } from '../composables/useWasmLoader'
+
+// Module-level executionId for linking code_execution ↔ http_request events
+let currentExecutionId: string | null = null
 
 const { frontmatter, page } = useData()
 
-// Derive slug from relativePath: "challenge/sqli-demo.md" → "sqli-demo"
+// Derive slug from per-folder relativePath: "challenge/sqli-demo/index.md" → "sqli-demo"
 const slug = computed(() => {
   const rel: string = page.value.relativePath ?? ''
-  return rel.replace(/^.*\//, '').replace(/\.md$/, '')
+  const parts = rel.replace(/\.md$/, '').split('/')
+  // Per-folder: take parent dir name; flat fallback: take filename
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[parts.length - 1]
 })
 
 const fm = computed(() => frontmatter.value)
@@ -30,7 +38,10 @@ const runtimeError = ref<string | null>(null)
 
 // Pyodide instance — set after Python runtime init; passed to WxlshPanel + CodeEditorPanel
 type PyodidePublicAPI = { runPythonAsync(code: string): Promise<unknown>; globals: { get(k: string): unknown; set(k: string, v: unknown): void } }
-const pyodideInstance = ref<PyodidePublicAPI | null>(null)
+// shallowRef: Pyodide instance must NOT be wrapped in Vue's reactive proxy.
+// reactive() double-proxies the Pyodide PyProxy, breaking globals.set() with
+// "TypeError: unhashable type: 'pyodide.ffi.JsProxy'".
+const pyodideInstance = shallowRef<PyodidePublicAPI | null>(null)
 
 // ─── SW readiness gate ───────────────────────────────────────────────────────
 // swReady is true only when navigator.serviceWorker.controller is non-null.
@@ -54,14 +65,19 @@ function toggleDescription() {
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 type Tab = 'browser' | 'terminal' | 'repeater' | 'code' | 'network'
-const activeTab = ref<Tab>('browser')
-const tabs: { id: Tab; label: string }[] = [
+const ALL_TABS: { id: Tab; label: string }[] = [
   { id: 'browser', label: 'Browser' },
   { id: 'network', label: 'Network' },
   { id: 'repeater', label: 'Repeater' },
-  // { id: 'terminal', label: 'Terminal' },
-  // { id: 'code', label: 'Code' },
+  { id: 'terminal', label: 'Terminal' },
+  { id: 'code', label: 'Code' },
 ]
+const tabs = computed(() => {
+  const allowedTools: string[] | undefined = fm.value.tools
+  if (!allowedTools || allowedTools.length === 0) return ALL_TABS
+  return ALL_TABS.filter(t => allowedTools.includes(t.id))
+})
+const activeTab = ref<Tab>('browser')
 
 // ─── Challenge dispatch: directly call runtime (bypasses SW round-trip) ──────
 async function dispatch(request: Request): Promise<Response> {
@@ -78,16 +94,34 @@ async function dispatch(request: Request): Promise<Response> {
 const { trafficLog, wrap: wrapDispatch, clear: clearTrafficLog } = useTrafficLog()
 const trackedDispatch = wrapDispatch(dispatch)
 
+// Create dispatch bridge for Python → JS HTTP routing
+const dispatchBridge = async (method: string, url: string, headersJson: string, body: string): Promise<string> => {
+  const headers: Record<string, string> = headersJson ? JSON.parse(headersJson) : {}
+  const req = new Request(url, {
+    method,
+    headers,
+    body: (method !== 'GET' && method !== 'HEAD' && body) ? body : undefined,
+  })
+  const res = await trackedDispatch(req)
+  const resHeaders = Object.fromEntries([...res.headers.entries()])
+  const text = await res.text()
+  return JSON.stringify({ status: res.status, headers: resHeaders, body: text })
+}
+
 // ─── Attack session ──────────────────────────────────────────────────────────
 const attackSession = useAttackSession(slug.value, fm.value.title ?? '')
 
-function makeSourceDispatch(source: 'browser' | 'repeater') {
+// ─── Pentest notes ────────────────────────────────────────────────────────────
+const pentestNotes = usePentestNotes(attackSession, slug.value)
+const notesModalVisible = ref(false)
+
+function makeSourceDispatch(source: 'browser' | 'repeater' | 'terminal' | 'code') {
   return async (request: Request): Promise<Response> => {
     const response = await trackedDispatch(request)
     // After trackedDispatch, the last trafficLog entry is the one just recorded
     const entry = trafficLog.value[trafficLog.value.length - 1]
     if (entry) {
-      attackSession.addHttpEvent(entry, source)
+      attackSession.addHttpEvent(entry, source, source === 'code' ? currentExecutionId : null)
     }
     return response
   }
@@ -95,6 +129,20 @@ function makeSourceDispatch(source: 'browser' | 'repeater') {
 
 const browserDispatch = makeSourceDispatch('browser')
 const repeaterDispatch = makeSourceDispatch('repeater')
+const terminalDispatch = makeSourceDispatch('terminal')
+const codeDispatch = makeSourceDispatch('code')
+
+// ─── Recording callbacks for Terminal and Code panels ────────────────────────
+function onCommandExecuted(event: { command: string; output: string; error: boolean }) {
+  attackSession.addTerminalCommand(event.command, event.output, event.error)
+}
+
+function onCodeExecuted(event: { code: string; output: string; error: boolean; duration: number }) {
+  const execId = crypto.randomUUID()
+  currentExecutionId = execId
+  attackSession.addCodeExecution(event.code, event.output, event.error, event.duration, execId)
+  currentExecutionId = null
+}
 
 // ─── Send to Repeater ─────────────────────────────────────────────────────────
 const repeaterInjectedRequest = ref<string | null>(null)
@@ -138,6 +186,8 @@ async function initRuntime(): Promise<void> {
   const wasmModule: string | undefined = fm.value.wasmModule
   const extraPackages: string[] = fm.value.packages ?? []
 
+
+
   // Guard: skip if frontmatter doesn't have wasmModule (not yet processed)
   if (!wasmModule) {
     runtimeError.value = 'Challenge WASM not available (run pnpm challenge:keygen first)'
@@ -155,7 +205,7 @@ async function initRuntime(): Promise<void> {
   }
 
   // 2. Instantiate the per-challenge WASM module
-  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_verify_flag } = await import(
+  const { default: initWasm, wasm_fs_init, wasm_fs_read, wasm_fs_list, wasm_verify_flag } = await import(
     '../../wasm/virtual-fs/virtual_fs.js'
   )
   await initWasm()
@@ -175,8 +225,11 @@ async function initRuntime(): Promise<void> {
   const appBytes: Uint8Array = wasm_fs_read('__app__')
   appCode = new TextDecoder().decode(appBytes)
 
-  // Read other FS entries (from frontmatter fs map keys)
-  const fsPaths = Object.keys(fm.value.fs ?? {})
+  // Read other FS entries: use wasm_fs_list() to auto-discover all encrypted paths,
+  // falling back to frontmatter fs field for legacy WASM binaries without wasm_fs_list.
+  const fsPaths: string[] = typeof wasm_fs_list === 'function'
+    ? (JSON.parse(wasm_fs_list()) as string[]).filter((p: string) => p !== '__app__')
+    : Object.keys(fm.value.fs ?? {})
   for (const path of fsPaths) {
     fsEntries[path] = wasm_fs_read(path)
   }
@@ -228,6 +281,23 @@ async function initRuntime(): Promise<void> {
   // Expose Pyodide instance for wxlsh and code editor panels
   if (runtime instanceof PythonRuntime) {
     pyodideInstance.value = runtime.getPyodide() as PyodidePublicAPI | null
+    if (pyodideInstance.value) {
+      pyodideInstance.value.globals.set('_wxlsh_dispatch_bridge', dispatchBridge)
+    }
+  }
+
+  // For non-Python backends (e.g., PHP), load a standalone Pyodide as a tool layer
+  // so Code Editor and Terminal panels can still run Python attack scripts.
+  if (!pyodideInstance.value) {
+    await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js')
+    const loadPyodide = (globalThis as any).loadPyodide as LoadPyodideFn
+    if (typeof loadPyodide === 'function') {
+      const toolsPyodide = await loadPyodide()
+      // Install and patch requests on the tool-layer Pyodide too
+      await installRequestsPatch(toolsPyodide as any, dispatchBridge)
+      pyodideInstance.value = toolsPyodide as unknown as PyodidePublicAPI
+      pyodideInstance.value.globals.set('_wxlsh_dispatch_bridge', dispatchBridge)
+    }
   }
 }
 
@@ -300,9 +370,12 @@ onMounted(async () => {
     if (navigator.serviceWorker.controller) {
       swReady.value = true
     } else {
-      // First visit: SW is registering. Wait for it to become ready and claim.
-      navigator.serviceWorker.ready.then(() => {
-        if (navigator.serviceWorker.controller) {
+      // First visit or hard refresh: SW may be active but not controlling.
+      // dispatch() bypasses the SW (calls runtime directly), and
+      // registerWithSW() uses reg.active.postMessage() — neither requires
+      // the SW to "control" the page. So active is sufficient.
+      navigator.serviceWorker.ready.then((reg) => {
+        if (navigator.serviceWorker.controller || reg.active) {
           swReady.value = true
         }
       })
@@ -316,8 +389,10 @@ onMounted(async () => {
     runtimeError.value = err instanceof Error ? err.message : String(err)
   }
 
-  // Initialize attack session (non-blocking)
-  attackSession.init().catch(() => {})
+  // Initialize attack session (non-blocking), then pentest notes
+  attackSession.init()
+    .then(() => pentestNotes.init(slug.value))
+    .catch(() => {})
 })
 
 onUnmounted(() => {
@@ -331,38 +406,22 @@ onUnmounted(() => {
   }
 })
 
-// ─── Static badge class maps (full class names for UnoCSS extraction) ─────────
-const difficultyBadge: Record<string, string> = {
-  easy:    'ch-badge-easy',
-  medium:  'ch-badge-medium',
-  hard:    'ch-badge-hard',
-  mystery: 'ch-badge-mystery',
-}
-const categoryBadge: Record<string, string> = {
-  web: 'ch-badge-web',
-}
 </script>
 
 <template>
-  <div class="flex flex-col h-screen overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
-    <!-- Top navigation bar -->
-    <header class="relative px-4 py-2 border-b border-[var(--ch-border)] bg-[var(--ch-bg)]">
-      <div class="flex justify-center items-center gap-4">
-        <span class="font-semibold text-[1em] color-[var(--ch-text-1)]">{{ fm.title }}</span>
-        <span
-        v-if="fm.difficulty"
-        :class="difficultyBadge[fm.difficulty] ?? 'ch-badge'"
-        >{{ fm.difficulty }}</span>
-        <span
-        v-if="fm.category"
-        :class="categoryBadge[fm.category] ?? 'ch-badge'"
-        >{{ fm.category }}</span>
-        <!-- Runtime status indicator -->
-        <span v-if="!runtimeReady && !runtimeError" class="ch-badge text-[0.75em] opacity-60">Loading...</span>
-        <span v-if="runtimeError" class="ch-badge ch-badge-hard text-[0.75em]" :title="runtimeError">Runtime Error</span>
-      </div>
-      <a href="/challenges/" class="absolute inset-y-2 text-[0.9em] color-[var(--ch-accent)] no-underline whitespace-nowrap hover:underline">← Challenges</a>
-    </header>
+  <div class="flex flex-col h-[calc(100vh-var(--vp-nav-height))] overflow-hidden bg-[var(--ch-bg)] color-[var(--ch-text-1)]">
+    <!-- Merged navigation bar (replaces VitePress nav + old challenge header) -->
+    <MergedNav
+      :title="fm.title ?? ''"
+      :difficulty="fm.difficulty ?? ''"
+      :category="fm.category ?? ''"
+      :runtimeReady="runtimeReady"
+      :runtimeError="runtimeError"
+      :noteCount="pentestNotes.noteCount.value"
+      :descriptionCollapsed="descriptionCollapsed"
+      @open-notes="notesModalVisible = true"
+      @toggle-description="toggleDescription"
+    />
 
     <!-- Main content: left + right columns -->
     <div class="flex flex-1 overflow-hidden">
@@ -386,13 +445,17 @@ const categoryBadge: Record<string, string> = {
         </div>
 
         <div v-show="!descriptionCollapsed" class="flex-shrink-0 p-3 border-t border-[var(--ch-border)] bg-[var(--ch-bg)]">
-          <FlagSubmit :verify="verify" :onExport="onExport" />
+          <FlagSubmit
+            :verify="verify"
+            :onExport="onExport"
+            :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
+          />
         </div>
       </aside>
 
       <!-- Right column: interaction panels -->
       <main class="vp-raw flex flex-col flex-1 overflow-hidden bg-[var(--ch-bg-panel)]">
-        <nav class="flex gap-1 px-3 py-2 border-b border-[var(--ch-border)] flex-shrink-0">
+        <nav class="flex gap-1 px-3 py-2 border-b border-[var(--ch-border)] flex-shrink-0 overflow-x-auto">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -407,32 +470,59 @@ const categoryBadge: Record<string, string> = {
         <div v-show="activeTab === 'browser'" data-panel="browser" class="flex-1 overflow-auto p-3">
           <BrowserPanel :slug="slug" :dispatch="browserDispatch" :disabled="toolsDisabled" />
         </div>
-        <!-- <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
-          <WxlshPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
-        </div> -->
+        <div v-show="activeTab === 'terminal'" data-panel="terminal" class="flex-1 overflow-hidden">
+          <WxlshPanel :slug="slug" :dispatch="terminalDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" :onCommandExecuted="onCommandExecuted" />
+        </div>
         <div v-show="activeTab === 'repeater'" data-panel="repeater" class="flex-1 overflow-hidden">
           <RepeatPanel :slug="slug" :dispatch="repeaterDispatch" :disabled="toolsDisabled" :injectedRequest="repeaterInjectedRequest" />
         </div>
-        <!-- <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
-          <CodeEditorPanel :slug="slug" :dispatch="trackedDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" />
-        </div> -->
+        <div v-show="activeTab === 'code'" data-panel="code" class="flex-1 overflow-hidden">
+          <CodeEditorPanel :slug="slug" :dispatch="codeDispatch" :disabled="toolsDisabled" :pyodide="pyodideInstance" :onCodeExecuted="onCodeExecuted" />
+        </div>
         <div v-show="activeTab === 'network'" data-panel="network" class="flex-1 overflow-hidden">
           <NetworkPanel :trafficLog="trafficLog" @clear="clearTrafficLog" @sendToRepeater="onSendToRepeater" />
         </div>
       </main>
     </div>
+
+    <!-- Persistent flag submit bar (visible when description is collapsed) -->
+    <div
+      v-if="descriptionCollapsed"
+      data-flag-bar
+      class="shrink-0 px-3 py-2 border-t border-[var(--ch-border)] bg-[var(--ch-bg)]"
+    >
+      <FlagSubmit
+        :verify="verify"
+        :onExport="onExport"
+        :onExportNotes="() => pentestNotes.downloadMarkdown(fm.title, slug)"
+      />
+    </div>
+
+    <!-- Pentest Notes Modal -->
+    <NotesModal
+      v-if="notesModalVisible"
+      :pentestNotes="pentestNotes"
+      :challengeTitle="fm.title ?? ''"
+      @close="notesModalVisible = false"
+    />
   </div>
 </template>
 
 <style scoped>
 /* Minimal scoped block: only transition rules not expressible as UnoCSS utilities */
 .description-column {
-  width: 40%;
-  min-width: 40%;
-  transition: width 0.25s ease, min-width 0.25s ease;
+  width: 38%;
+  min-width: 280px;
+  max-width: 480px;
+  transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s ease;
 }
 .description-column.collapsed {
-  width: 36px;
-  min-width: 36px;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  border-right: none;
+  overflow: hidden;
+  pointer-events: none;
 }
 </style>

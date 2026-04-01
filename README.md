@@ -1,4 +1,4 @@
-# Web Exploitation Challenges
+# Web eXploitation Laboratory (WXL)
 
 > 完全基於前端 WebAssembly 的網頁滲透練習平台，無需後端伺服器
 
@@ -8,7 +8,7 @@
 
 ## 簡介
 
-**Web Exploitation Challenges** 是一個 CTF 風格的網頁滲透技術練習平台。所有挑戰皆在瀏覽器端執行，透過 WebAssembly 模擬真實後端環境，不需要任何伺服器基礎設施即可部署與使用。
+**Web eXploitation Laboratory (WXL)** 是一個 CTF 風格的網頁滲透技術練習平台。所有挑戰皆在瀏覽器端執行，透過 WebAssembly 模擬真實後端環境，不需要任何伺服器基礎設施即可部署與使用。
 
 ### 核心特色
 
@@ -41,8 +41,8 @@
 
 ```bash
 # 1. Clone 專案
-git clone https://github.com/CXPhoenix/web-exploitation-seclab.git
-cd web-exploitation-seclab
+git clone https://github.com/CXPhoenix/wxl.git
+cd wxl
 
 # 2. 安裝 Node.js 依賴
 pnpm install
@@ -111,6 +111,67 @@ source_visible: false    # true = 白箱，false = 黑箱（預設）
 ## 貢獻
 
 請參閱 [CONTRIBUTE.md](CONTRIBUTE.md) 了解分支策略、PR 流程與 Commit 規範。
+
+## 部署
+
+建置產物位於 `.vitepress/dist/`，為純靜態檔案，可部署至任何靜態託管服務。
+
+### 建置流程
+
+```bash
+# 1. 安裝依賴
+pnpm install
+
+# 2. 完整建置（WASM + keygen + VitePress）
+pnpm build
+```
+
+### 部署至 GitHub Pages
+
+```yaml
+# .github/workflows/deploy.yml 範例
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install wasm-pack
+      - run: pnpm install
+      - run: pnpm build
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .vitepress/dist
+```
+
+### 部署至 Cloudflare Pages
+
+1. 在 Cloudflare Pages 建立新專案，連結 GitHub repository
+2. 設定建置指令：
+
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal \
+     && . "$HOME/.cargo/env" \
+     && cargo install wasm-tools \
+     && pnpm install \
+     && pnpm build
+   ```
+
+3. 設定輸出目錄：`.vitepress/dist`
+4. 環境變數中加入 `NODE_VERSION=22`
+
+> **說明**：Cloudflare Pages 預設不含 Rust toolchain，上述建置指令會自動安裝 minimal Rust toolchain 與 `wasm-tools`。`wasm-pack` 已宣告為 devDependency，`pnpm install` 時會自動安裝。
 
 ## 授權
 

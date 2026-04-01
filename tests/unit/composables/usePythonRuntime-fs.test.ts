@@ -24,7 +24,8 @@ function makeMockPyodideWithFS() {
         fsWriteFile(path, data)
       }),
     },
-    globals: { get: vi.fn().mockReturnValue(vi.fn()) },
+    loadPackage: vi.fn().mockResolvedValue(undefined),
+    globals: { get: vi.fn().mockReturnValue(vi.fn()), set: vi.fn() },
   }
   const loadPyodide = vi.fn().mockResolvedValue(pyodide)
   return { loadPyodide, pyodide, fsWriteFile, runPythonAsync }
