@@ -94,16 +94,47 @@ async function dispatch(request: Request): Promise<Response> {
 const { trafficLog, wrap: wrapDispatch, clear: clearTrafficLog } = useTrafficLog()
 const trackedDispatch = wrapDispatch(dispatch)
 
+// ─── Forbidden header transport ──────────────────────────────────────────────
+// Cookie is a forbidden request-header and Set-Cookie is a forbidden
+// response-header in the Fetch API. new Request() and new Response() silently
+// drop them. We transport via X-Wxlsh-Cookie / X-Wxlsh-Set-Cookie and convert
+// back at the runtime boundary (usePythonRuntime.handleRequest).
+
+/** Move Cookie → X-Wxlsh-Cookie before creating a Request (forbidden header workaround). */
+function transportCookie(headers: Record<string, string>): Record<string, string> {
+  const cookie = headers['Cookie'] ?? headers['cookie']
+  if (cookie) {
+    headers['X-Wxlsh-Cookie'] = cookie
+    delete headers['Cookie']
+    delete headers['cookie']
+  }
+  return headers
+}
+
+/** Convert X-Wxlsh-Set-Cookie back to set-cookie in response headers for callers. */
+function restoreSetCookie(res: Response): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of res.headers.entries()) {
+    if (k.toLowerCase() === 'x-wxlsh-set-cookie') {
+      out['set-cookie'] = v.split('\n').join(', ')
+    } else {
+      out[k] = v
+    }
+  }
+  return out
+}
+
 // Create dispatch bridge for Python → JS HTTP routing
 const dispatchBridge = async (method: string, url: string, headersJson: string, body: string): Promise<string> => {
   const headers: Record<string, string> = headersJson ? JSON.parse(headersJson) : {}
+  transportCookie(headers)
   const req = new Request(url, {
     method,
     headers,
     body: (method !== 'GET' && method !== 'HEAD' && body) ? body : undefined,
   })
   const res = await trackedDispatch(req)
-  const resHeaders = Object.fromEntries([...res.headers.entries()])
+  const resHeaders = restoreSetCookie(res)
   const text = await res.text()
   return JSON.stringify({ status: res.status, headers: resHeaders, body: text })
 }
@@ -308,15 +339,29 @@ async function handleRequest(event: MessageEvent): Promise<void> {
   const { method, url, headers, body, responsePort } = event.data
 
   try {
+    // Transport Cookie past the Fetch API forbidden-header filter
+    const reqHeaders: Record<string, string> = {}
+    for (const [k, v] of (headers ?? [])) reqHeaders[k] = v
+    transportCookie(reqHeaders)
+
     const request = new Request(url, {
       method,
-      headers: new Headers(headers ?? []),
+      headers: reqHeaders,
       body: (method !== 'GET' && method !== 'HEAD' && body) ? body : undefined,
     })
 
     const response = await (runtime as PythonRuntime | PhpRuntime).handleRequest(request)
     const resBodyBuffer = await response.arrayBuffer()
-    const resHeaders = [...response.headers.entries()]
+
+    // Restore X-Wxlsh-Set-Cookie → set-cookie for the Service Worker
+    const resHeaders: [string, string][] = []
+    for (const [k, v] of response.headers.entries()) {
+      if (k.toLowerCase() === 'x-wxlsh-set-cookie') {
+        for (const c of v.split('\n')) resHeaders.push(['set-cookie', c])
+      } else {
+        resHeaders.push([k, v])
+      }
+    }
 
     responsePort.postMessage(
       { status: response.status, headers: resHeaders, body: resBodyBuffer },

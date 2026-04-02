@@ -281,3 +281,40 @@ tests:
   - tests/unit/composables/useChallengePersistence.test.ts
   - tests/unit/composables/useAttackSession.test.ts
 -->
+
+---
+### Requirement: Traffic log displays request and response headers
+
+The traffic log SHALL display a `Cookie` header in request display headers when the original request contained `X-Wxlsh-Cookie`. The `X-Wxlsh-Cookie` transport header itself SHALL NOT appear in the display.
+
+The traffic log SHALL display `Set-Cookie` headers in response display headers by converting `X-Wxlsh-Set-Cookie` back to individual `Set-Cookie` entries (splitting by newline). The `X-Wxlsh-Set-Cookie` transport header itself SHALL NOT appear in the display.
+
+#### Scenario: Request with transported cookie displays Cookie header
+
+- **WHEN** a request has header `X-Wxlsh-Cookie: session_user=guest`
+- **THEN** the traffic log request headers SHALL show `Cookie: session_user=guest` and SHALL NOT show `X-Wxlsh-Cookie`
+
+#### Scenario: Response with transported set-cookie displays Set-Cookie header
+
+- **WHEN** a response has header `X-Wxlsh-Set-Cookie: a=1\nb=2`
+- **THEN** the traffic log response headers SHALL show two entries: `Set-Cookie: a=1` and `Set-Cookie: b=2`
+
+<!-- @trace
+source: browser-cookie-and-redirect
+updated: 2026-04-03
+code:
+  - docs/challenge/door-is-open/src/app.py
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/door-is-open/index.md
+  - docs/challenge/sqli-demo/index.md
+  - docs/challenge/door-is-open/src/flag.txt
+  - docs/challenge/fastapi-demo/index.md
+  - .vitepress/theme/composables/useWxlsh.ts
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/composables/useTrafficLog.ts
+  - .vitepress/theme/components/RepeatPanel.vue
+  - .wxl-creator/config.yaml
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - docs/challenge/php-demo/index.md
+-->

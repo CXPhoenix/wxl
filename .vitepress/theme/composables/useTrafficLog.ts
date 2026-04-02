@@ -44,6 +44,7 @@ function buildDisplayHeaders(
   context: string | null,
   referer: string | null,
   bodyLength: number | null,
+  cookie: string | null = null,
 ): [string, string][] {
   const parsedUrl = new URL(url)
   const isPost = context === 'form-post'
@@ -52,7 +53,7 @@ function buildDisplayHeaders(
   const actual = new Map<string, string>()
   for (const [k, v] of actualHeaders) {
     const lower = k.toLowerCase()
-    if (lower !== 'x-wxlsh-context' && lower !== 'x-wxlsh-referer') actual.set(lower, v)
+    if (lower !== 'x-wxlsh-context' && lower !== 'x-wxlsh-referer' && lower !== 'x-wxlsh-cookie') actual.set(lower, v)
   }
 
   // Build in Chrome's conventional order; use Map to deduplicate by lowercase key.
@@ -103,6 +104,9 @@ function buildDisplayHeaders(
   set('Accept-Encoding', 'gzip, deflate, br')
   set('Accept-Language', 'en-US,en;q=0.9')
 
+  // 19. Cookie — from X-Wxlsh-Cookie transport (real Cookie header is forbidden in Fetch API)
+  if (cookie) set('Cookie', cookie)
+
   // Append any remaining actual headers not already represented (e.g. custom app headers)
   for (const [k, v] of actual) {
     if (!h.has(k)) h.set(k, v)
@@ -126,6 +130,7 @@ export function useTrafficLog() {
       // Read X-Wxlsh-* metadata before cloning / dispatching
       const context = request.headers.get('X-Wxlsh-Context')
       const referer = request.headers.get('X-Wxlsh-Referer')
+      const cookie = request.headers.get('X-Wxlsh-Cookie')
 
       // Build a clean request (strip metadata headers) for actual dispatch
       const cleanHeaders = new Headers(request.headers)
@@ -164,8 +169,16 @@ export function useTrafficLog() {
       }
 
       const actualHeaders = [...cleanRequest.headers] as [string, string][]
-      const requestHeaders = buildDisplayHeaders(url, method, actualHeaders, context, referer, bodyLength)
-      const responseHeaders = ([...response.headers] as [string, string][]).map(([k, v]) => [toTitleCase(k), v] as [string, string])
+      const requestHeaders = buildDisplayHeaders(url, method, actualHeaders, context, referer, bodyLength, cookie)
+      const responseHeaders: [string, string][] = []
+      for (const [k, v] of [...response.headers] as [string, string][]) {
+        if (k.toLowerCase() === 'x-wxlsh-set-cookie') {
+          // Restore transported Set-Cookie headers for display
+          for (const cookie of v.split('\n')) responseHeaders.push(['Set-Cookie', cookie])
+        } else {
+          responseHeaders.push([toTitleCase(k), v])
+        }
+      }
 
       trafficLog.value.push({
         id: nextId++,

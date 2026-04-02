@@ -89,15 +89,22 @@ function parseRawRequest(raw: string): Request | null {
   const method = parts[0]
   const path = parts[1] ?? '/'
 
-  const headers = new Headers()
+  const headerMap: Record<string, string> = {}
   let host = `challenge-${props.slug}.localhost`
   for (const line of lines.slice(1)) {
     const idx = line.indexOf(':')
     if (idx === -1) continue
     const name = line.slice(0, idx).trim()
     const value = line.slice(idx + 1).trim()
-    headers.set(name, value)
+    headerMap[name] = value
     if (name.toLowerCase() === 'host') host = value
+  }
+
+  // Cookie is a forbidden request header in the Fetch API — transport via X-Wxlsh-Cookie
+  const cookieKey = Object.keys(headerMap).find(k => k.toLowerCase() === 'cookie')
+  if (cookieKey) {
+    headerMap['X-Wxlsh-Cookie'] = headerMap[cookieKey]
+    delete headerMap[cookieKey]
   }
 
   const bodyStr = bodyParts.join(crlf + crlf)
@@ -105,7 +112,7 @@ function parseRawRequest(raw: string): Request | null {
 
   return new Request(url, {
     method,
-    headers,
+    headers: headerMap,
     body: bodyStr || undefined,
   })
 }

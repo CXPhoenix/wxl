@@ -111,6 +111,13 @@ export class PythonRuntime {
   private async _init(appCode: string, fsEntries: Record<string, Uint8Array>, packages: string[]): Promise<void> {
     this.pyodide = await this.loadPyodide()
     for (const [path, data] of Object.entries(fsEntries)) {
+      // Ensure parent directories exist (e.g. /templates/login.html → mkdir /templates)
+      const parts = path.split('/').slice(1, -1)
+      let current = ''
+      for (const part of parts) {
+        current += '/' + part
+        try { this.pyodide.FS.mkdir(current) } catch { /* already exists */ }
+      }
       this.pyodide.FS.writeFile(path, data)
     }
     const nativePkgs = packages.filter((p) => PYODIDE_NATIVE_PKGS.has(p))
@@ -266,13 +273,29 @@ async def _asgi_bridge(method, path, query_string, js_headers, body_bytes):
     const bodyBytes = request.body
       ? new Uint8Array(await request.arrayBuffer())
       : new Uint8Array()
-    const headers = [...request.headers.entries()].map(([k, v]) => [k.toLowerCase(), v] as [string, string])
+    const headers = [...request.headers.entries()]
+      .filter(([k]) => !k.toLowerCase().startsWith('x-wxlsh-'))
+      .map(([k, v]) => [k.toLowerCase(), v] as [string, string])
+
+    // Cookie is a forbidden request header in the Fetch API, so BrowserPanel
+    // transports it via X-Wxlsh-Cookie. Convert back to a real cookie header.
+    const transportedCookie = request.headers.get('x-wxlsh-cookie')
+    if (transportedCookie) headers.push(['cookie', transportedCookie])
 
     const raw = await bridge(request.method.toUpperCase(), url.pathname, url.search.slice(1), headers, bodyBytes)
     const result: { status: number; headers: [string, string][]; body: string } = JSON.parse(raw as unknown as string)
 
     const responseHeaders = new Headers()
-    for (const [k, v] of result.headers) responseHeaders.set(k, v)
+    const setCookies: string[] = []
+    for (const [k, v] of result.headers) {
+      // Set-Cookie is a forbidden response-header name in the Fetch API —
+      // new Response() silently drops it. Collect and transport via custom header.
+      if (k.toLowerCase() === 'set-cookie') setCookies.push(v)
+      else responseHeaders.set(k, v)
+    }
+    if (setCookies.length > 0) {
+      responseHeaders.set('X-Wxlsh-Set-Cookie', setCookies.join('\n'))
+    }
 
     const body = Uint8Array.from(atob(result.body), (c) => c.charCodeAt(0))
     return new Response(body, { status: result.status, headers: responseHeaders })

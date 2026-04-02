@@ -801,8 +801,13 @@ export function useWxlsh(options: WxlshOptions) {
       try {
         const cmds = py.globals.get('_wxlsh_commands_py') as Record<string, unknown>
         if (cmds && command in cmds) {
+          // serde_wasm_bindgen serializes HashMap as a JS Map, which JSON.stringify
+          // ignores (produces '{}'). Convert to a plain object for Python.
+          const plainFlags: Record<string, string> = flags instanceof Map
+            ? Object.fromEntries(flags)
+            : (typeof flags === 'object' && flags !== null ? { ...flags } : {})
           const result = await py.runPythonAsync(
-            `_r = _wxlsh_commands_py[${JSON.stringify(command)}](${JSON.stringify(args)}, ${JSON.stringify(flags)})\n` +
+            `_r = _wxlsh_commands_py[${JSON.stringify(command)}](${JSON.stringify(args)}, ${JSON.stringify(plainFlags)})\n` +
             `import inspect as _ins\n` +
             `str(await _r if _ins.isawaitable(_r) else _r)`
           )
