@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Governs the collapse/expand behavior of the challenge description panel across all breakpoints, ensuring the tools panel can occupy full width when the description is hidden and that flag submission remains accessible regardless of panel state.
 
 ## Requirements
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-tools-evolution'. Update Purpose after archive.
+Provides an in-browser Python code editor powered by CodeMirror 6 with syntax highlighting and autocompletion, a resizable split layout with an output region, and Pyodide-based execution that routes HTTP requests through the Service Worker dispatch bridge.
 
 ## Requirements
 

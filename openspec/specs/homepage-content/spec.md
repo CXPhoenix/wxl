@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'rich-homepage'. Update Purpose after archive.
+Defines the homepage content including the VitePress hero section, feature cards with SVG icons for each platform tool, stats display, and latest challenges listing, all styled with the platform's `--ch-*` design token palette.
 
 ## Requirements
 

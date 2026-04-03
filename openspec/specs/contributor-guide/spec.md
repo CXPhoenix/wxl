@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'write-oss-readme-and-contribute'. Update Purpose after archive.
+Defines the content and structure of `CONTRIBUTE.md`, documenting the git flow branching strategy, pull request submission process, commit message format (Conventional Commits with gitmoji), and contributor workflow for the project.
 
 ## Requirements
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Provides a browser-like chrome bar for the Browser tab with navigation buttons (back, forward, reload), a capsule-shaped URL input field, and Go button, adapting its layout between desktop and mobile viewports.
 
 ## Requirements
 

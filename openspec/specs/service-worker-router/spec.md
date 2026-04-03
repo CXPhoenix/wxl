@@ -2,195 +2,115 @@
 
 ## Purpose
 
-TBD - created by archiving change 'web-exploit-challenge-platform'. Update Purpose after archive.
+Manages the Service Worker that intercepts challenge-origin HTTP requests and relays them to the appropriate in-browser runtime (Python/PHP) via MessagePort, enabling fully client-side challenge execution without a real backend server.
 
 ## Requirements
 
 ### Requirement: Service Worker intercepts challenge-*.localhost requests
 
-A Service Worker registered at the root scope SHALL intercept all `fetch` events where the request URL host matches the pattern `challenge-<slug>.localhost`. Requests not matching this pattern SHALL pass through to the network unchanged. This interception SHALL apply to both regular fetch requests and navigation requests (`request.mode === "navigate"`).
+A Service Worker registered at the root scope SHALL intercept browser-generated fetch and navigation requests whose URL host matches `challenge-<slug>.localhost`. Requests not matching that pattern SHALL pass through unchanged. Direct runtime dispatches from challenge UI panels SHALL remain valid even when they do not create a browser `fetch` event.
 
-#### Scenario: Matching request is intercepted
+#### Scenario: Matching browser fetch is intercepted
 
-- **WHEN** a fetch event fires with URL `https://challenge-sqli-basic.localhost/api/users`
-- **THEN** the Service Worker SHALL intercept the request and NOT forward it to the network
+- **WHEN** a browser fetch targets `https://challenge-sqli-basic.localhost/api/users`
+- **THEN** the Service Worker SHALL intercept the request and route it through the challenge relay path instead of forwarding it to the network
 
-#### Scenario: Non-matching request passes through
+#### Scenario: UI panel dispatch does not require a fetch event
 
-- **WHEN** a fetch event fires with URL `https://vitepress.dev/some/path`
-- **THEN** the Service Worker SHALL call `event.respondWith` with the original network fetch
-
-#### Scenario: Navigation request to challenge origin is intercepted
-
-- **WHEN** a navigation fetch event fires with URL `https://challenge-sqli-basic.localhost/`
-- **THEN** the Service Worker SHALL intercept it and route via MessageChannel relay
+- **WHEN** BrowserPanel calls its injected `dispatch` prop with a `Request` object
+- **THEN** the request SHALL be handled by the runtime without depending on a Service Worker `fetch` event
 
 
 <!-- @trace
-source: challenge-tools-evolution
-updated: 2026-03-16
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
 code:
-  - Cargo.toml
-  - .vitepress/theme/components/CodeEditorPanel.vue
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/composables/useWxlsh.ts
-  - docs/public/challenge-sw.js
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - chall-wasm/wxlsh-parser/src/lib.rs
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - package.json
-  - .vitepress/theme/components/RepeatPanel.vue
-  - chall-wasm/wxlsh-parser/Cargo.toml
-  - chall-wasm/wxlsh-parser/src/commands.rs
-  - chall-wasm/wxlsh-parser/src/parser.rs
-  - .vitepress/theme/composables/useChallengePersistence.ts
-  - .vitepress/theme/components/WxlshPanel.vue
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
 tests:
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/composables/useChallengePersistence.test.ts
-  - tests/unit/components/RepeatPanel.test.ts
-  - tests/unit/components/TerminalPanel.test.ts
-  - tests/unit/components/WxlshPanel.test.ts
-  - tests/unit/layouts/ChallengeLayout.test.ts
-  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
 -->
 
 ---
 ### Requirement: Router dispatches to correct runtime based on challenge type
 
-Upon intercepting a request, the Service Worker SHALL look up the registered challenge's `port` (a `MessagePort` transferred from the challenge page at registration time). The Service Worker SHALL serialize the request into `{ method, url, headers, body }`, create a per-request `MessageChannel`, and send `{ type: 'HANDLE_REQUEST', method, url, headers, body, responsePort }` to the challenge's `port` with `responsePort` as a transferable. The Service Worker SHALL await the response on the other end of the per-request channel. All backend types (`flask`, `fastapi`, and `php`) SHALL use the same port-based `relayRequest(port, request)` mechanism for dispatching requests.
+Upon intercepting a challenge-origin request, the Service Worker SHALL look up the registered challenge entry, serialize the request into `{ method, url, headers, body }`, and relay it to the page through the registered `MessagePort`. The relay contract SHALL be backend-agnostic: `flask`, `fastapi`, and `php` SHALL all use the same `HANDLE_REQUEST` request/response message shape, while backend-specific execution remains page-side runtime logic.
 
-#### Scenario: Flask challenge request is dispatched via MessageChannel relay
+#### Scenario: PHP challenge uses the same relay contract as Python challenges
 
-- **WHEN** the active challenge has `backend: flask` and a request arrives at `challenge-<slug>.localhost`
-- **THEN** the Service Worker SHALL send a `HANDLE_REQUEST` message to the challenge's registered `MessagePort` and await a `{ status, headers, body }` response
+- **WHEN** a registered challenge declares `backend: php` and the Service Worker intercepts a challenge-origin request
+- **THEN** the Service Worker SHALL send the same `HANDLE_REQUEST` message shape that it uses for `flask` and `fastapi`
 
-#### Scenario: FastAPI challenge request is dispatched via MessageChannel relay
+#### Scenario: Unknown backend returns 501
 
-- **WHEN** the active challenge has `backend: fastapi` and a request arrives at `challenge-<slug>.localhost`
-- **THEN** the Service Worker SHALL send a `HANDLE_REQUEST` message to the challenge's registered `MessagePort` and await a `{ status, headers, body }` response
-
-#### Scenario: PHP challenge request is dispatched via MessageChannel relay
-
-- **WHEN** the active challenge has `backend: php` and a request arrives at `challenge-<slug>.localhost`
-- **THEN** the Service Worker SHALL send a `HANDLE_REQUEST` message to the challenge's registered `MessagePort` and await a `{ status, headers, body }` response, using the same `relayRequest(port, request)` mechanism as Python backends
-
-#### Scenario: Unknown backend type returns 501
-
-- **WHEN** the active challenge has an unrecognized `backend` value
-- **THEN** the Service Worker SHALL return an HTTP 501 Not Implemented response
+- **WHEN** the registered challenge entry contains an unrecognized backend value
+- **THEN** the Service Worker SHALL return an HTTP `501 Not Implemented` response
 
 
 <!-- @trace
-source: web-exploit-challenge-platform
-updated: 2026-03-15
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
 code:
-  - chall-wasm/asgi-bridge/src/lib.rs
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/components/FlagSubmit.vue
-  - chall-wasm/asgi-bridge/Cargo.toml
-  - chall-wasm/virtual-fs/src/tests.rs
-  - .vitepress/theme/components/SourceViewer.vue
-  - public/challenge-sw.js
-  - .vitepress/challenge/crypto.ts
-  - chall-wasm/asgi-bridge/src/scope.rs
-  - chall-wasm/asgi-bridge/src/tests.rs
-  - .vitepress/challenge/plugin.ts
-  - chall-wasm/virtual-fs/Cargo.toml
-  - chall-wasm/php-bridge/php-runtime.ts
-  - chall-wasm/virtual-fs/src/wasm_api.rs
-  - LICENSE
-  - chall-wasm/python-bridge/python-runtime.ts
-  - chall-wasm/virtual-fs/src/crypto.rs
-  - chall-wasm/virtual-fs/src/idb.rs
-  - .vitepress/config.mts
-  - .vitepress/sw/router.ts
-  - docs/challenges/sqli-demo.md
-  - package.json
-  - Cargo.toml
-  - .vitepress/theme/components/TerminalPanel.vue
-  - chall-wasm/asgi-bridge/src/events.rs
-  - vitest.config.ts
-  - .vitepress/theme/index.ts
-  - .vitepress/theme/components/ChallengeLayout.vue
-  - .vitepress/theme/components/RepeatPanel.vue
-  - .vitepress/challenge/config.ts
-  - .vitepress/challenge/flag-verifier.ts
-  - docs/challenges/php-demo.md
-  - chall-wasm/virtual-fs/src/lib.rs
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
 tests:
-  - chall-wasm/python-bridge/python-runtime-fs.test.ts
-  - .vitepress/sw/router.test.ts
-  - chall-wasm/php-bridge/php-runtime-fs.test.ts
-  - tests/e2e/flask-sqli.test.ts
-  - chall-wasm/php-bridge/php-runtime.test.ts
-  - .vitepress/theme/components/SourceViewer.test.ts
-  - chall-wasm/php-bridge/php-runtime-singleton.test.ts
-  - .vitepress/theme/components/BrowserPanel.test.ts
-  - .vitepress/challenge/flag-verifier-global.test.ts
-  - .vitepress/challenge/config.test.ts
-  - chall-wasm/php-bridge/php-runtime-headers.test.ts
-  - .vitepress/challenge/flag-verifier.test.ts
-  - chall-wasm/php-bridge/php-runtime-post.test.ts
-  - chall-wasm/python-bridge/python-runtime-request.test.ts
-  - .vitepress/challenge/plugin.test.ts
-  - .vitepress/theme/components/ChallengeLayout.test.ts
-  - tests/e2e/php-demo.test.ts
-  - .vitepress/theme/components/FlagSubmit.test.ts
-  - .vitepress/theme/components/RepeatPanel.test.ts
-  - .vitepress/theme/components/TerminalPanel.test.ts
-  - .vitepress/challenge/plugin-obfuscation.test.ts
-  - chall-wasm/python-bridge/python-runtime.test.ts
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
 -->
 
 ---
 ### Requirement: Challenge page registers itself with the Service Worker
 
-When a challenge page mounts, it SHALL send a `postMessage` to the Service Worker containing `{ type: 'REGISTER_CHALLENGE', slug: string, backend: string, port: MessagePort }` with `port` in the transferables array. The `port` is the page's end of a `MessageChannel` used for request relay. When the challenge page unmounts, it SHALL send `{ type: 'UNREGISTER_CHALLENGE', slug: string }`.
+When a challenge page mounts, it SHALL send `{ type: 'REGISTER_CHALLENGE', slug, backend, port }` to the Service Worker and transfer the `MessagePort` used for request relay. When the challenge page unmounts, it SHALL send `{ type: 'UNREGISTER_CHALLENGE', slug }`. A ready Service Worker with an active registration SHALL be sufficient for the page to complete registration and unlock runtime tooling, even before `controllerchange` fires.
 
-#### Scenario: Registration includes MessagePort and is acknowledged
+#### Scenario: Active worker without controller still permits registration
 
-- **WHEN** the challenge page sends `REGISTER_CHALLENGE` with a `MessagePort` transferable
-- **THEN** the Service Worker SHALL store the slug-to-`{ backend, port }` mapping and reply with `{ type: 'REGISTERED' }`
+- **WHEN** `navigator.serviceWorker.controller` is null but `navigator.serviceWorker.ready` resolves with an active worker
+- **THEN** the challenge page SHALL register the challenge and treat Service Worker readiness as satisfied
 
-#### Scenario: Unregistration clears the mapping
+#### Scenario: Unregistration clears the routing entry
 
 - **WHEN** the challenge page sends `UNREGISTER_CHALLENGE`
-- **THEN** the Service Worker SHALL remove the slug-to-backend mapping, and subsequent requests to that slug SHALL return HTTP 503
+- **THEN** the Service Worker SHALL remove the slug mapping and subsequent intercepted requests for that slug SHALL return HTTP `503`
 
 
 <!-- @trace
-source: runtime-init-and-fastapi-challenge
-updated: 2026-03-16
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
 code:
   - scripts/challenge-keygen.ts
-  - .vitepress/theme/components/TerminalPanel.vue
-  - .vitepress/challenge/config.ts
-  - docs/challenge/sqli-demo/flag.txt
-  - package.json
-  - tests/__mocks__/virtual-fs.ts
-  - docs/challenge/php-demo/flag.txt
-  - docs/challenge/sqli-demo/app.py
-  - docs/challenge/fastapi-demo/app.py
-  - docs/challenge/php-demo.md
-  - vitest.config.ts
-  - docs/challenge/sqli-demo.md
-  - .vitepress/theme/components/BrowserPanel.vue
-  - docs/challenge/php-demo/index.php
-  - .vitepress/theme/components/RepeatPanel.vue
-  - .vitepress/theme/layouts/ChallengeLayout.vue
-  - .vitepress/workers/router.ts
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - docs/challenge/fastapi-demo/flag.txt
-  - docs/public/challenge-sw.js
-  - docs/challenge/fastapi-demo.md
-  - .vitepress/challenge/plugin.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
 tests:
-  - tests/unit/challenge/plugin.test.ts
-  - tests/unit/workers/router.test.ts
-  - tests/unit/composables/usePythonRuntime-packages.test.ts
-  - tests/unit/challenge/config.test.ts
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
 -->
 
 ---

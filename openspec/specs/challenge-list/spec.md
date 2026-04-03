@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'vitepress-platform-refactor'. Update Purpose after archive.
+Provides a build-time data loader and globally registered Vue component that collects all challenge frontmatter and renders a browsable, filterable challenge list page within the VitePress default layout.
 
 ## Requirements
 

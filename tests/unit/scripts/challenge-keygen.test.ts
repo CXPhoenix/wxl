@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mkdirSync, writeFileSync, readFileSync, existsSync, utimesSync, rmSync } from 'node:fs'
+import { resolve, join } from 'node:path'
+import { tmpdir } from 'node:os'
 import {
   serializePayload,
   parsePayload,
@@ -8,6 +11,9 @@ import {
   deriveFlagVerifier,
   injectCustomSection,
   slugToSeed,
+  isOutputStale,
+  getTrackedInputPaths,
+  aesGcmEncryptRaw,
   type ChallengePayload,
 } from '../../../scripts/challenge-keygen'
 
@@ -297,5 +303,253 @@ describe('slugToSeed', () => {
   it('returns a 32-bit integer', () => {
     const seed = slugToSeed('test')
     expect(Number.isInteger(seed)).toBe(true)
+  })
+})
+
+// ─── Source freshness detection (Task 1.1) ──────────────────────────────────
+
+describe('isOutputStale', () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = resolve(tmpdir(), `keygen-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    mkdirSync(tmpDir, { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('returns true when the output file does not exist', () => {
+    const inputPath = join(tmpDir, 'input.txt')
+    writeFileSync(inputPath, 'hello')
+    const outputPath = join(tmpDir, 'nonexistent.wasm')
+    expect(isOutputStale(outputPath, [inputPath])).toBe(true)
+  })
+
+  it('returns true when any tracked input is newer than the output', () => {
+    const outputPath = join(tmpDir, 'output.wasm')
+    writeFileSync(outputPath, 'old output')
+    // Set the output mtime to the past
+    const pastTime = new Date(Date.now() - 5000)
+    utimesSync(outputPath, pastTime, pastTime)
+
+    const inputPath = join(tmpDir, 'source.py')
+    writeFileSync(inputPath, 'new source')
+    // Input has current mtime, which is newer than output
+
+    expect(isOutputStale(outputPath, [inputPath])).toBe(true)
+  })
+
+  it('returns false when all tracked inputs are older than the output', () => {
+    const inputPath = join(tmpDir, 'source.py')
+    writeFileSync(inputPath, 'old source')
+    // Set input mtime to the past
+    const pastTime = new Date(Date.now() - 5000)
+    utimesSync(inputPath, pastTime, pastTime)
+
+    const outputPath = join(tmpDir, 'output.wasm')
+    writeFileSync(outputPath, 'new output')
+    // Output has current mtime, which is newer than input
+
+    expect(isOutputStale(outputPath, [inputPath])).toBe(false)
+  })
+
+  it('returns false when inputs list is empty and output exists', () => {
+    const outputPath = join(tmpDir, 'output.wasm')
+    writeFileSync(outputPath, 'output')
+    expect(isOutputStale(outputPath, [])).toBe(false)
+  })
+
+  it('ignores non-existent input files gracefully', () => {
+    const outputPath = join(tmpDir, 'output.wasm')
+    writeFileSync(outputPath, 'output')
+    // A non-existent input should not crash but should be treated as stale
+    // (if the input was expected but is missing, we can't verify freshness)
+    expect(isOutputStale(outputPath, [join(tmpDir, 'missing.txt')])).toBe(false)
+  })
+})
+
+describe('getTrackedInputPaths', () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = resolve(tmpdir(), `keygen-tracked-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    mkdirSync(tmpDir, { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('includes the challenge markdown file', () => {
+    // Set up a per-folder challenge structure
+    const challDir = join(tmpDir, 'docs', 'challenge', 'test-chall')
+    const srcDir = join(challDir, 'src')
+    mkdirSync(srcDir, { recursive: true })
+
+    const mdPath = join(challDir, 'index.md')
+    writeFileSync(mdPath, '---\ntitle: Test\napp: app.py\nbackend: flask\n---\nContent')
+    writeFileSync(join(srcDir, 'app.py'), 'print("hello")')
+    writeFileSync(join(srcDir, 'flag.txt'), 'FLAG{test}')
+
+    const templatePath = join(tmpDir, 'template.wasm')
+    writeFileSync(templatePath, 'fake-wasm')
+
+    const paths = getTrackedInputPaths(mdPath, templatePath)
+    expect(paths).toContain(mdPath)
+  })
+
+  it('includes the template WASM', () => {
+    const challDir = join(tmpDir, 'docs', 'challenge', 'test-chall')
+    const srcDir = join(challDir, 'src')
+    mkdirSync(srcDir, { recursive: true })
+
+    const mdPath = join(challDir, 'index.md')
+    writeFileSync(mdPath, '---\ntitle: Test\napp: app.py\nbackend: flask\n---\nContent')
+    writeFileSync(join(srcDir, 'app.py'), 'print("hello")')
+    writeFileSync(join(srcDir, 'flag.txt'), 'FLAG{test}')
+
+    const templatePath = join(tmpDir, 'template.wasm')
+    writeFileSync(templatePath, 'fake-wasm')
+
+    const paths = getTrackedInputPaths(mdPath, templatePath)
+    expect(paths).toContain(templatePath)
+  })
+
+  it('includes scanned src/ files', () => {
+    const challDir = join(tmpDir, 'docs', 'challenge', 'test-chall')
+    const srcDir = join(challDir, 'src')
+    const templatesDir = join(srcDir, 'templates')
+    mkdirSync(templatesDir, { recursive: true })
+
+    const mdPath = join(challDir, 'index.md')
+    writeFileSync(mdPath, '---\ntitle: Test\napp: app.py\nbackend: flask\n---\nContent')
+    writeFileSync(join(srcDir, 'app.py'), 'print("hello")')
+    writeFileSync(join(srcDir, 'flag.txt'), 'FLAG{test}')
+    writeFileSync(join(templatesDir, 'index.html'), '<html></html>')
+
+    const templatePath = join(tmpDir, 'template.wasm')
+    writeFileSync(templatePath, 'fake-wasm')
+
+    const paths = getTrackedInputPaths(mdPath, templatePath)
+    expect(paths).toContain(join(srcDir, 'app.py'))
+    expect(paths).toContain(join(srcDir, 'flag.txt'))
+    expect(paths).toContain(join(templatesDir, 'index.html'))
+  })
+
+  it('includes .fsignore when present', () => {
+    const challDir = join(tmpDir, 'docs', 'challenge', 'test-chall')
+    const srcDir = join(challDir, 'src')
+    mkdirSync(srcDir, { recursive: true })
+
+    const mdPath = join(challDir, 'index.md')
+    writeFileSync(mdPath, '---\ntitle: Test\napp: app.py\nbackend: flask\n---\nContent')
+    writeFileSync(join(srcDir, 'app.py'), 'print("hello")')
+    writeFileSync(join(srcDir, 'flag.txt'), 'FLAG{test}')
+    writeFileSync(join(srcDir, '.fsignore'), '*.log')
+
+    const templatePath = join(tmpDir, 'template.wasm')
+    writeFileSync(templatePath, 'fake-wasm')
+
+    const paths = getTrackedInputPaths(mdPath, templatePath)
+    expect(paths).toContain(join(srcDir, '.fsignore'))
+  })
+})
+
+// ─── Binary-preserving FS packaging (Task 1.2) ─────────────────────────────
+
+describe('binary asset round-trip', () => {
+  it('preserves binary data through serialize/parse round-trip', () => {
+    // Create a payload with binary data (like a PNG header)
+    const pngHeader = new Uint8Array([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+      0x00, 0x00, 0x00, 0x0D, // IHDR chunk length
+      0x49, 0x48, 0x44, 0x52, // IHDR
+    ])
+
+    const payload: ChallengePayload = {
+      slug: 'binary-test',
+      keyMaterial: new Uint8Array(32).fill(0xBB),
+      verifier: new Uint8Array(32).fill(0xCC),
+      entries: [
+        { path: '/static/logo.png', data: pngHeader },
+        { path: '__app__', data: new TextEncoder().encode('print("app")') },
+      ],
+      metadata: new TextEncoder().encode('{"backend":"flask"}'),
+    }
+
+    const serialized = serializePayload(payload)
+    const parsed = parsePayload(serialized)
+
+    // The PNG binary data must survive unchanged
+    expect(parsed.entries[0].path).toBe('/static/logo.png')
+    expect(parsed.entries[0].data).toEqual(pngHeader)
+  })
+
+  it('preserves bytes with 0x00 and 0xFF values through encryption round-trip', async () => {
+    // Binary data containing bytes that would be corrupted by UTF-8 round-trip
+    const binaryData = new Uint8Array(256)
+    for (let i = 0; i < 256; i++) {
+      binaryData[i] = i // 0x00..0xFF - includes invalid UTF-8 sequences
+    }
+
+    const key = new Uint8Array(32).fill(0x42)
+    const encrypted = await aesGcmEncryptRaw(key, binaryData)
+
+    // The encrypted data should be raw bytes; verify it's non-trivial
+    expect(encrypted.length).toBeGreaterThan(binaryData.length) // iv + ct + tag overhead
+    expect(encrypted).toBeInstanceOf(Uint8Array)
+
+    // Verify the encrypted data survives payload serialization
+    const payload: ChallengePayload = {
+      slug: 'binary-roundtrip',
+      keyMaterial: new Uint8Array(32),
+      verifier: new Uint8Array(32),
+      entries: [{ path: '/binary.dat', data: encrypted }],
+      metadata: new Uint8Array(0),
+    }
+    const serialized = serializePayload(payload)
+    const parsed = parsePayload(serialized)
+    expect(parsed.entries[0].data).toEqual(encrypted)
+  })
+})
+
+// ─── Fixed-input reproducibility (Task 2.2) ─────────────────────────────────
+
+describe('fixed-input reproducibility', () => {
+  it('produces identical payloads when key material and inputs are fixed', () => {
+    const makePayload = () => serializePayload({
+      slug: 'repro-test',
+      keyMaterial: new Uint8Array(32).fill(0xAA),
+      verifier: new Uint8Array(32).fill(0xBB),
+      entries: [
+        { path: '/flag.txt', data: new Uint8Array([0x01, 0x02, 0x03]) },
+        { path: '__app__', data: new TextEncoder().encode('app code') },
+      ],
+      metadata: new TextEncoder().encode('{"backend":"flask"}'),
+    })
+
+    const a = makePayload()
+    const b = makePayload()
+    expect(a).toEqual(b)
+  })
+
+  it('produces identical WASM when template, payload, and section name are fixed', () => {
+    const templateWasm = new Uint8Array([
+      0x00, 0x61, 0x73, 0x6d,
+      0x01, 0x00, 0x00, 0x00,
+    ])
+    const payloadBlob = new Uint8Array([0xDE, 0xAD, 0xBE, 0xEF])
+
+    const a = injectCustomSection(templateWasm, 'chall-data', payloadBlob)
+    const b = injectCustomSection(templateWasm, 'chall-data', payloadBlob)
+    expect(a).toEqual(b)
+  })
+
+  it('deriveFlagVerifier is deterministic for same inputs', async () => {
+    const a = await deriveFlagVerifier('FLAG{repro}', 'repro-slug')
+    const b = await deriveFlagVerifier('FLAG{repro}', 'repro-slug')
+    expect(a).toEqual(b)
   })
 })

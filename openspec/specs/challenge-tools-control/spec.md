@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Allows challenge authors to control which UI tool tabs (browser, network, repeater, terminal, code) are displayed on a challenge page via an optional `tools` frontmatter field, defaulting to all five tabs when unspecified.
 
 ## Requirements
 

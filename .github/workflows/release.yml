@@ -46,6 +46,9 @@ jobs:
       - name: Generate challenge keys
         run: pnpm challenge:keygen
 
+      - name: Run Rust/WASM tests
+        run: pnpm wasm:test
+
       - name: Run tests
         run: pnpm test --run
 

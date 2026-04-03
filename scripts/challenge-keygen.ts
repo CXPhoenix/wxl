@@ -17,7 +17,7 @@
  *   pnpm challenge:keygen --force [slug]  # re-key even if already processed
  */
 
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, copyFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, copyFileSync, statSync } from 'node:fs'
 import { resolve, dirname, join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
@@ -265,6 +265,66 @@ function parseMd(content: string): { fmRaw: string; body: string } | null {
   return { fmRaw: m[1], body: m[2] }
 }
 
+// ─── Source freshness detection ──────────────────────────────────────────────
+
+/**
+ * Determine whether the output file is stale relative to tracked inputs.
+ * Returns true when the output is missing or any existing input has a newer mtime.
+ * Non-existent inputs are silently skipped (they contribute no staleness signal).
+ */
+export function isOutputStale(outputPath: string, inputPaths: string[]): boolean {
+  if (!existsSync(outputPath)) return true
+
+  const outputMtime = statSync(outputPath).mtimeMs
+
+  for (const p of inputPaths) {
+    if (!existsSync(p)) continue
+    if (statSync(p).mtimeMs > outputMtime) return true
+  }
+
+  return false
+}
+
+/**
+ * Collect all file paths that are tracked inputs for a per-folder challenge.
+ * The list includes: challenge markdown, template WASM, all scanned src/ files,
+ * .fsignore (if present), and the flag file.
+ *
+ * For legacy flat-file challenges this returns just [mdPath, templateWasmPath].
+ */
+export function getTrackedInputPaths(mdPath: string, templateWasmPath: string): string[] {
+  const paths: string[] = [mdPath, templateWasmPath]
+
+  const filename = basename(mdPath)
+  const isPerFolder = filename === 'index.md'
+  if (!isPerFolder) return paths
+
+  const baseDir = dirname(mdPath)
+  const srcDir = resolve(baseDir, 'src')
+  if (!existsSync(srcDir)) return paths
+
+  // Include .fsignore itself as a tracked input
+  const fsIgnorePath = resolve(srcDir, '.fsignore')
+  if (existsSync(fsIgnorePath)) {
+    paths.push(fsIgnorePath)
+  }
+
+  // Load .fsignore rules for scanning exclusion
+  let isExcluded: ((rel: string, isDir: boolean) => boolean) | undefined
+  if (existsSync(fsIgnorePath)) {
+    const fsIgnoreContent = readFileSync(fsIgnorePath, 'utf-8')
+    isExcluded = parseFsIgnore(fsIgnoreContent)
+  }
+
+  // All scanned src/ files (including app and flag)
+  const scanned = scanSrcDirectory(srcDir, isExcluded)
+  for (const entry of scanned) {
+    paths.push(entry.absolutePath)
+  }
+
+  return paths
+}
+
 // ─── WASM custom section injection ──────────────────────────────────────────
 
 export function injectCustomSection(wasmBinary: Uint8Array, sectionName: string, payload: Uint8Array): Uint8Array {
@@ -375,13 +435,17 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
   const doc = parseDocument(parsed.fmRaw)
   const fm = doc.toJSON() as Record<string, unknown>
 
-  // Check if already processed: wasmModule field present AND output file exists
+  // Check if already processed: wasmModule field present AND output file exists AND inputs are fresh
   const hasWasmModule = typeof fm.wasmModule === 'string' && fm.wasmModule !== ''
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const outputWasmPath = resolve(root, 'docs', 'public', 'challenge', slug, 'runtime.wasm')
   if (hasWasmModule && existsSync(outputWasmPath) && !force) {
-    console.log(`[skip] ${slug}: already processed (use --force to re-key)`)
-    return
+    const trackedInputs = getTrackedInputPaths(mdPath, templateWasmPath)
+    if (!isOutputStale(outputWasmPath, trackedInputs)) {
+      console.log(`[skip] ${slug}: already processed (use --force to re-key)`)
+      return
+    }
+    console.log(`[stale] ${slug}: tracked inputs changed — rebuilding`)
   }
 
   // Resolve source directory relative to the .md file
@@ -391,7 +455,7 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
 
   // ─── Resolve app source and FS entries ─────────────────────────────────────
   let appContent: string
-  let fsFiles: Array<{ virtualPath: string; content: string }>
+  let fsFiles: Array<{ virtualPath: string; data: Uint8Array }>
   let flagContent: string
 
   if (isPerFolder && srcDir && existsSync(srcDir)) {
@@ -412,13 +476,13 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
       isExcluded = parseFsIgnore(fsIgnoreContent)
     }
 
-    // Auto-scan src/ for FS entries
+    // Auto-scan src/ for FS entries — read as raw bytes to preserve binary assets
     const scanned = scanSrcDirectory(srcDir, isExcluded)
     fsFiles = scanned
       .filter((f) => resolve(srcDir, f.virtualPath.slice(1)) !== appPath) // exclude app entry (stored as __app__)
       .map((f) => ({
         virtualPath: f.virtualPath,
-        content: readFileSync(f.absolutePath, 'utf-8'),
+        data: new Uint8Array(readFileSync(f.absolutePath)),
       }))
 
     // Resolve flag file
@@ -440,18 +504,18 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
     appContent = readFileSync(appPath, 'utf-8')
 
     const fsMap = (fm.fs ?? {}) as Record<string, string>
-    const fileContents: Record<string, string> = {}
+    const fileBuffers: Record<string, Uint8Array> = {}
     for (const [, ref] of Object.entries(fsMap)) {
       const p = resolve(baseDir, ref)
       if (!existsSync(p)) {
         console.warn(`[skip] ${slug}: fs file not found: ${p}`)
         return
       }
-      fileContents[ref] = readFileSync(p, 'utf-8')
+      fileBuffers[ref] = new Uint8Array(readFileSync(p))
     }
     fsFiles = Object.entries(fsMap).map(([vpath, ref]) => ({
       virtualPath: vpath,
-      content: fileContents[ref] ?? '',
+      data: fileBuffers[ref] ?? new Uint8Array(0),
     }))
 
     // Flag from explicit fs map
@@ -460,7 +524,7 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
       console.warn(`[skip] ${slug}: no /flag.txt entry in fs map`)
       return
     }
-    flagContent = fileContents[flagEntry[1]]
+    flagContent = new TextDecoder().decode(fileBuffers[flagEntry[1]])
   }
 
   const verifier = await deriveFlagVerifier(flagContent, slug)
@@ -470,8 +534,8 @@ async function processChallenge(mdPath: string, templateWasmPath: string, force:
 
   // Encrypt all FS entries → raw bytes (iv || ciphertext || tag)
   const entries: FsEntry[] = []
-  for (const { virtualPath, content } of fsFiles) {
-    const encrypted = await aesGcmEncryptRaw(realKey, new TextEncoder().encode(content))
+  for (const { virtualPath, data } of fsFiles) {
+    const encrypted = await aesGcmEncryptRaw(realKey, data)
     entries.push({ path: virtualPath, data: encrypted })
   }
 

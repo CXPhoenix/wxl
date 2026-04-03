@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-and-attack-session'. Update Purpose after archive.
+Tracks each challenger's attack session per challenge, recording HTTP requests, terminal commands, code executions, flag attempts, and notes as a persistent event timeline in IndexedDB, with support for session export as JSON for AI-assisted writeup generation.
 
 ## Requirements
 

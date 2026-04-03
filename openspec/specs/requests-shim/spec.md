@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Enables Python `requests` library usage inside the Pyodide environment by installing the real library via micropip and monkey-patching `HTTPAdapter.send()` to route all HTTP traffic through the async JavaScript dispatch bridge instead of attempting socket connections.
 
 ## Requirements
 

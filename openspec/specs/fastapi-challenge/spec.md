@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by syncing change 'runtime-init-and-fastapi-challenge'. Update Purpose after archive.
+Provides a working FastAPI-based demo challenge that demonstrates the `backend: fastapi` configuration, automatic `BASE_PACKAGES` injection, and the `packages` frontmatter field for additional Python dependencies.
 
 ## Requirements
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'write-oss-readme-and-contribute'. Update Purpose after archive.
+Defines the content and structure of the project's `README.md`, covering the project overview, technology stack, prerequisites, quick start instructions, architecture overview, and available npm scripts for contributors and visitors.
 
 ## Requirements
 

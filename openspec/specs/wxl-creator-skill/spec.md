@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'wxl-creator-skill'. Update Purpose after archive.
+Provides an interactive AI skill that guides challenge authors through creating new web exploitation challenges, from collecting parameters and scaffolding files to generating vulnerable application code and auto-fixing validation errors.
 
 ## Requirements
 

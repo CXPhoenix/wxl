@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'add-release-github-action'. Update Purpose after archive.
+Defines the tag-triggered GitHub Actions workflow that builds, tests, validates, and publishes release artifacts. The workflow enforces a strict sequential gate ordering — Rust/WASM build, challenge payload generation, Rust tests, Vitest suite, challenge validation, and documentation build — ensuring no release is created unless every gate passes.
 
 ## Requirements
 
@@ -32,44 +32,37 @@ code:
 ---
 ### Requirement: Complete build pipeline execution
 
-The workflow SHALL execute the full build pipeline in order: install Rust toolchain and wasm-pack → install binaryen (wasm-opt) → install Node.js and pnpm → install dependencies → wasm:build → challenge:keygen → **test --run** → **challenge:validate** → docs:build. The test and validation steps SHALL run after challenge:keygen (which generates files needed by tests) and before docs:build. If either `pnpm test --run` or `pnpm challenge:validate` fails, the workflow SHALL stop and no GitHub Release SHALL be created.
+The release workflow SHALL execute the full build pipeline in order: install Rust toolchain and wasm-pack, install binaryen, install Node.js and pnpm, install dependencies, `pnpm wasm:build`, `pnpm challenge:keygen`, `pnpm wasm:test`, `pnpm test --run`, `pnpm challenge:validate`, and `pnpm docs:build`. Artifact packaging and GitHub Release creation SHALL run only after every gate succeeds.
 
-#### Scenario: Successful build pipeline with tests and validation
+#### Scenario: Successful release run executes every gate
 
-- **WHEN** the workflow is triggered by a valid tag push
-- **THEN** the workflow SHALL execute `pnpm wasm:build`, `pnpm challenge:keygen`, `pnpm test --run`, `pnpm challenge:validate`, and `pnpm docs:build` in sequence
-- **AND** the `.vitepress/dist` directory SHALL contain the built static site
+- **WHEN** the workflow is triggered by a valid release tag
+- **THEN** it SHALL run `pnpm wasm:build`, `pnpm challenge:keygen`, `pnpm wasm:test`, `pnpm test --run`, `pnpm challenge:validate`, and `pnpm docs:build` before packaging artifacts
 
-#### Scenario: Test failure halts workflow before building
+#### Scenario: Rust test failure halts the release
 
-- **WHEN** `pnpm test --run` fails during the workflow
-- **THEN** the workflow SHALL stop and report the failure
-- **AND** `pnpm docs:build` SHALL NOT execute
-- **AND** no GitHub Release SHALL be created
-
-#### Scenario: Validation failure halts workflow before building
-
-- **WHEN** `pnpm challenge:validate` fails during the workflow
-- **THEN** the workflow SHALL stop and report the failure
-- **AND** `pnpm docs:build` SHALL NOT execute
-- **AND** no GitHub Release SHALL be created
-
-#### Scenario: Build failure halts workflow
-
-- **WHEN** any step in the build pipeline fails
-- **THEN** the workflow SHALL stop and report the failure
-- **AND** no GitHub Release SHALL be created
+- **WHEN** `pnpm wasm:test` fails during the workflow
+- **THEN** the workflow SHALL stop immediately, SHALL NOT run `pnpm test --run` or `pnpm docs:build`, and SHALL NOT create a GitHub Release
 
 
 <!-- @trace
-source: fix-release-workflow
-updated: 2026-03-25
+source: tighten-github-release-gates
+updated: 2026-04-04
 code:
-  - tsconfig.json
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+  - .agents/skills/spectra-audit/SKILL.md
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
   - .github/workflows/release.yml
-  - .vitepress/theme/index.ts
-  - docs/shared/challenges.data.ts
-  - package.json
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
 -->
 
 ---

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Replaces the VitePress default navigation bar on challenge pages with a single compact merged navigation bar that combines platform branding, challenge metadata (title, difficulty, category), runtime status, notes access, dark mode toggle, and navigation links.
 
 ## Requirements
 

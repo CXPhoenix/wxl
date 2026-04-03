@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-tools-evolution'. Update Purpose after archive.
+Provides an in-browser Linux-style terminal (wxlsh) rendered via xterm.js, with command parsing powered by a Rust WASM crate, Python-backed command execution via Pyodide, persistent command history, and extensible Rust-native command support.
 
 ## Requirements
 
