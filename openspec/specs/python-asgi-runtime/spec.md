@@ -1,18 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: ASGI bridge translates HTTP requests to ASGI scope and invokes Pyodide app
-
-A Rust WASM module (`wasm-asgi`) SHALL accept an HTTP request descriptor `{ method, url, headers, body }` and construct a valid ASGI HTTP connection scope dict. It SHALL invoke the Pyodide-executed ASGI application callable with the scope, a `receive` callable that yields the request body, and a `send` callable that collects response events.
-
-#### Scenario: GET request is translated to ASGI scope
-
-- **WHEN** `wasm_asgi_handle({ method: "GET", url: "http://challenge-sqli.localhost/users", headers: {}, body: null })` is called
-- **THEN** the module SHALL construct an ASGI scope with `type: "http"`, `method: "GET"`, `path: "/users"`, and the parsed query string, and invoke the Pyodide app callable
-
-#### Scenario: POST request with body is forwarded
-
-- **WHEN** `wasm_asgi_handle` is called with `method: "POST"` and a non-null body
-- **THEN** the `receive` callable SHALL yield `{ type: "http.request", body: <bytes>, more_body: false }`
+<!-- ASGI bridge translates requirement moved to canonical location below -->
 
 
 <!-- @trace
@@ -77,19 +65,7 @@ tests:
   - chall-wasm/python-bridge/python-runtime.test.ts
 -->
 
-### Requirement: ASGI bridge collects response events and returns HTTP response
-
-The `wasm-asgi` module SHALL collect all `http.response.start` and `http.response.body` events emitted by the app's `send` callable, assemble them into a complete HTTP response descriptor `{ status, headers, body }`, and return it to the Service Worker.
-
-#### Scenario: Response is assembled from ASGI events
-
-- **WHEN** the Pyodide app sends `http.response.start` with status 200 and headers, then `http.response.body` with body bytes
-- **THEN** `wasm_asgi_handle` SHALL resolve with `{ status: 200, headers: [...], body: <bytes> }`
-
-#### Scenario: Chunked response body is concatenated
-
-- **WHEN** the Pyodide app sends multiple `http.response.body` events with `more_body: true`
-- **THEN** all body chunks SHALL be concatenated before returning the final response
+<!-- ASGI bridge collects requirement moved to canonical location below -->
 
 
 <!-- @trace
@@ -154,20 +130,7 @@ tests:
   - chall-wasm/python-bridge/python-runtime.test.ts
 -->
 
-### Requirement: Pyodide app is initialized once per challenge session
-
-The Python ASGI runtime SHALL load Pyodide and execute the challenge's `app_code` exactly once per challenge session (not per request). The resulting ASGI application callable SHALL be cached and reused for all subsequent requests.
-
-#### Scenario: Pyodide is loaded lazily on first challenge access
-
-- **WHEN** a user navigates to a Python challenge page for the first time
-- **THEN** Pyodide SHALL be loaded and `app_code` SHALL be executed to produce the ASGI app callable
-
-#### Scenario: Subsequent requests reuse cached app
-
-- **WHEN** a second request arrives for the same challenge session
-- **THEN** Pyodide SHALL NOT be re-loaded and the cached app callable SHALL be invoked directly
-
+<!-- Pyodide app is initialized once per challenge session — moved to canonical location below -->
 
 <!-- @trace
 source: web-exploit-challenge-platform
@@ -231,38 +194,9 @@ tests:
   - chall-wasm/python-bridge/python-runtime.test.ts
 -->
 
-### Requirement: Virtual FS is mounted into Pyodide before app initialization
+<!-- Virtual FS is mounted into Pyodide before app initialization — moved to canonical location below -->
 
-Before executing `app_code`, the ASGI runtime SHALL mount all decrypted FS entries (obtained from `wasm-fs`) into Pyodide's MEMFS. The mount point SHALL match the virtual paths defined in the challenge frontmatter.
-
-#### Scenario: /flag.txt is accessible from Python app
-
-- **WHEN** a challenge defines `fs: { /flag.txt: ./flag.txt }` and the app reads `open('/flag.txt').read()`
-- **THEN** the Python code SHALL receive the decrypted flag content
-
-#### Scenario: FS mount does not expose content to JavaScript
-
-- **WHEN** the FS is mounted into Pyodide MEMFS
-- **THEN** the decrypted content SHALL only be accessible inside the Pyodide Python environment, not via JavaScript `window` or `globalThis`
-
-### Requirement: Python ASGI runtime installs micropip packages before app execution
-
-When `PythonRuntime.initialize()` is called with a non-empty `packages` array, the runtime SHALL install all specified packages via `micropip.install()` inside Pyodide before executing `app_code`. Package installation SHALL complete before the app callable is invoked.
-
-#### Scenario: Packages are installed before app code runs
-
-- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, ['flask', 'requests'])` is called
-- **THEN** Pyodide SHALL execute `import micropip; await micropip.install(['flask', 'requests'])` before executing `appCode`
-
-#### Scenario: Empty packages list skips micropip
-
-- **WHEN** `PythonRuntime.initialize(appCode, fsEntries, [])` is called
-- **THEN** the runtime SHALL NOT call `micropip.install` and SHALL execute `appCode` directly
-
-#### Scenario: Package installation failure surfaces as initialization error
-
-- **WHEN** a package in the `packages` list does not exist in the Pyodide package index
-- **THEN** `initialize()` SHALL reject with an error describing the failed package name
+<!-- Python ASGI runtime installs micropip packages before app execution — moved to canonical location below -->
 
 ## Requirements
 
@@ -364,32 +298,74 @@ tests:
 
 ### Requirement: ASGI bridge translates HTTP requests to ASGI scope and invokes Pyodide app
 
-The ASGI bridge is implemented as inline Python code within Pyodide (in `usePythonRuntime.ts`), NOT as a Rust WASM module. The bridge SHALL accept an HTTP request descriptor `{ method, url, headers, body }` and construct a valid ASGI HTTP connection scope dict. It SHALL invoke the Pyodide-executed ASGI application callable with the scope, a `receive` callable that yields the request body, and a `send` callable that collects response events. The `chall-wasm/asgi-bridge/` Rust code exists but is used only for the custom section payload format, not for runtime ASGI bridging.
+The canonical Python request bridge SHALL be installed by `.vitepress/theme/composables/usePythonRuntime.ts` as inline Python executed inside Pyodide. The bridge SHALL inspect the loaded `app` object and choose WSGI translation for synchronous two-argument callables or ASGI translation for async applications. Rust code under `chall-wasm/asgi-bridge/` SHALL NOT be treated as the canonical challenge request translation path in the active runtime contract.
 
-#### Scenario: GET request is translated to ASGI scope
+#### Scenario: Flask-style app receives a WSGI environ
 
-- **WHEN** the ASGI bridge receives `{ method: "GET", url: "http://challenge-sqli.localhost/users", headers: {}, body: null }`
-- **THEN** the bridge SHALL construct an ASGI scope with `type: "http"`, `method: "GET"`, `path: "/users"`, and the parsed query string, and invoke the Pyodide app callable
+- **WHEN** the loaded `app` is a synchronous two-argument callable and a `GET /users` request is handled
+- **THEN** the runtime SHALL build a WSGI environ with `REQUEST_METHOD`, `PATH_INFO`, `QUERY_STRING`, and request headers mapped into `HTTP_*` keys before invoking the app
 
-#### Scenario: POST request with body is forwarded
+#### Scenario: FastAPI app receives an ASGI scope
 
-- **WHEN** the ASGI bridge receives a request with `method: "POST"` and a non-null body
-- **THEN** the `receive` callable SHALL yield `{ type: "http.request", body: <bytes>, more_body: false }`
+- **WHEN** the loaded `app` is an async ASGI application and a `POST /login` request is handled
+- **THEN** the runtime SHALL build an ASGI HTTP scope and provide `receive` and `send` callables that deliver the request body and collect response events
+
+
+<!-- @trace
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
+-->
 
 ---
 ### Requirement: ASGI bridge collects response events and returns HTTP response
 
-The ASGI bridge (implemented in inline Python within Pyodide) SHALL collect all `http.response.start` and `http.response.body` events emitted by the app's `send` callable, assemble them into a complete HTTP response descriptor `{ status, headers, body }`, and return it to the caller.
+The inline bridge SHALL normalize both WSGI and ASGI execution results into a JSON response descriptor with `status`, `headers`, and a base64-encoded `body`. `PythonRuntime.handleRequest()` SHALL decode that descriptor into a JavaScript `Response`.
 
-#### Scenario: Response is assembled from ASGI events
+#### Scenario: WSGI response is normalized
 
-- **WHEN** the Pyodide app sends `http.response.start` with status 200 and headers, then `http.response.body` with body bytes
-- **THEN** the bridge SHALL resolve with `{ status: 200, headers: [...], body: <bytes> }`
+- **WHEN** a Flask-style app calls `start_response('200 OK', [('Content-Type', 'text/plain')])` and returns body bytes
+- **THEN** the runtime SHALL serialize a response descriptor with status `200`, the emitted headers, and a base64-encoded body
 
-#### Scenario: Chunked response body is concatenated
+#### Scenario: ASGI body chunks are concatenated
 
-- **WHEN** the Pyodide app sends multiple `http.response.body` events with `more_body: true`
-- **THEN** all body chunks SHALL be concatenated before returning the final response
+- **WHEN** an ASGI app emits multiple `http.response.body` events with `more_body: true`
+- **THEN** the bridge SHALL concatenate all body chunks before returning the final response descriptor
+
+
+<!-- @trace
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
+-->
 
 ---
 ### Requirement: Pyodide app is initialized once per challenge session
@@ -516,4 +492,70 @@ source: fix-e2e-flask-sqli-mock
 updated: 2026-03-25
 tests:
   - tests/e2e/flask-sqli.test.ts
+-->
+
+---
+### Requirement: Runtime handles HTTP request dispatch
+
+`PythonRuntime.handleRequest()` SHALL accept a browser-created `Request`, filter out `X-Wxlsh-*` transport headers before calling the bridge, convert `X-Wxlsh-Cookie` back into a real `cookie` header, and transport all `set-cookie` response headers back to JavaScript via a single `X-Wxlsh-Set-Cookie` response header.
+
+#### Scenario: Cookie transport is restored before bridge invocation
+
+- **WHEN** a request arrives with header `X-Wxlsh-Cookie: session_user=guest`
+- **THEN** the bridge input SHALL include `cookie: session_user=guest` and SHALL NOT include any `x-wxlsh-*` headers
+
+#### Scenario: Set-Cookie headers are transported back to JavaScript
+
+- **WHEN** the bridge returns response headers containing two `set-cookie` entries
+- **THEN** `PythonRuntime.handleRequest()` SHALL emit a JavaScript `Response` with `X-Wxlsh-Set-Cookie` containing the newline-joined cookie values and SHALL omit raw `set-cookie` headers
+
+
+<!-- @trace
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
+-->
+
+---
+### Requirement: Runtime initializes virtual filesystem from encrypted entries
+
+When writing FS entries to the Pyodide filesystem, the runtime SHALL create parent directories (via `FS.mkdir()`) before writing files. This enables challenge source structures with subdirectories such as `src/templates/`.
+
+#### Scenario: FS entry with nested path
+
+- **WHEN** an FS entry has path `/templates/login.html`
+- **THEN** the runtime SHALL create directory `/templates` before writing the file
+
+<!-- @trace
+source: browser-cookie-and-redirect
+updated: 2026-04-03
+code:
+  - docs/challenge/door-is-open/src/app.py
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/door-is-open/index.md
+  - docs/challenge/sqli-demo/index.md
+  - docs/challenge/door-is-open/src/flag.txt
+  - docs/challenge/fastapi-demo/index.md
+  - .vitepress/theme/composables/useWxlsh.ts
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/composables/useTrafficLog.ts
+  - .vitepress/theme/components/RepeatPanel.vue
+  - .wxl-creator/config.yaml
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - docs/challenge/php-demo/index.md
 -->

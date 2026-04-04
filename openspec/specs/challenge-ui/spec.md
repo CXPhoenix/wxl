@@ -1,28 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: ChallengeLayout provides three switchable interaction panels
-
-The `ChallengeLayout.vue` component SHALL render four panels accessible via tab navigation: Browser Panel, Repeater Panel, and Network Panel. All panels that issue HTTP requests SHALL share a single `trackedDispatch` wrapper for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
-
-#### Scenario: User switches between panels without losing state
-
-- **WHEN** a user switches from the Browser Panel to the Network Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries)
-
-#### Scenario: All panels target the same challenge origin
-
-- **WHEN** any panel sends an HTTP request
-- **THEN** the request SHALL target `https://challenge-<slug>.localhost` and be intercepted by the Service Worker
-
-#### Scenario: Network tab is available alongside Browser and Repeater
-
-- **WHEN** the challenge page loads
-- **THEN** the tab navigation SHALL display three tabs: Browser, Repeater, and Network
-
-#### Scenario: RepeatPanel receives injected request from Network panel
-
-- **WHEN** the Network panel emits a Send to Repeater event
-- **THEN** ChallengeLayout SHALL set the injected request content on RepeatPanel and switch the active tab to Repeater
+<!-- ChallengeLayout provides requirement moved to canonical location in Requirements section below -->
 
 
 <!-- @trace
@@ -196,28 +174,7 @@ tests:
   - tests/unit/components/WxlshPanel.test.ts
 -->
 
-### Requirement: Browser Panel simulates a web browser address bar and viewport
-
-The Browser Panel SHALL provide: a URL input field pre-populated with `https://challenge-<slug>.localhost/`, a "Go" button, and a response viewport that renders HTML responses in a sandboxed iframe with `sandbox="allow-scripts allow-forms"`.
-
-The Browser Panel SHALL NOT include an HTTP method selector (GET/POST/PUT/DELETE/PATCH). HTTP method selection and request body editing are provided by the Repeater and Terminal panels.
-
-#### Scenario: HTML response is rendered in sandboxed iframe
-
-- **WHEN** the challenge app returns a response with `Content-Type: text/html`
-- **THEN** the Browser Panel SHALL render the HTML in a sandboxed iframe
-
-#### Scenario: Non-HTML response is shown as formatted text
-
-- **WHEN** the challenge app returns `Content-Type: application/json`
-- **THEN** the Browser Panel SHALL display the JSON as syntax-highlighted text, not rendered HTML
-
-#### Scenario: Browser Panel does not include method selector or body editor
-
-- **WHEN** the Browser Panel is rendered
-- **THEN** there SHALL NOT be an HTTP method selector dropdown
-- **AND** there SHALL NOT be a request body editor
-- **AND** the panel SHALL only dispatch GET requests via the URL bar and "Go" button
+<!-- Browser Panel simulates requirement moved to canonical location in Requirements section below -->
 
 
 <!-- @trace
@@ -313,25 +270,7 @@ tests:
   - tests/unit/components/CodeEditorPanel.test.ts
 -->
 
-### Requirement: Terminal Panel accepts curl and HTTPie-style commands
-
-The Terminal Panel SHALL provide a terminal-style input prompt that accepts: `curl <url> [-X method] [-H header] [-d body]` syntax and `http [METHOD] <url> [header:value] [field=value]` (HTTPie) syntax. It SHALL display responses in a terminal-style output area with scrollback history.
-
-#### Scenario: curl GET command sends request and displays response
-
-- **WHEN** a user types `curl http://challenge-sqli.localhost/users` and presses Enter
-- **THEN** the Terminal Panel SHALL send a GET request and display the response headers and body in the output area
-
-#### Scenario: curl POST with data is handled
-
-- **WHEN** a user types `curl -X POST http://challenge-sqli.localhost/login -d "user=admin&pass='"` and presses Enter
-- **THEN** the Terminal Panel SHALL send a POST request with the specified body
-
-#### Scenario: Invalid command shows usage hint
-
-- **WHEN** a user types an unrecognized command
-- **THEN** the Terminal Panel SHALL display an error message with supported command syntax
-
+<!-- Terminal Panel accepts curl and HTTPie-style commands — moved to canonical location below -->
 
 <!-- @trace
 source: web-exploit-challenge-platform
@@ -426,25 +365,7 @@ tests:
   - tests/unit/components/CodeEditorPanel.test.ts
 -->
 
-### Requirement: Repeater Panel provides raw HTTP request editing
-
-The Repeater Panel SHALL provide a text area for editing a raw HTTP/1.1 request (method, path, headers, body). It SHALL provide a "Send" button and display the raw HTTP response (status line, headers, body) in a separate read-only text area. The panel SHALL support saving and loading named request snapshots.
-
-#### Scenario: Raw request is parsed and sent
-
-- **WHEN** a user edits a raw HTTP request in the Repeater Panel and clicks "Send"
-- **THEN** the panel SHALL parse the raw text into method, path, headers, and body, then dispatch via `useChallengeHttp`
-
-#### Scenario: Raw response is displayed
-
-- **WHEN** the response is received
-- **THEN** the Repeater Panel SHALL display the status line, all response headers, and the raw body in the response text area
-
-#### Scenario: Snapshot can be saved and restored
-
-- **WHEN** a user saves a request snapshot with a name
-- **THEN** selecting that snapshot SHALL restore the request text area to the saved content
-
+<!-- Repeater Panel provides raw HTTP request editing — moved to canonical location below -->
 
 <!-- @trace
 source: web-exploit-challenge-platform
@@ -539,20 +460,7 @@ tests:
   - tests/unit/components/CodeEditorPanel.test.ts
 -->
 
-### Requirement: White-box mode displays app source code viewer
-
-When `source_visible: true`, the challenge page SHALL display a read-only source code viewer panel showing the app's source code with syntax highlighting. When `source_visible: false` or omitted, the source viewer SHALL NOT be rendered and no source code SHALL be accessible via the DOM.
-
-#### Scenario: White-box source viewer is shown
-
-- **WHEN** a challenge page loads with `source_visible: true`
-- **THEN** the page SHALL render a syntax-highlighted, read-only code block containing the full app source (Python or PHP)
-
-#### Scenario: Black-box source viewer is absent
-
-- **WHEN** a challenge page loads with `source_visible: false` or the field is omitted
-- **THEN** no source viewer element SHALL exist in the DOM and no readable app source SHALL be accessible via `document.querySelector` or JavaScript
-
+<!-- White-box mode displays app source code viewer — moved to canonical location below -->
 
 <!-- @trace
 source: web-exploit-challenge-platform
@@ -616,20 +524,7 @@ tests:
   - chall-wasm/python-bridge/python-runtime.test.ts
 -->
 
-### Requirement: Challenge page displays flag submission form
-
-The challenge page SHALL include a persistent flag submission form below the interaction panels. The form SHALL have a text input and a submit button. On submission, it SHALL call the flag verification function and display a success or failure indicator.
-
-#### Scenario: Correct flag shows success message
-
-- **WHEN** a user submits the correct flag
-- **THEN** the UI SHALL display a success indicator and the challenge SHALL be marked as solved
-
-#### Scenario: Incorrect flag shows failure message without revealing answer
-
-- **WHEN** a user submits an incorrect flag
-- **THEN** the UI SHALL display a failure indicator with no hint about the correct flag
-
+<!-- Challenge page displays flag submission form — moved to canonical location below -->
 
 <!-- @trace
 source: challenge-ux-and-attack-session
@@ -811,103 +706,114 @@ tests:
 
 ### Requirement: ChallengeLayout provides three switchable interaction panels
 
-The `ChallengeLayout.vue` component SHALL render five panels accessible via tab navigation: Browser Panel, Network Panel, Repeater Panel, Terminal Panel (WxlshPanel), and Code Editor Panel (CodeEditorPanel). All panels that issue HTTP requests SHALL use source-attributed dispatch wrappers for issuing requests. The Network Panel SHALL receive the traffic log populated by `trackedDispatch`.
+The `ChallengeLayout.vue` component SHALL expose a shared challenge workspace with five default tabs in canonical order: Browser, Network, Repeater, Terminal, and Code. If challenge frontmatter defines a `tools` allowlist, the tab bar SHALL render only the listed tools while preserving that canonical order. All request-emitting panels SHALL call source-specific wrappers over a shared `trackedDispatch` pipeline, and the Network panel SHALL render the traffic log recorded by that pipeline.
 
-#### Scenario: User switches between panels without losing state
+#### Scenario: Default challenge shows the full tool set
 
-- **WHEN** a user switches from the Browser Panel to the Terminal Panel and back
-- **THEN** each panel SHALL retain its previous input state (URL, method, request body, response history, traffic entries, terminal history, editor content)
+- **WHEN** challenge frontmatter omits the `tools` field
+- **THEN** the tab bar SHALL display Browser, Network, Repeater, Terminal, and Code
 
-#### Scenario: All panels target the same challenge origin
+#### Scenario: Frontmatter filters visible tabs
 
-- **WHEN** any panel sends an HTTP request
-- **THEN** the request SHALL target `http://challenge-<slug>.localhost` and be intercepted by the Service Worker
+- **WHEN** challenge frontmatter sets `tools: ['browser', 'network', 'repeater']`
+- **THEN** the tab bar SHALL hide Terminal and Code while keeping the remaining tabs in canonical order
 
-#### Scenario: All five tabs are visible in the tab navigation
+#### Scenario: Network panel sends a request to Repeater
 
-- **WHEN** the challenge page loads
-- **THEN** the tab navigation SHALL display five tabs: Browser, Network, Repeater, Terminal, and Code
+- **WHEN** the Network panel emits a Send to Repeater action
+- **THEN** ChallengeLayout SHALL inject the raw request into Repeater and switch the active tab to Repeater
 
-#### Scenario: RepeatPanel receives injected request from Network panel
 
-- **WHEN** the Network panel emits a Send to Repeater event
-- **THEN** ChallengeLayout SHALL set the injected request content on RepeatPanel and switch the active tab to Repeater
+<!-- @trace
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
+-->
 
 ---
 ### Requirement: Browser Panel simulates a web browser address bar and viewport
 
-The Browser Panel SHALL provide: a URL input field pre-populated with `https://challenge-<slug>.localhost/` and a "Go" button. The HTTP method selector SHALL NOT be present. Pressing Enter in the URL field SHALL trigger a GET fetch identical to clicking the "Go" button. The iframe SHALL use `sandbox="allow-scripts allow-forms allow-same-origin"`. Link clicks within the iframe SHALL be intercepted, the URL bar SHALL be updated to the link's href, and a new GET fetch SHALL be dispatched automatically.
+The Browser Panel SHALL provide a URL bar pre-populated with `https://challenge-<slug>.localhost/` and a Go action that issues a GET request through the injected dispatch function. HTML responses SHALL render inside a sandboxed `iframe` using `sandbox="allow-scripts allow-forms"`. The Browser Panel SHALL inject its own interceptor script into HTML responses so that link clicks and form submissions can be relayed to the parent without requiring `allow-same-origin`.
 
-#### Scenario: Enter key in URL bar triggers navigation
+#### Scenario: HTML response renders in a sandboxed iframe
 
-- **WHEN** the user types a URL in the address bar and presses Enter
-- **THEN** the Browser Panel SHALL dispatch a GET request to that URL and render the response
+- **WHEN** the challenge runtime returns `Content-Type: text/html`
+- **THEN** the Browser Panel SHALL render the response in an iframe with `allow-scripts allow-forms` and no `allow-same-origin`
 
-#### Scenario: Link click in iframe triggers in-panel navigation
+#### Scenario: Link navigation stays inside the panel
 
-- **WHEN** the user clicks a link inside the rendered HTML iframe
-- **THEN** the Browser Panel SHALL intercept the click, update the URL bar to the link's href, and dispatch a new GET request without leaving the page
+- **WHEN** a user clicks a link inside the rendered HTML
+- **THEN** the injected interceptor SHALL post the navigation to the parent, the URL bar SHALL update, and the Browser Panel SHALL dispatch a new GET request without leaving the page
 
-#### Scenario: HTML response is rendered in sandboxed iframe
 
-- **WHEN** the challenge app returns a response with `Content-Type: text/html`
-- **THEN** the Browser Panel SHALL render the HTML in the sandboxed iframe
-
-#### Scenario: Non-HTML response is shown as formatted text
-
-- **WHEN** the challenge app returns `Content-Type: application/json`
-- **THEN** the Browser Panel SHALL display the JSON as formatted text, not rendered HTML
+<!-- @trace
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
+-->
 
 ---
 ### Requirement: Browser Panel intercepts HTML form submissions inside the iframe
 
-The Browser Panel SHALL attach a `submit` event listener to the iframe's `contentDocument` (alongside the existing `click` listener for anchor tags). When a form is submitted inside the iframe, the panel SHALL:
-1. Call `preventDefault()` to suppress the native browser form navigation
-2. Resolve the form's `action` attribute (or the current URL if absent) against the challenge base URL `https://challenge-<slug>.localhost/`
-3. Read the form's `method` attribute (defaulting to `GET` if absent)
-4. Serialize the form fields according to the form's `enctype`:
-   - `application/x-www-form-urlencoded` (default): use `URLSearchParams` as the request body with `Content-Type: application/x-www-form-urlencoded`
-   - `multipart/form-data`: use `FormData` as the request body without manually setting `Content-Type` (the browser SHALL generate the boundary automatically)
-   - GET method: append fields as a query string to the resolved URL; no request body
-5. Call `dispatch(new Request(resolvedUrl, { method, headers, body }))` and pass the response to `handleResponse()`
+The Browser Panel SHALL handle form submissions by injecting a postMessage-based interceptor into rendered HTML. The interceptor SHALL prevent native iframe navigation, resolve the form `action` against `https://challenge-<slug>.localhost/`, preserve the declared HTTP method, and serialize fields as query parameters for `GET`, `application/x-www-form-urlencoded` for standard `POST`, or `FormData` for `multipart/form-data`.
 
-#### Scenario: POST form with default enctype is submitted
+#### Scenario: GET form appends fields to the query string
 
-- **WHEN** the user submits an HTML form with `method="POST"` and no explicit `enctype` inside the iframe
-- **THEN** the Browser Panel SHALL call `dispatch()` with a POST request whose `Content-Type` is `application/x-www-form-urlencoded` and whose body contains the serialized form fields
+- **WHEN** a user submits a form with `method="GET"` inside the rendered iframe
+- **THEN** the Browser Panel SHALL dispatch a GET request whose URL contains the serialized form fields and whose body is empty
 
-#### Scenario: POST form with multipart/form-data enctype is submitted
+#### Scenario: Multipart form keeps FormData transport
 
-- **WHEN** the user submits an HTML form with `enctype="multipart/form-data"` inside the iframe
-- **THEN** the Browser Panel SHALL call `dispatch()` with a POST request whose body is a `FormData` object (allowing the browser to set the `Content-Type` boundary automatically)
-
-#### Scenario: GET form appends fields to query string
-
-- **WHEN** the user submits an HTML form with `method="GET"` inside the iframe
-- **THEN** the Browser Panel SHALL resolve the action URL, append all form fields as a query string, and call `dispatch()` with a GET request (no body)
-
-#### Scenario: Form action relative URL resolves to challenge origin
-
-- **WHEN** a form has `action="/login"` and the current challenge slug is `sqli-demo`
-- **THEN** the resolved URL SHALL be `https://challenge-sqli-demo.localhost/login`, not `http://localhost:5173/login`
-
-#### Scenario: Form with no action attribute submits to current URL
-
-- **WHEN** a form has no `action` attribute
-- **THEN** the Browser Panel SHALL use the current value of the URL bar (`url.value`) as the submission target
+- **WHEN** a user submits a form with `method="POST"` and `enctype="multipart/form-data"`
+- **THEN** the Browser Panel SHALL dispatch a POST request whose body is a `FormData` object and SHALL NOT set the multipart boundary header manually
 
 
 <!-- @trace
-source: fix-browser-form-submit
-updated: 2026-03-16
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
 code:
-  - .vitepress/theme/composables/usePythonRuntime.ts
-  - .vitepress/theme/components/BrowserPanel.vue
-  - .vitepress/theme/components/WxlshPanel.vue
-  - .vitepress/theme/components/CodeEditorPanel.vue
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
 tests:
-  - tests/unit/components/BrowserPanel.test.ts
-  - tests/unit/components/CodeEditorPanel.test.ts
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
 -->
 
 ---
@@ -1458,4 +1364,39 @@ tests:
   - tests/challenge-utils.test.ts
   - tests/unit/composables/useWxlsh-tier4.test.ts
   - tests/unit/composables/usePythonRuntime-request.test.ts
+-->
+
+---
+### Requirement: BrowserPanel dispatches HTTP requests to the challenge runtime
+
+The BrowserPanel SHALL call the injected `dispatch` prop directly instead of issuing browser `fetch()` requests that depend on Service Worker interception. The panel SHALL wrap dispatches in `browserFetch()` so that `X-Wxlsh-Cookie` is attached before the request, `X-Wxlsh-Set-Cookie` is harvested after the response, and up to five redirects are followed with the stored cookie jar.
+
+#### Scenario: Browser request succeeds without a Service Worker fetch round-trip
+
+- **WHEN** the user presses Go in the Browser Panel
+- **THEN** the panel SHALL construct a `Request` object and pass it to the injected `dispatch` function directly
+
+#### Scenario: Redirect reuses the cookie jar
+
+- **WHEN** a response returns `302`, `Location: /files`, and `X-Wxlsh-Set-Cookie: session_user=guest; Path=/`
+- **THEN** the BrowserPanel SHALL store the cookie, follow the redirect as a GET request, and include `X-Wxlsh-Cookie: session_user=guest` on the next dispatch
+
+<!-- @trace
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
 -->

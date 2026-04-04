@@ -31,6 +31,49 @@ type ResponseState =
 
 const responseState = ref<ResponseState>({ type: 'idle' })
 
+// ─── Cookie jar ──────────────────────────────────────────────────────────────
+// Simulates browser cookie storage. Intercepts Set-Cookie response headers and
+// injects Cookie request headers — enabling session-based challenges.
+
+const cookieJar = new Map<string, string>()
+
+function extractCookies(res: Response): void {
+  // Set-Cookie is a forbidden response-header name in the Fetch API —
+  // usePythonRuntime transports it via X-Wxlsh-Set-Cookie (newline-separated).
+  const raw = res.headers.get('x-wxlsh-set-cookie')
+  if (!raw) return
+
+  for (const cookie of raw.split('\n')) {
+    const match = cookie.match(/^\s*([^=]+)=([^;]*)/)
+    if (!match) continue
+    const name = match[1].trim()
+    const value = match[2]
+    if (/max-age=0/i.test(cookie) || /expires=\s*Thu,\s*01[- ]Jan[- ]1970/i.test(cookie)) {
+      cookieJar.delete(name)
+    } else {
+      cookieJar.set(name, value)
+    }
+  }
+}
+
+function injectCookies(request: Request): Request {
+  if (cookieJar.size === 0) return request
+  const cookieHeader = [...cookieJar.entries()].map(([k, v]) => `${k}=${v}`).join('; ')
+  const headers = new Headers(request.headers)
+  // Cookie is a forbidden request header in the Fetch API — setting it on a
+  // Request's Headers is silently ignored. Transport via X-Wxlsh-Cookie instead;
+  // useTrafficLog and usePythonRuntime convert it back to a real Cookie header.
+  headers.set('X-Wxlsh-Cookie', cookieHeader)
+  return new Request(request, { headers })
+}
+
+/** Dispatch with automatic cookie injection / extraction. */
+async function browserFetch(request: Request): Promise<Response> {
+  const res = await props.dispatch(injectCookies(request))
+  extractCookies(res)
+  return res
+}
+
 /**
  * Inject a postMessage-based interceptor script into an HTML string.
  * The script captures link clicks and form submissions inside the iframe
@@ -55,15 +98,32 @@ function injectInterceptor(html: string): string {
     for(var i=0;i<els.length;i++){if(els[i].name)fields.push([els[i].name,els[i].value]);}
     parent.postMessage({type:'WXLSH_FORM_SUBMIT',action:form.getAttribute('action')||'',method:(form.getAttribute('method')||'GET').toUpperCase(),enctype:form.getAttribute('enctype')||'application/x-www-form-urlencoded',fields:fields},'*');
   });
-})();<` + `/script>`
+})()<` + `/script>`
 
   const bodyClose = html.lastIndexOf('</body>')
   if (bodyClose !== -1) return html.slice(0, bodyClose) + script + html.slice(bodyClose)
   return html + script
 }
 
-/** Shared response handler — updates responseState and url bar. */
-async function handleResponse(res: Response, resolvedUrl: string) {
+// ─── Redirect + response rendering ───────────────────────────────────────────
+
+const MAX_REDIRECTS = 5
+
+/** Shared response handler — follows redirects, then updates responseState and url bar. */
+async function handleResponse(res: Response, resolvedUrl: string, redirectCount = 0): Promise<void> {
+  // Follow 3xx redirects (redirect as GET, matching browser behavior for 301/302/303)
+  if (res.status >= 300 && res.status < 400 && redirectCount < MAX_REDIRECTS) {
+    const location = res.headers.get('location')
+    if (location) {
+      const base = `https://challenge-${props.slug}.localhost/`
+      const target = new URL(location, base).href
+      url.value = target
+      const req = new Request(target, withContext({ method: 'GET' }, 'navigation'))
+      const redirectRes = await browserFetch(req)
+      return handleResponse(redirectRes, target, redirectCount + 1)
+    }
+  }
+
   url.value = resolvedUrl
   const ct = res.headers.get('content-type') ?? ''
   const text = await res.text()
@@ -81,7 +141,7 @@ async function handleResponse(res: Response, resolvedUrl: string) {
 async function navigate() {
   if (props.disabled) return
   const req = new Request(url.value, withContext({ method: 'GET' }, 'navigation'))
-  const res = await props.dispatch(req)
+  const res = await browserFetch(req)
   await handleResponse(res, url.value)
 }
 
@@ -104,7 +164,7 @@ function handleIframeMessage(event: MessageEvent) {
     const resolved = new URL(href, base).href
     url.value = resolved
     const req = new Request(resolved, withContext({ method: 'GET' }, 'link', referer))
-    props.dispatch(req).then(res => handleResponse(res, resolved))
+    browserFetch(req).then(res => handleResponse(res, resolved))
   } else if (data.type === 'WXLSH_FORM_SUBMIT') {
     const { action, method, enctype, fields } = data as {
       action: string
@@ -119,12 +179,12 @@ function handleIframeMessage(event: MessageEvent) {
       const sep = resolvedUrl.includes('?') ? '&' : '?'
       const target = params.toString() ? `${resolvedUrl}${sep}${params}` : resolvedUrl
       const req = new Request(target, withContext({ method: 'GET' }, 'form-get', referer))
-      props.dispatch(req).then(res => handleResponse(res, target))
+      browserFetch(req).then(res => handleResponse(res, target))
     } else if (enctype === 'multipart/form-data') {
       const body = new FormData()
       for (const [k, v] of fields) body.append(k, v)
       const req = new Request(resolvedUrl, withContext({ method, body }, 'form-post', referer))
-      props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
+      browserFetch(req).then(res => handleResponse(res, resolvedUrl))
     } else {
       const bodyStr = new URLSearchParams(fields).toString()
       const req = new Request(resolvedUrl, withContext({
@@ -132,7 +192,7 @@ function handleIframeMessage(event: MessageEvent) {
         body: bodyStr,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       }, 'form-post', referer))
-      props.dispatch(req).then(res => handleResponse(res, resolvedUrl))
+      browserFetch(req).then(res => handleResponse(res, resolvedUrl))
     }
   }
 }

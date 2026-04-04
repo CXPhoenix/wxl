@@ -48,15 +48,20 @@ export class PhpRuntime {
       postParams = Object.fromEntries(new URLSearchParams(rawBody))
     }
 
+    const cookieHeader = request.headers.get('cookie') ?? request.headers.get('x-wxlsh-cookie') ?? ''
+    const cookieParams = parseCookieHeader(cookieHeader)
+
     const serverSetup = buildServerSetup(method, url)
     const getSetup = buildArraySetup('$_GET', getParams)
     const postSetup = buildArraySetup('$_POST', postParams)
+    const cookieSetup = buildArraySetup('$_COOKIE', cookieParams)
 
     const code = [
       '<?php',
       serverSetup,
       getSetup,
       postSetup,
+      cookieSetup,
       `$GLOBALS['_RAW_INPUT'] = '${escapePhpString(rawBody)}';`,
       '?>',
       this.appCode,
@@ -98,4 +103,24 @@ function buildArraySetup(varName: string, params: Record<string, string>): strin
 
 function escapePhpString(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+
+function parseCookieHeader(header: string): Record<string, string> {
+  const cookies: Record<string, string> = {}
+  if (!header) return cookies
+  for (const pair of header.split(';')) {
+    const trimmed = pair.trim()
+    if (!trimmed) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx === -1) {
+      // name-only cookie with no value
+      cookies[trimmed] = ''
+    } else {
+      const name = trimmed.slice(0, eqIdx).trim()
+      const value = trimmed.slice(eqIdx + 1).trim()
+      // Last-value-wins for duplicate names
+      cookies[name] = value
+    }
+  }
+  return cookies
 }

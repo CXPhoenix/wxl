@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Provides a user-writable virtual filesystem mounted at `/home/hacker/` and backed by IndexedDB, exposing a full CRUD API (writeFile, readFile, deleteFile, mkdir, listDir, exists) for persistent file storage across challenge sessions.
 
 ## Requirements
 

@@ -2,26 +2,21 @@
 
 ### Requirement: Frontmatter schema defines challenge metadata
 
-Each challenge page SHALL declare its configuration via YAML frontmatter in its `.md` file. The frontmatter MUST include: `title`, `backend` (one of `flask`, `fastapi`, `php`), `app` (relative path to app source file), and `fs` (map of virtual paths to local file paths or inline strings). Optional fields: `difficulty`, `category`, `description`, `source_visible` (boolean, default `false`), `packages` (array of strings, default `[]`). The fields `fs_key`, `fsKeyParts`, `encryptedFs`, and `flag_verifier` SHALL NOT be present in frontmatter — these are now embedded in the per-challenge WASM binary. The build pipeline SHALL automatically generate and populate the `wasmModule` field pointing to the per-challenge WASM binary path.
+Each challenge page SHALL declare its configuration via YAML frontmatter in its `.md` file. The required fields SHALL be `title`, `backend` (one of `flask`, `fastapi`, `php`), and `app` (a path relative to the challenge source root). Optional fields SHALL include `difficulty`, `category`, `description`, `source_visible` (default `false`), `packages` (default `[]`), `flag`, `tools`, `commands`, and `wasmModule`. The `fs` field SHALL remain accepted only as a deprecated compatibility field during the `src/` auto-scan migration. The fields `fs_key`, `fsKeyParts`, `encryptedFs`, and `flag_verifier` SHALL NOT appear in frontmatter. The build pipeline SHALL populate `wasmModule` after successful per-challenge payload generation.
 
-#### Scenario: Valid Flask challenge frontmatter is parsed
+#### Scenario: Minimal frontmatter passes validation
 
-- **WHEN** a `.md` file contains frontmatter with `backend: flask`, `app: ./app.py`, `fs: { /flag.txt: ./flag.txt }`, and `title: SQL Injection Demo`
-- **THEN** the VitePress plugin SHALL extract all fields without error and make them available to the challenge page component
+- **WHEN** a challenge page declares `title`, `backend`, and `app`
+- **THEN** the challenge config validator SHALL accept the frontmatter and apply defaults to optional fields
 
-#### Scenario: Valid FastAPI challenge frontmatter with packages is parsed
+#### Scenario: Deprecated fs field emits a compatibility warning
 
-- **WHEN** a `.md` file contains frontmatter with `backend: fastapi`, `packages: ['fastapi', 'anyio']`, and all required fields
-- **THEN** the VitePress plugin SHALL extract `packages` as a string array and include it in the processed challenge data
+- **WHEN** a challenge page still declares the `fs` field
+- **THEN** the validator SHALL accept the frontmatter and emit a warning that `fs` is deprecated in favor of `src/` auto-scan
 
-#### Scenario: Frontmatter containing legacy key fields causes build warning
+#### Scenario: wasmModule is injected by the build pipeline
 
-- **WHEN** a `.md` file's frontmatter contains `fs_key`, `fsKeyParts`, `encryptedFs`, or `flag_verifier`
-- **THEN** the VitePress plugin SHALL emit a build warning indicating these fields are deprecated and ignored
-
-#### Scenario: wasmModule field is auto-populated by build pipeline
-
-- **WHEN** the build pipeline processes a challenge with slug `sqli-demo`
+- **WHEN** the build pipeline processes challenge `sqli-demo`
 - **THEN** the processed challenge data SHALL include `wasmModule: /challenge/sqli-demo/runtime.wasm`
 
 
@@ -57,6 +52,27 @@ tests:
   - tests/unit/challenge/flag-verifier.test.ts
   - tests/unit/challenge/flag-verifier-global.test.ts
   - tests/unit/layouts/ChallengeLayout.test.ts
+-->
+
+
+<!-- @trace
+source: reconcile-shared-runtime-specs
+updated: 2026-04-04
+code:
+  - scripts/challenge-keygen.ts
+  - .vitepress/theme/composables/usePhpRuntime.ts
+  - .agents/skills/spectra-debug/SKILL.md
+  - .agents/skills/spectra-discuss/SKILL.md
+  - .agents/skills/spectra-archive/SKILL.md
+  - .agents/skills/spectra-ingest/SKILL.md
+  - .agents/skills/spectra-apply/SKILL.md
+  - .github/workflows/release.yml
+  - .agents/skills/spectra-audit/SKILL.md
+  - .agents/skills/spectra-propose/SKILL.md
+  - .agents/skills/spectra-ask/SKILL.md
+tests:
+  - tests/unit/composables/usePhpRuntime-cookie.test.ts
+  - tests/unit/scripts/challenge-keygen.test.ts
 -->
 
 ### Requirement: VitePress plugin processes challenge frontmatter at build time

@@ -9,7 +9,7 @@ app: app.py
 description: >
   A simple Flask app with a SQL injection vulnerability. Can you retrieve all users from the database?
 date: "2025-03-01T00:00:00.000Z"
-tags: [sql, injection, flask, sqlite]
+tags: [ sql, injection, flask, sqlite ]
 wasmModule: /challenge/sqli-demo/runtime.wasm
 ---
 

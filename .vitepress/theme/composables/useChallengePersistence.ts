@@ -135,7 +135,10 @@ export function useChallengePersistence() {
 
   async function saveAttackSession(session: AttackSession): Promise<void> {
     const db = await getDb()
-    await db.put('attack-sessions', session)
+    // Strip Vue reactive proxies — structured clone (used by IDB) cannot
+    // handle Proxy objects that wrap trafficLog header arrays.
+    const plain = JSON.parse(JSON.stringify(session)) as AttackSession
+    await db.put('attack-sessions', plain)
   }
 
   async function loadAttackSession(slug: string): Promise<AttackSession | null> {

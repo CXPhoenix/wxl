@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-tools-evolution'. Update Purpose after archive.
+Manages an IndexedDB database (`challenge-tools`) that persists user tool data across page reloads, including saved code scripts, terminal command history, attack sessions, and pentest notes, with versioned schema migrations.
 
 ## Requirements
 

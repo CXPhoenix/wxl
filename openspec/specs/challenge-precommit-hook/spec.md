@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'validate-challenge-precommit'. Update Purpose after archive.
+Enforces challenge integrity at commit time via a git pre-commit hook that automatically validates and analyzes all staged challenge files, blocking commits when required files are missing or validation/analysis checks fail.
 
 ## Requirements
 

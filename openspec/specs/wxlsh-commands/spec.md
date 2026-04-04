@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Defines the five-tier command system for the wxlsh terminal, covering core shell commands, text processing utilities, encoding/hashing tools, network commands (curl/wget), and challenge-author-gated security tools, all with behavior aligned to their real Linux counterparts.
 
 ## Requirements
 

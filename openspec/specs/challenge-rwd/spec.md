@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Defines the three-breakpoint responsive layout for challenge pages, adapting the merged navigation bar, description/tools column arrangement, and flag submission placement across desktop (>=1024px), tablet (768-1023px), and mobile (<768px) viewports.
 
 ## Requirements
 

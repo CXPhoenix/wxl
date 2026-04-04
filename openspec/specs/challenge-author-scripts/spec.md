@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-overhaul'. Update Purpose after archive.
+Provides CLI scripts for challenge authors to validate challenge structure and frontmatter correctness (`challenge:validate`), analyze challenges for common issues (`challenge:analyze`), scaffold new challenges (`create:challenge`), and generate encryption keys (`challenge:keygen`).
 
 ## Requirements
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'documentation-pages'. Update Purpose after archive.
+Defines the platform's user-facing documentation pages, including a Getting Started guide, Python Code Editor guide, Terminal/wxlsh guide, and Network Traffic guide, all rendered as VitePress doc-layout pages with sidebar navigation.
 
 ## Requirements
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'challenge-ux-and-attack-session'. Update Purpose after archive.
+Tracks each challenger's attack session per challenge, recording HTTP requests, terminal commands, code executions, flag attempts, and notes as a persistent event timeline in IndexedDB, with support for session export as JSON for AI-assisted writeup generation.
 
 ## Requirements
 
@@ -446,3 +446,31 @@ tests:
 -->
 
 ---
+### Requirement: Attack sessions are persisted to IndexedDB
+
+The `saveAttackSession` function SHALL deep-clone the session object (removing Vue reactive proxies) before storing it in IndexedDB. This ensures compatibility with the structured clone algorithm used by IndexedDB, which cannot handle Proxy objects.
+
+#### Scenario: Session with reactive proxy headers is saved
+
+- **WHEN** an attack session contains HTTP events whose `requestHeaders` or `responseHeaders` arrays are Vue reactive proxies
+- **THEN** `saveAttackSession` SHALL serialize the session via `JSON.parse(JSON.stringify(session))` before calling `db.put()`, and the operation SHALL succeed without DataCloneError
+
+<!-- @trace
+source: browser-cookie-and-redirect
+updated: 2026-04-03
+code:
+  - docs/challenge/door-is-open/src/app.py
+  - .vitepress/theme/components/BrowserPanel.vue
+  - docs/challenge/door-is-open/index.md
+  - docs/challenge/sqli-demo/index.md
+  - docs/challenge/door-is-open/src/flag.txt
+  - docs/challenge/fastapi-demo/index.md
+  - .vitepress/theme/composables/useWxlsh.ts
+  - .vitepress/theme/composables/usePythonRuntime.ts
+  - .vitepress/theme/composables/useTrafficLog.ts
+  - .vitepress/theme/components/RepeatPanel.vue
+  - .wxl-creator/config.yaml
+  - .vitepress/theme/layouts/ChallengeLayout.vue
+  - .vitepress/theme/composables/useChallengePersistence.ts
+  - docs/challenge/php-demo/index.md
+-->
